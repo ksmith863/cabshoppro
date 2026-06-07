@@ -350,13 +350,25 @@ function Card({children,style={},onClick}) {
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 function Modal({title,children,onClose,wide=false}) {
+  const bp = useBreakpoint();
   // Lock body scroll
   useEffect(()=>{document.body.style.overflow="hidden";return()=>{document.body.style.overflow="";};},[]);
+  const isPhone = bp === "phone";
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.78)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:0}}
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.78)",zIndex:1000,display:"flex",
+        alignItems:isPhone?"flex-end":"center",
+        justifyContent:"center",
+        padding:isPhone?0:"20px",
+        overflowY:"auto"}}
       onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="scalein" style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:wide?760:540,maxHeight:"92vh",overflowY:"auto",padding:"24px 22px 32px"}}>
-        <div style={{width:36,height:4,borderRadius:4,background:"var(--border)",margin:"0 auto 20px"}} />
+      <div className="scalein" style={{background:"var(--surface)",border:"1px solid var(--border)",
+          borderRadius:isPhone?"20px 20px 0 0":"16px",
+          width:"100%",maxWidth:wide?760:540,
+          maxHeight:isPhone?"92vh":"calc(100vh - 40px)",
+          overflowY:"auto",
+          padding:"24px 22px 32px",
+          margin:isPhone?0:"auto"}}>
+        {isPhone && <div style={{width:36,height:4,borderRadius:4,background:"var(--border)",margin:"0 auto 20px"}} />}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
           <div style={{fontSize:17,fontWeight:700}}>{title}</div>
           <button onClick={onClose} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",borderRadius:8,width:34,height:34,fontSize:18}}>×</button>
