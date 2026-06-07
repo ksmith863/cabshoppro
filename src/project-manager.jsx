@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "./supabase.js";
 
 // ─── Breakpoint Hook ──────────────────────────────────────────────────────────
 function useBreakpoint() {
@@ -579,6 +580,12 @@ function DesktopSidebar({active,setActive}) {
         <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginTop:2}}>Your Shop. Managed.</div>
       </div>
       <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} />
+      <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid var(--border)"}}>
+        <button onClick={()=>supabase.auth.signOut()}
+          style={{width:"100%",padding:"10px",borderRadius:10,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:16}}>⇥</span> Sign Out
+        </button>
+      </div>
     </div>
   );
 }
@@ -10136,4 +10143,127 @@ export default function App() {
       </div>
     </>
   );
+}
+
+// ─── Auth Screen ──────────────────────────────────────────────────────────────
+function AuthScreen() {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const handleLogin = async () => {
+    if (!email || !password) { setError("Please enter your email and password."); return; }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
+  const handleSignup = async () => {
+    if (!email || !password) { setError("Please enter your email and password."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) setError(error.message);
+    else setMessage("Account created! Please check your email to confirm your account.");
+    setLoading(false);
+  };
+
+  const handleReset = async () => {
+    if (!email) { setError("Please enter your email address."); return; }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) setError(error.message);
+    else setMessage("Password reset email sent! Check your inbox.");
+    setLoading(false);
+  };
+
+  const inp = {
+    width:"100%", padding:"12px 14px", borderRadius:10,
+    background:"#1a1e28", border:"1px solid #2a3040",
+    color:"#e8ecf4", fontSize:15, outline:"none",
+    fontFamily:"'Syne',sans-serif", marginBottom:12, boxSizing:"border-box",
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0d0f14",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"'Syne',sans-serif"}}>
+      <div style={{width:"100%",maxWidth:420}}>
+        <div style={{textAlign:"center",marginBottom:36}}>
+          <div style={{fontSize:32,fontWeight:800,color:"#4fffb0",letterSpacing:"-0.5px"}}>CabShop Pro</div>
+          <div style={{fontSize:14,color:"#6b7590",marginTop:6}}>Cabinet Shop Management</div>
+        </div>
+        <div style={{background:"#13161e",border:"1px solid #2a3040",borderRadius:16,padding:"28px 24px"}}>
+          {mode!=="reset"&&(
+            <div style={{display:"flex",gap:4,background:"#0d0f14",borderRadius:10,padding:4,marginBottom:24}}>
+              {[["login","Sign In"],["signup","Create Account"]].map(([v,l])=>(
+                <button key={v} onClick={()=>{setMode(v);setError("");setMessage("");}}
+                  style={{flex:1,padding:"9px",borderRadius:8,fontSize:13,fontWeight:700,
+                    background:mode===v?"#4fffb0":"transparent",
+                    color:mode===v?"#000":"#6b7590",
+                    border:"none",cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>{l}</button>
+              ))}
+            </div>
+          )}
+          {mode==="reset"&&(
+            <div style={{marginBottom:20}}>
+              <button onClick={()=>{setMode("login");setError("");setMessage("");}}
+                style={{background:"none",border:"none",color:"#6b7590",cursor:"pointer",fontSize:13,fontFamily:"'Syne',sans-serif",padding:0}}>
+                ← Back to Sign In
+              </button>
+              <div style={{fontWeight:700,fontSize:17,color:"#e8ecf4",marginTop:8}}>Reset Password</div>
+            </div>
+          )}
+          {error&&<div style={{background:"#ff6b6b22",border:"1px solid #ff6b6b44",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#ff6b6b"}}>{error}</div>}
+          {message&&<div style={{background:"#4fffb022",border:"1px solid #4fffb044",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#4fffb0"}}>{message}</div>}
+          <div style={{marginBottom:4,fontSize:11,color:"#6b7590",letterSpacing:"0.07em"}}>EMAIL</div>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" style={inp}
+            onKeyDown={e=>e.key==="Enter"&&(mode==="login"?handleLogin():mode==="signup"?handleSignup():handleReset())} />
+          {mode!=="reset"&&(
+            <>
+              <div style={{marginBottom:4,fontSize:11,color:"#6b7590",letterSpacing:"0.07em"}}>PASSWORD</div>
+              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={inp}
+                onKeyDown={e=>e.key==="Enter"&&(mode==="login"?handleLogin():handleSignup())} />
+            </>
+          )}
+          <button onClick={mode==="login"?handleLogin:mode==="signup"?handleSignup:handleReset} disabled={loading}
+            style={{width:"100%",padding:"13px",borderRadius:10,background:"#4fffb0",border:"none",color:"#000",fontWeight:700,fontSize:15,
+              cursor:loading?"not-allowed":"pointer",fontFamily:"'Syne',sans-serif",opacity:loading?0.7:1,marginTop:4}}>
+            {loading?"Please wait…":mode==="login"?"Sign In":mode==="signup"?"Create Account":"Send Reset Email"}
+          </button>
+          {mode==="login"&&(
+            <div style={{textAlign:"center",marginTop:14}}>
+              <button onClick={()=>{setMode("reset");setError("");setMessage("");}}
+                style={{background:"none",border:"none",color:"#6b7590",cursor:"pointer",fontSize:13,fontFamily:"'Syne',sans-serif"}}>
+                Forgot your password?
+              </button>
+            </div>
+          )}
+        </div>
+        <div style={{textAlign:"center",marginTop:20,fontSize:12,color:"#6b7590"}}>© 2026 CabShop Pro. All rights reserved.</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root with Auth ───────────────────────────────────────────────────────────
+export function Root() {
+  const [session, setSession] = useState(undefined); // undefined = loading
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (session === undefined) return (
+    <div style={{minHeight:"100vh",background:"#0d0f14",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{color:"#4fffb0",fontSize:16,fontFamily:"'Syne',sans-serif"}}>Loading…</div>
+    </div>
+  );
+
+  if (!session) return <AuthScreen />;
+  return <App />;
 }
