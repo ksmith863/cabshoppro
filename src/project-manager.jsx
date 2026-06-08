@@ -19,6 +19,113 @@ function useBreakpoint() {
   return bp;
 }
 
+
+// ─── Subscription Hook ────────────────────────────────────────────────────────
+const PLAN_LEVELS = { trial: 0, solo: 1, pro: 2, team: 3 };
+
+const PRICE_TO_PLAN = {
+  "price_1TfrUxC3U2ovb6PYWFCevHMf": "solo",  // Solo monthly
+  "price_1TfrdpC3U2ovb6PYIvmfTxQ4": "solo",  // Solo annual
+  "price_1TfrZsC3U2ovb6PYXO60G9A0": "pro",   // Pro monthly
+  "price_1TfreRC3U2ovb6PYmeWzC53B": "pro",   // Pro annual
+  "price_1Tfrc4C3U2ovb6PY8fvw0H2n": "team",  // Team monthly
+  "price_1TfrevC3U2ovb6PYy9Gmzx5f": "team",  // Team annual
+};
+
+const PLAN_FEATURES = {
+  trial: ["projects_10","tasks","crm","finance","quotes","items","resources","media","samples","gallery","tools","camera","esignature","ai","multiuser"],
+  solo:  ["projects_10","tasks","crm","finance","quotes","items"],
+  pro:   ["projects_unlimited","tasks","crm","finance","quotes","items","resources","media","samples","gallery","tools","camera","esignature","ai"],
+  team:  ["projects_unlimited","tasks","crm","finance","quotes","items","resources","media","samples","gallery","tools","camera","esignature","ai","multiuser"],
+};
+
+function useSubscription() {
+  const [plan, setPlan] = useState("trial");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkPlan = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setPlan("trial"); setLoading(false); return; }
+
+        // Check Stripe subscription via our admin function
+        const res = await fetch("/.netlify/functions/get-subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.priceId && PRICE_TO_PLAN[data.priceId]) {
+            setPlan(PRICE_TO_PLAN[data.priceId]);
+          } else if (data.status === "trialing" || data.status === "active") {
+            setPlan("pro"); // fallback for active subs without matched price
+          } else {
+            setPlan("trial");
+          }
+        } else {
+          setPlan("trial");
+        }
+      } catch(e) {
+        console.log("Subscription check error:", e.message);
+        setPlan("trial");
+      }
+      setLoading(false);
+    };
+    checkPlan();
+  }, []);
+
+  const hasFeature = (feature) => {
+    const features = PLAN_FEATURES[plan] || PLAN_FEATURES.trial;
+    return features.includes(feature);
+  };
+
+  const canAccessPage = (pageId) => {
+    const PAGE_FEATURES = {
+      resources: "resources", media: "media", samples: "samples",
+      gallery: "gallery", tools: "tools",
+    };
+    const feature = PAGE_FEATURES[pageId];
+    if (!feature) return true;
+    return hasFeature(feature);
+  };
+
+  return { plan, loading, hasFeature, canAccessPage };
+}
+
+// ─── Upgrade Prompt ───────────────────────────────────────────────────────────
+function UpgradePrompt({feature, requiredPlan="pro", onNavigate}) {
+  const planNames = { solo: "Solo", pro: "Pro", team: "Team" };
+  const planPrices = { solo: "$29", pro: "$45", team: "$69" };
+  const planColors = { solo: "var(--accent5)", pro: "var(--accent)", team: "var(--accent2)" };
+
+  return (
+    <div className="fadein" style={{
+      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+      minHeight:300, padding:32, textAlign:"center",
+    }}>
+      <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+      <div style={{fontWeight:800,fontSize:20,marginBottom:8}}>
+        {feature} is a {planNames[requiredPlan]} feature
+      </div>
+      <div style={{fontSize:14,color:"var(--muted)",lineHeight:1.7,marginBottom:24,maxWidth:380}}>
+        Upgrade to {planNames[requiredPlan]} to unlock {feature} and all other {planNames[requiredPlan]} features
+        for just {planPrices[requiredPlan]}/month.
+      </div>
+      <button onClick={()=>onNavigate&&onNavigate("subscription")}
+        style={{padding:"12px 28px",borderRadius:12,background:planColors[requiredPlan],
+          border:"none",color:requiredPlan==="solo"?"#000":"#000",fontWeight:700,fontSize:15,
+          cursor:"pointer",fontFamily:"var(--font)"}}>
+        Upgrade to {planNames[requiredPlan]} →
+      </button>
+      <div style={{fontSize:12,color:"var(--muted)",marginTop:12}}>
+        14-day free trial · Cancel anytime
+      </div>
+    </div>
+  );
+}
+
 // ─── Voice Hook (Web Speech API) ─────────────────────────────────────────────
 function useVoice(onResult) {
   const recRef = useRef(null);
@@ -433,7 +540,7 @@ const NAV = [
   {id:"calendar",  label:"Calendar",  icon:"📅"},
   {id:"finance",   label:"Finance",   icon:"$",   children:[
     {id:"financetracker",label:"Finance Tracker",icon:"$"},
-    {id:"quotes",    label:"Quotes",    icon:"◑"},
+    {id:"quotes",    label:"Quotes",    icon:"◑", badgeKey:"quotes"},
     {id:"itemlib",   label:"Item Lib",  icon:"⊟"},
     {id:"inventory", label:"Inventory", icon:"⊞"},
   ]},
@@ -467,7 +574,7 @@ function BottomNav({active,setActive}) {
 }
 
 // Shared nav renderer — handles flat items and collapsible groups
-function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, adminEmail}) {
+function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, adminEmail, badges={}}) {
   const ADMIN_EMAIL = "kerrysmith863@gmail.com";
   const isChildActive=(n)=>n.children&&n.children.some(c=>c.id===active);
 
@@ -489,7 +596,11 @@ function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, admi
             fontSize:13,fontWeight:selfActive?700:500,cursor:"pointer",
             fontFamily:"var(--font)",transition:"all 0.15s"}}>
           <span style={{fontSize:16}}>{n.icon}</span>
-          {!collapsed&&n.label}
+          {!collapsed&&<>
+            <span style={{flex:1,textAlign:"left"}}>{n.label}</span>
+            {badges[n.id]>0&&<span style={{background:"var(--accent3)",color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 6px",minWidth:18,textAlign:"center"}}>{badges[n.id]}</span>}
+          </>}
+          {collapsed&&badges[n.id]>0&&<span style={{position:"absolute",top:6,right:6,background:"var(--accent3)",color:"#fff",borderRadius:"50%",fontSize:9,fontWeight:700,width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center"}}>{badges[n.id]}</span>}
         </button>
       );
     }
@@ -579,7 +690,7 @@ function TabletSidebar({active,setActive,collapsed,setCollapsed}) {
 }
 
 // Desktop: full sidebar
-function DesktopSidebar({active,setActive,adminEmail}) {
+function DesktopSidebar({active,setActive,adminEmail,plan,badges={}}) {
   const initGroups=()=>{
     const g={};
     NAV.forEach(n=>{if(n.children?.some(c=>c.id===active))g[n.id]=true;});
@@ -598,8 +709,17 @@ function DesktopSidebar({active,setActive,adminEmail}) {
         <div style={{fontSize:17,fontWeight:800,letterSpacing:"-0.02em",whiteSpace:"nowrap"}}><span style={{color:"var(--accent)"}}>◈</span> CabShop Pro</div>
         <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginTop:2}}>Your Shop. Managed.</div>
       </div>
-      <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} adminEmail={adminEmail} />
+      <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} adminEmail={adminEmail} badges={badges} />
       <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+        {/* Plan badge */}
+        {plan&&(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 10px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)"}}>
+            <span style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>Current plan</span>
+            <span style={{fontSize:11,fontWeight:700,color:plan==="pro"?"var(--accent)":plan==="team"?"var(--accent2)":plan==="solo"?"var(--accent5)":"var(--muted)",textTransform:"capitalize",fontFamily:"var(--mono)"}}>
+              {plan==="trial"?"Free Trial":plan.charAt(0).toUpperCase()+plan.slice(1)}
+            </span>
+          </div>
+        )}
         <FeatureRequestButton />
         <button onClick={()=>supabase.auth.signOut()}
           style={{width:"100%",padding:"10px",borderRadius:10,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:8}}>
@@ -1964,11 +2084,19 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                     </button>
 
                     {/* Camera button */}
-                    <button onClick={()=>handlePhotoCapture(s.id)}
-                      title="Take or attach a photo for this stage"
-                      style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--accent2)",borderRadius:6,padding:"4px 9px",fontSize:14,cursor:"pointer",flexShrink:0}}>
-                      📷
-                    </button>
+                    {hasFeature&&hasFeature("camera")?(
+                      <button onClick={()=>handlePhotoCapture(s.id)}
+                        title="Take or attach a photo for this stage"
+                        style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--accent2)",borderRadius:6,padding:"4px 9px",fontSize:14,cursor:"pointer",flexShrink:0}}>
+                        📷
+                      </button>
+                    ):(
+                      <button onClick={()=>alert("Photo capture is a Pro feature. Upgrade to Pro to unlock it.")}
+                        title="Upgrade to Pro to unlock photo capture"
+                        style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",borderRadius:6,padding:"4px 9px",fontSize:14,cursor:"pointer",flexShrink:0,opacity:0.5}}>
+                        🔒
+                      </button>
+                    )}
                   </div>
 
                   {/* Expanded time log */}
@@ -2907,7 +3035,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
 }
 
 
-function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,onOpenQuote,onScheduleEvent,pendingProject,onClearPending,bp}) {
+function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,onOpenQuote,onScheduleEvent,pendingProject,onClearPending,bp,plan,hasFeature}) {
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(null);
@@ -3074,7 +3202,14 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
           <Btn variant="secondary" onClick={()=>setShowGroupReview(v=>!v)}>
             {showGroupReview?"← Projects":"📊 Group Review"}
           </Btn>
-          {!showGroupReview&&<Btn onClick={()=>open()}>+ New Project</Btn>}
+          {!showGroupReview&&<Btn onClick={()=>{
+            const activeCount=projects.filter(p=>p.status==="active").length;
+            if(plan==="solo"&&activeCount>=10){
+              alert("Solo plan is limited to 10 active projects. Archive a project or upgrade to Pro for unlimited projects.");
+              return;
+            }
+            open();
+          }}>+ New Project</Btn>}
         </div>} />
 
       {/* ══ GROUP REVIEW VIEW ══ */}
@@ -7326,7 +7461,7 @@ const statusColor = s => ({
   unpaid:"var(--accent4)", partial:"var(--accent2)", paid:"var(--accent)", void:"var(--muted)"
 })[s]||"var(--muted)";
 
-function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,resources,bp,pendingQuote,onClearPendingQuote}) {
+function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,resources,bp,pendingQuote,onClearPendingQuote,adminSettings}) {
   // ── Views: list | edit | itemLib ──
   const [view,setView]=useState("list"); // "list" | "edit" | "itemLib"
   const [sel,setSel]=useState(null);     // quote being edited/viewed
@@ -7609,31 +7744,48 @@ Est. 2005`
   };
 
   // ── Send for approval (generates unique approval link) ──
-  const sendForApproval=(q)=>{
+  const sendForApproval=async(q)=>{
     const token=btoa(`${q.id}:${Date.now()}:cabshoppro`).replace(/=/g,"");
     const approvalUrl=`${window.location.origin}/?approve=${token}&qid=${q.id}`;
-    // Store token on quote
-    setQuotes(prev=>prev.map(x=>x.id===q.id?{...x,status:"sent",approvalToken:token}:x));
-    setSel(s=>({...s,status:"sent",approvalToken:token}));
+    const expiryDate=new Date(Date.now()+30*24*60*60*1000).toISOString(); // 30 days
+    const updatedQuote={...q,status:"sent",approvalToken:token,approvalExpiry:expiryDate};
+
+    // Store updated quote in Supabase
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("quotes_store").upsert({
+        user_id: user.id,
+        quote_id: String(q.id),
+        data: updatedQuote,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,quote_id" });
+    } catch(e) { console.error("Quote save error:", e); }
+
+    setQuotes(prev=>prev.map(x=>x.id===q.id?updatedQuote:x));
+    setSel(s=>({...s,...updatedQuote}));
+
     // Open email with approval link
     const contact=contacts.find(c=>c.id===q.contactId);
+    const shopName=adminSettings?.companyName||"Gotham Woodworks";
+    const shopEmail=adminSettings?.companyEmail||"";
     const total=quoteTotal(q);
     const body=encodeURIComponent(
 `Dear ${contact?contact.name:""},
 
-Please review and approve your quote from Gotham Woodworks.
+Please review and approve your quote from ${shopName}.
 
 Quote: ${q.number}
 Project: ${q.title}
 Total: ${fmt(total)}
 
-To review and sign off on this quote, please visit the link below:
+To review and sign off on this quote, please click the link below:
 ${approvalUrl}
 
-This link allows you to approve or decline the quote and provide your digital signature.
+This link expires in 30 days. It allows you to review, approve or decline the quote and provide your digital signature.
 
 Best regards,
-Gotham Woodworks`
+${shopName}
+${shopEmail}`
     );
     const subject=encodeURIComponent(`Quote ${q.number} — Please Review & Approve`);
     const to=contact?.email||"";
@@ -10621,6 +10773,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const [page,setPage]=useState(initialPage);
   const [tourActive,setTourActive]=useState(false);
   const [currentUserEmail,setCurrentUserEmail]=useState("");
+  const { plan, hasFeature, canAccessPage } = useSubscription();
 
   const startTour = () => setTourActive(true);
 
@@ -10691,6 +10844,31 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       syncTable('inventory', _setInventory, seedInventory),
     ]).then(() => setDbLoading(false));
   }, []);
+
+  // Sync quotes from quotes_store (for approval status updates)
+  useEffect(() => {
+    const syncQuotes = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from("quotes_store")
+          .select("data")
+          .eq("user_id", user.id);
+        if (data && data.length > 0) {
+          const storedQuotes = data.map(r => r.data);
+          setQuotes(prev => prev.map(q => {
+            const stored = storedQuotes.find(sq => String(sq.id) === String(q.id));
+            return stored ? { ...q, ...stored } : q;
+          }));
+        }
+      } catch(e) { console.error("Quote sync error:", e); }
+    };
+    syncQuotes();
+    // Poll every 30 seconds for approval updates
+    const interval = setInterval(syncQuotes, 30000);
+    return () => clearInterval(interval);
+  }, []);
   const [media,setMedia]=useState(seedMedia);
   const [resources,setResources]=useState(seedResources);
   const [gallery,setGallery]=useState(seedGallery);
@@ -10724,12 +10902,25 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     </div>
   );
 
-  const pageProps={projects,tasks,transactions,contacts,inventory,media,resources,gallery,samples,quotes,quoteItems,bp};
+  const pageProps={projects,tasks,transactions,contacts,inventory,media,resources,gallery,samples,quotes,quoteItems,bp,plan,hasFeature};
   const mainPad = bp==="phone" ? "18px 16px" : "28px 32px";
   const mainPB  = bp==="phone" ? `calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 12px) + 16px)` : "28px";
 
   const renderPage=()=>{
     const p={...pageProps,setProjects,setContacts,setTasks,setTransactions,setInventory,setMedia,setResources,setGallery,setSamples,setQuotes,setQuoteItems};
+
+    // Page-level subscription enforcement
+    const RESTRICTED_PAGES = {
+      documents: { feature:"Resource Library", plan:"pro" },
+      media:     { feature:"Media Library",    plan:"pro" },
+      samples:   { feature:"Samples Library",  plan:"pro" },
+      gallery:   { feature:"Gallery",          plan:"pro" },
+      tools:     { feature:"Tools & Equipment",plan:"pro" },
+    };
+    if (RESTRICTED_PAGES[page] && !canAccessPage(page)) {
+      const r = RESTRICTED_PAGES[page];
+      return <UpgradePrompt feature={r.feature} requiredPlan={r.plan} onNavigate={setPage} />;
+    }
     switch(page){
       case "dashboard":  return <Dashboard  {...p} contacts={contacts} onNavigate={setPage} onOpenProject={openProjectDetail} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onStartTour={startTour}/>;
       case "projects":   return <Projects   {...p} contacts={contacts} setContacts={p.setContacts} tasks={tasks} setTasks={p.setTasks} inventory={inventory} resources={resources} setResources={p.setResources} quotes={quotes} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingProject={pendingProject} onClearPending={()=>setPendingProject(null)}/>;
@@ -10737,7 +10928,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "tasks":      return <Tasks      {...p} onOpenProject={openProjectDetail} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
       case "finance":    return null; // group header — collapses to financetracker
       case "financetracker": return <Finance {...p} quotes={quotes}/>;
-      case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)}/>;
+      case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings}/>;
       case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} bp={bp}/>;
       case "inventory":  return <Inventory  {...p} contacts={contacts} tasks={tasks} setTasks={p.setTasks}/>;
       case "resources":  return null; // group header — collapses to documents
@@ -10758,14 +10949,15 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     <>
       <style>{CSS}</style>
       <div style={{display:"flex",minHeight:"100vh"}}>
-        {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} adminEmail={currentUserEmail} />}
+        {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} adminEmail={currentUserEmail} plan={plan}
+          badges={{quotes: quotes.filter(q=>q.status==="approved"&&!q.seenApproval).length}} />}
         {bp==="tablet"  && <TabletSidebar  active={page} setActive={setPage} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
         <main style={{flex:1,padding:mainPad,paddingBottom:mainPB,overflowY:"auto",maxHeight:"100vh",WebkitOverflowScrolling:"touch"}}>
           {renderPage()}
         </main>
         {bp==="phone" && <BottomNav active={page} setActive={setPage} />}
       </div>
-      <CabShopChatbot />
+      <CabShopChatbot hasFeature={hasFeature} />
       {tourActive&&<ProductTour onClose={()=>setTourActive(false)} setPage={setPage} />}
     </>
   );
@@ -10889,7 +11081,7 @@ function SubscriptionPage({bp}) {
 }
 
 // ─── CabShop AI Chatbot ───────────────────────────────────────────────────────
-function CabShopChatbot() {
+function CabShopChatbot({hasFeature}) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hi! I'm CabShop Assistant. Ask me anything about using CabShop Pro — features, how-tos, or tips for running your shop. How can I help?" }
@@ -11046,6 +11238,14 @@ function CabShopChatbot() {
             </div>
           )}
 
+          {/* Upgrade prompt for non-pro */}
+          {hasFeature && !hasFeature("ai") && (
+            <div style={{padding:"10px 14px",borderTop:"1px solid var(--border)",background:"var(--surface2)"}}>
+              <div style={{fontSize:12,color:"var(--muted)",textAlign:"center",lineHeight:1.6}}>
+                🔒 AI Assistant is a <strong style={{color:"var(--accent)"}}>Pro feature</strong>
+              </div>
+            </div>
+          )}
           {/* Input */}
           <div style={{
             padding: "10px 12px", borderTop: "1px solid var(--border)",
@@ -11056,7 +11256,8 @@ function CabShopChatbot() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="Ask anything about CabShop Pro…"
+              placeholder={hasFeature&&!hasFeature("ai")?"Upgrade to Pro to use AI Assistant…":"Ask anything about CabShop Pro…"}
+              disabled={hasFeature&&!hasFeature("ai")}
               rows={1}
               style={{
                 flex: 1, padding: "9px 12px", borderRadius: 10,
@@ -11573,22 +11774,48 @@ export function Root() {
 // ─── Client Approval Page ─────────────────────────────────────────────────────
 function ClientApprovalPage({qid, token, quotes, setQuotes}) {
   const [quote, setQuote] = useState(null);
-  const [status, setStatus] = useState("loading"); // loading | invalid | pending | signing | approved | declined
+  const [shopName, setShopName] = useState("CabShop Pro");
+  const [shopEmail, setShopEmail] = useState("");
+  const [status, setStatus] = useState("loading");
   const [sigName, setSigName] = useState("");
   const [sigDrawn, setSigDrawn] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+  const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [error, setError] = useState("");
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const lastPos = useRef({x:0,y:0});
 
   useEffect(() => {
-    const q = quotes.find(x => x.id === qid);
-    if (!q || q.approvalToken !== token) { setStatus("invalid"); return; }
-    setQuote(q);
-    if (q.status === "approved") setStatus("approved");
-    else if (q.status === "declined") setStatus("declined");
-    else setStatus("pending");
-  }, [qid, token, quotes]);
+    const loadQuote = async () => {
+      // Try loading from Supabase first (persisted signature/status)
+      let q = null;
+      try {
+        const { data } = await supabase
+          .from("quotes_store")
+          .select("data")
+          .eq("quote_id", String(qid))
+          .single();
+        if (data) q = data.data;
+      } catch(e) {}
+
+      // Fall back to in-memory quotes
+      if (!q) q = quotes.find(x => String(x.id) === String(qid));
+
+      if (!q || q.approvalToken !== token) { setStatus("invalid"); return; }
+
+      // Check expiry
+      if (q.approvalExpiry && new Date(q.approvalExpiry) < new Date()) {
+        setStatus("expired"); return;
+      }
+
+      setQuote(q);
+      if (q.status === "approved") setStatus("approved");
+      else if (q.status === "declined") setStatus("declined");
+      else setStatus("pending");
+    };
+    loadQuote();
+  }, [qid, token]);
 
   // Canvas signature drawing
   const getPos = (e, canvas) => {
@@ -11632,18 +11859,43 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
     setSigDrawn(false);
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!sigName.trim()) { setError("Please enter your full name."); return; }
     if (!sigDrawn) { setError("Please draw your signature above."); return; }
     const canvas = canvasRef.current;
     const sigImage = canvas.toDataURL();
     const sig = { name: sigName.trim(), date: new Date().toISOString().slice(0,10), image: sigImage };
-    setQuotes(prev => prev.map(x => x.id === quote.id ? {...x, status:"approved", signature:sig} : x));
+    const updatedQuote = {...quote, status:"approved", signature:sig};
+
+    // Save to Supabase
+    try {
+      await supabase.from("quotes_store").upsert({
+        quote_id: String(quote.id),
+        user_id: quote.userId || "00000000-0000-0000-0000-000000000000",
+        data: updatedQuote,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,quote_id" });
+    } catch(e) { console.error("Approval save error:", e); }
+
+    setQuotes(prev => prev.map(x => String(x.id) === String(quote.id) ? updatedQuote : x));
     setStatus("approved");
   };
 
-  const handleDecline = () => {
-    setQuotes(prev => prev.map(x => x.id === quote.id ? {...x, status:"declined"} : x));
+  const handleDecline = async () => {
+    if (!declineReason.trim()) { setError("Please provide a reason for declining."); return; }
+    const updatedQuote = {...quote, status:"declined", declineReason: declineReason.trim()};
+
+    // Save to Supabase
+    try {
+      await supabase.from("quotes_store").upsert({
+        quote_id: String(quote.id),
+        user_id: quote.userId || "00000000-0000-0000-0000-000000000000",
+        data: updatedQuote,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,quote_id" });
+    } catch(e) { console.error("Decline save error:", e); }
+
+    setQuotes(prev => prev.map(x => String(x.id) === String(quote.id) ? updatedQuote : x));
     setStatus("declined");
   };
 
@@ -11671,8 +11923,18 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
     <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center",padding:20,...s}}>
       <div style={{textAlign:"center"}}>
         <div style={{fontSize:48,marginBottom:16}}>🔗</div>
-        <div style={{fontWeight:800,fontSize:20,marginBottom:8}}>Invalid or expired link</div>
-        <div style={{color:"#888",fontSize:14}}>This approval link is not valid. Please contact Gotham Woodworks for a new link.</div>
+        <div style={{fontWeight:800,fontSize:20,marginBottom:8}}>Invalid link</div>
+        <div style={{color:"#888",fontSize:14}}>This approval link is not valid. Please contact your shop for a new link.</div>
+      </div>
+    </div>
+  );
+
+  if (status === "expired") return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center",padding:20,...s}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:16}}>⏰</div>
+        <div style={{fontWeight:800,fontSize:20,marginBottom:8}}>This link has expired</div>
+        <div style={{color:"#888",fontSize:14}}>This approval link has expired (links are valid for 30 days). Please contact your shop to request a new one.</div>
       </div>
     </div>
   );
@@ -11700,8 +11962,13 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
         <div style={{fontSize:64,marginBottom:16}}>❌</div>
         <div style={{fontWeight:800,fontSize:24,marginBottom:8,color:"#c0392b"}}>Quote Declined</div>
         <div style={{color:"#666",fontSize:15,lineHeight:1.6}}>
-          You have declined quote <strong>{quote?.number}</strong>. Please contact Gotham Woodworks if you'd like to discuss revisions.
+          You have declined quote <strong>{quote?.number}</strong>. Your shop has been notified and will be in touch to discuss revisions.
         </div>
+        {quote?.declineReason&&(
+          <div style={{background:"#fff",borderRadius:12,padding:"14px 18px",border:"1px solid #e0e0d0",fontSize:13,color:"#888",marginTop:16,textAlign:"left"}}>
+            <strong style={{color:"#1a1a1a"}}>Your reason:</strong> {quote.declineReason}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -11712,7 +11979,7 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
 
       {/* Header */}
       <div style={{background:"#1a1a12",color:"#fff",padding:"16px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{fontWeight:800,fontSize:18}}>◈ Gotham Woodworks</div>
+        <div style={{fontWeight:800,fontSize:18}}>◈ {shopName}</div>
         <div style={{fontSize:13,color:"#aaa"}}>Quote Approval</div>
       </div>
 
@@ -11809,7 +12076,7 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
             <canvas
               ref={canvasRef}
               width={680}
-              height={120}
+              height={150}
               onMouseDown={startDraw}
               onMouseMove={draw}
               onMouseUp={stopDraw}
@@ -11817,10 +12084,10 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
               onTouchStart={startDraw}
               onTouchMove={draw}
               onTouchEnd={stopDraw}
-              style={{width:"100%",height:120,border:"1px solid #ddd",borderRadius:10,background:"#fafaf8",cursor:"crosshair",touchAction:"none",display:"block"}}
+              style={{width:"100%",height:150,border:"2px dashed #ddd",borderRadius:10,background:"#fafaf8",cursor:"crosshair",touchAction:"none",display:"block",WebkitUserSelect:"none",userSelect:"none"}}
             />
             {!sigDrawn&&(
-              <div style={{textAlign:"center",marginTop:-70,pointerEvents:"none",color:"#ccc",fontSize:13}}>Sign here with your mouse or finger</div>
+              <div style={{textAlign:"center",marginTop:-85,pointerEvents:"none",color:"#bbb",fontSize:13,fontStyle:"italic"}}>✍ Sign here with your finger or mouse</div>
             )}
           </div>
 
@@ -11834,11 +12101,29 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
               style={{flex:1,padding:"14px",borderRadius:12,background:"#1a7a40",border:"none",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
               ✓ Approve Quote
             </button>
-            <button onClick={handleDecline}
+            <button onClick={()=>setShowDeclineForm(v=>!v)}
               style={{padding:"14px 20px",borderRadius:12,background:"#fff",border:"1px solid #ddd",color:"#888",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
               Decline
             </button>
           </div>
+
+          {/* Decline form */}
+          {showDeclineForm&&(
+            <div style={{marginTop:16,padding:"16px",background:"#fff5f5",borderRadius:12,border:"1px solid #fcc"}}>
+              <div style={{fontWeight:700,fontSize:14,marginBottom:8,color:"#c0392b"}}>Reason for declining</div>
+              <textarea
+                value={declineReason}
+                onChange={e=>setDeclineReason(e.target.value)}
+                placeholder="Please let us know why you're declining so we can make revisions..."
+                rows={3}
+                style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1px solid #ddd",fontSize:13,outline:"none",fontFamily:"'Syne',sans-serif",boxSizing:"border-box",marginBottom:10,resize:"vertical"}}
+              />
+              <button onClick={handleDecline}
+                style={{width:"100%",padding:"12px",borderRadius:10,background:"#c0392b",border:"none",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+                Confirm Decline
+              </button>
+            </div>
+          )}
 
           <div style={{textAlign:"center",marginTop:14,fontSize:11,color:"#aaa"}}>
             Secure quote approval powered by CabShop Pro
