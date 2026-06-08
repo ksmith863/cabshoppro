@@ -446,6 +446,7 @@ const NAV = [
   {id:"samples",   label:"Samples",   icon:"◉"},
   {id:"admin",     label:"Admin",     icon:"⚙"},
   {id:"subscription", label:"Subscription", icon:"★"},
+  {id:"superadmin",   label:"Super Admin",   icon:"⚡"},
 ];
 
 // Phone: bottom tab bar (scrollable, 5 visible + overflow)
@@ -466,10 +467,11 @@ function BottomNav({active,setActive}) {
 }
 
 // Shared nav renderer — handles flat items and collapsible groups
-function NavItems({active, setActive, collapsed, openGroups, setOpenGroups}) {
+function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, adminEmail}) {
+  const ADMIN_EMAIL = "kerrysmith863@gmail.com";
   const isChildActive=(n)=>n.children&&n.children.some(c=>c.id===active);
 
-  return NAV.map(n=>{
+  return NAV.filter(n => n.id !== "superadmin" || adminEmail === ADMIN_EMAIL).map(n=>{
     const hasChildren=n.children&&n.children.length>0;
     const isOpen=openGroups[n.id];
     const selfActive=active===n.id;
@@ -577,7 +579,7 @@ function TabletSidebar({active,setActive,collapsed,setCollapsed}) {
 }
 
 // Desktop: full sidebar
-function DesktopSidebar({active,setActive}) {
+function DesktopSidebar({active,setActive,adminEmail}) {
   const initGroups=()=>{
     const g={};
     NAV.forEach(n=>{if(n.children?.some(c=>c.id===active))g[n.id]=true;});
@@ -596,7 +598,7 @@ function DesktopSidebar({active,setActive}) {
         <div style={{fontSize:17,fontWeight:800,letterSpacing:"-0.02em",whiteSpace:"nowrap"}}><span style={{color:"var(--accent)"}}>◈</span> CabShop Pro</div>
         <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginTop:2}}>Your Shop. Managed.</div>
       </div>
-      <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} />
+      <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} adminEmail={adminEmail} />
       <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid var(--border)"}}>
         <button onClick={()=>supabase.auth.signOut()}
           style={{width:"100%",padding:"10px",borderRadius:10,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:8}}>
@@ -10617,8 +10619,13 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const bp = useBreakpoint();
   const [page,setPage]=useState(initialPage);
   const [tourActive,setTourActive]=useState(false);
+  const [currentUserEmail,setCurrentUserEmail]=useState("");
 
   const startTour = () => setTourActive(true);
+
+  useEffect(()=>{
+    supabase.auth.getUser().then(({data:{user}})=>{ if(user) setCurrentUserEmail(user.email); });
+  },[]);
 
   useEffect(() => {
     if (startTourOnMount) {
@@ -10740,6 +10747,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "tools":      return <ToolsEquipment tools={tools} setTools={setTools} contacts={contacts} bp={bp}/>;
       case "admin":      return <AdminPage settings={adminSettings} setSettings={setAdminSettings} transactions={transactions} quotes={quotes} chartOfAccounts={chartOfAccounts} setChartOfAccounts={setChartOfAccounts} bp={bp}/>;
       case "subscription": return <SubscriptionPage bp={bp}/>;
+      case "superadmin":   return <SuperAdminPage bp={bp}/>;
       case "samples":    return <SamplesLibrary samples={samples} setSamples={p.setSamples} bp={bp}/>;
       default: return null;
     }
@@ -10749,7 +10757,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     <>
       <style>{CSS}</style>
       <div style={{display:"flex",minHeight:"100vh"}}>
-        {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} />}
+        {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} adminEmail={currentUserEmail} />}
         {bp==="tablet"  && <TabletSidebar  active={page} setActive={setPage} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
         <main style={{flex:1,padding:mainPad,paddingBottom:mainPB,overflowY:"auto",maxHeight:"100vh",WebkitOverflowScrolling:"touch"}}>
           {renderPage()}
@@ -11747,6 +11755,267 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Super Admin Dashboard ────────────────────────────────────────────────────
+function SuperAdminPage({bp}) {
+  const ADMIN_EMAIL = "kerrysmith863@gmail.com";
+  const [users, setUsers] = useState([]);
+  const [revenue, setRevenue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all"); // all | subscribers | free | suspended
+  const [search, setSearch] = useState("");
+  const [actionLoading, setActionLoading] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  const callAdmin = async (action, extra = {}) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const res = await fetch("/.netlify/functions/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, requestingEmail: user?.email, ...extra }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    return data;
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [usersData, revenueData] = await Promise.all([
+        callAdmin("get_users"),
+        callAdmin("get_revenue"),
+      ]);
+      setUsers(usersData.users || []);
+      setRevenue(revenueData);
+    } catch(e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAction = async (action, userId, extra = {}) => {
+    setActionLoading(userId + action);
+    try {
+      await callAdmin(action, { userId, data: extra });
+      await loadData();
+    } catch(e) {
+      alert("Error: " + e.message);
+    }
+    setActionLoading(null);
+    setConfirmAction(null);
+  };
+
+  const filteredUsers = users.filter(u => {
+    const matchSearch = !search || u.email.toLowerCase().includes(search.toLowerCase());
+    const matchFilter =
+      filter === "all" ? true :
+      filter === "subscribers" ? !!u.subscription :
+      filter === "free" ? !u.subscription :
+      filter === "suspended" ? u.banned : true;
+    return matchSearch && matchFilter;
+  });
+
+  const planColor = (plan) => {
+    if (!plan) return "var(--muted)";
+    const p = plan.toLowerCase();
+    if (p.includes("team")) return "var(--accent2)";
+    if (p.includes("pro")) return "var(--accent)";
+    return "var(--accent5)";
+  };
+
+  const planName = (u) => {
+    if (!u.subscription) return "Free";
+    const plan = u.subscription.plan || "";
+    if (plan.includes("team") || plan.includes("Team")) return "Team";
+    if (plan.includes("pro") || plan.includes("Pro")) return "Pro";
+    if (plan.includes("solo") || plan.includes("Solo")) return "Solo";
+    return "Subscriber";
+  };
+
+  const subStatusColor = (status) => {
+    if (!status) return "var(--muted)";
+    if (status === "active") return "var(--accent)";
+    if (status === "past_due") return "var(--accent3)";
+    if (status === "canceled") return "var(--muted)";
+    return "var(--accent4)";
+  };
+
+  const fmt = (n) => n?.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }) || "$0";
+
+  return (
+    <div className="fadein">
+      <PageHeader bp={bp} title="Super Admin" sub="Manage users, subscriptions, and revenue" />
+
+      {error && (
+        <div style={{ background: "var(--accent3)22", border: "1px solid var(--accent3)44", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "var(--accent3)" }}>
+          {error} <button onClick={loadData} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 13, marginLeft: 8 }}>Retry</button>
+        </div>
+      )}
+
+      {/* Revenue summary */}
+      {revenue && (
+        <div style={{ display: "grid", gridTemplateColumns: bp === "phone" ? "1fr 1fr" : "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+          {[
+            { label: "Monthly Recurring Revenue", value: fmt(revenue.mrr), color: "var(--accent)", icon: "◈" },
+            { label: "Active Subscribers", value: revenue.active_subscriptions, color: "var(--accent2)", icon: "◎" },
+            { label: "Revenue (Last 30 Days)", value: fmt(revenue.revenue_30d), color: "var(--accent4)", icon: "$" },
+          ].map(s => (
+            <div key={s.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", letterSpacing: "0.06em", marginBottom: 6 }}>{s.label.toUpperCase()}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filters and search */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by email…"
+          style={{ flex: 1, minWidth: 200, padding: "8px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)" }} />
+        <div style={{ display: "flex", gap: 6 }}>
+          {[["all","All"],["subscribers","Subscribers"],["free","Free"],["suspended","Suspended"]].map(([v,l]) => (
+            <button key={v} onClick={() => setFilter(v)}
+              style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font)", border: "1px solid var(--border)", background: filter === v ? "var(--accent)" : "var(--surface2)", color: filter === v ? "#000" : "var(--muted)", transition: "all 0.15s" }}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <button onClick={loadData} style={{ padding: "7px 14px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)" }}>
+          ↺ Refresh
+        </button>
+      </div>
+
+      {/* Users table */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--muted)", fontSize: 14 }}>Loading users…</div>
+      ) : (
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+          {/* Table header */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 120px 120px", gap: 0, background: "var(--surface2)", padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+            {["User", "Plan", "Status", "Joined", "Actions"].map(h => (
+              <div key={h} style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", letterSpacing: "0.06em", fontWeight: 700 }}>{h.toUpperCase()}</div>
+            ))}
+          </div>
+
+          {filteredUsers.length === 0 ? (
+            <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>No users found</div>
+          ) : (
+            filteredUsers.map((u, i) => (
+              <div key={u.id} style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 120px 120px", gap: 0, padding: "12px 16px", borderBottom: i < filteredUsers.length - 1 ? "1px solid var(--border)44" : "none", alignItems: "center", background: u.banned ? "var(--accent3)08" : "transparent" }}>
+
+                {/* Email */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: u.banned ? "var(--muted)" : "var(--text)" }}>{u.email}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", marginTop: 2 }}>
+                    {u.email_confirmed_at ? "✓ Confirmed" : "⚠ Unconfirmed"}
+                    {u.last_sign_in_at && ` · Last: ${new Date(u.last_sign_in_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                  </div>
+                </div>
+
+                {/* Plan */}
+                <div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: planColor(planName(u)) }}>
+                    {planName(u)}
+                  </span>
+                  {u.subscription?.amount && (
+                    <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)" }}>
+                      ${u.subscription.amount}/{u.subscription.interval}
+                    </div>
+                  )}
+                </div>
+
+                {/* Subscription status */}
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: u.banned ? "var(--accent3)" : subStatusColor(u.subscription?.status) }}>
+                    {u.banned ? "SUSPENDED" : u.subscription?.status?.toUpperCase() || "FREE"}
+                  </span>
+                  {u.subscription?.cancel_at_period_end && (
+                    <div style={{ fontSize: 10, color: "var(--accent3)", fontFamily: "var(--mono)" }}>Cancels soon</div>
+                  )}
+                </div>
+
+                {/* Joined */}
+                <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)" }}>
+                  {new Date(u.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {u.email !== ADMIN_EMAIL && (
+                    <>
+                      {u.banned ? (
+                        <button
+                          onClick={() => setConfirmAction({ action: "unsuspend_user", userId: u.id, email: u.email, label: "Unsuspend" })}
+                          disabled={!!actionLoading}
+                          style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent)22", border: "1px solid var(--accent)44", color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
+                          Unsuspend
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmAction({ action: "suspend_user", userId: u.id, email: u.email, label: "Suspend" })}
+                          disabled={!!actionLoading}
+                          style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent4)22", border: "1px solid var(--accent4)44", color: "var(--accent4)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
+                          Suspend
+                        </button>
+                      )}
+                      {u.subscription?.id && (
+                        <button
+                          onClick={() => setConfirmAction({ action: "cancel_subscription", userId: u.id, email: u.email, subscriptionId: u.subscription.id, label: "Cancel Sub" })}
+                          disabled={!!actionLoading}
+                          style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent3)22", border: "1px solid var(--accent3)44", color: "var(--accent3)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
+                          Cancel Sub
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setConfirmAction({ action: "delete_user", userId: u.id, email: u.email, label: "Delete User" })}
+                        disabled={!!actionLoading}
+                        style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent3)22", border: "1px solid var(--accent3)44", color: "var(--accent3)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
+                        Delete
+                      </button>
+                    </>
+                  )}
+                  {u.email === ADMIN_EMAIL && (
+                    <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 700 }}>★ Admin</span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Confirm dialog */}
+      {confirmAction && (
+        <Modal title={`Confirm: ${confirmAction.label}`} onClose={() => setConfirmAction(null)}>
+          <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 20, lineHeight: 1.6 }}>
+            Are you sure you want to <strong style={{ color: "var(--text)" }}>{confirmAction.label.toLowerCase()}</strong> the account for <strong style={{ color: "var(--accent3)" }}>{confirmAction.email}</strong>?
+            {confirmAction.action === "delete_user" && (
+              <div style={{ marginTop: 10, color: "var(--accent3)", fontSize: 13 }}>⚠ This action cannot be undone. All user data will be permanently deleted.</div>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setConfirmAction(null)}
+              style={{ flex: 1, padding: "10px", borderRadius: 9, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}>
+              Cancel
+            </button>
+            <button
+              onClick={() => handleAction(confirmAction.action, confirmAction.userId, confirmAction.subscriptionId ? { subscriptionId: confirmAction.subscriptionId } : {})}
+              disabled={!!actionLoading}
+              style={{ flex: 1, padding: "10px", borderRadius: 9, background: "var(--accent3)", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)", opacity: actionLoading ? 0.7 : 1 }}>
+              {actionLoading ? "Processing…" : `Yes, ${confirmAction.label}`}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
