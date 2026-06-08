@@ -10072,11 +10072,63 @@ export default function App() {
   const bp = useBreakpoint();
   const [page,setPage]=useState("dashboard");
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
-  const [projects,setProjects]=useState(seedProjects);
-  const [contacts,setContacts]=useState(seedContacts);
-  const [tasks,setTasks]=useState(seedTasks);
-  const [transactions,setTransactions]=useState(seedTransactions);
-  const [inventory,setInventory]=useState(seedInventory);
+  const [dbLoading,setDbLoading]=useState(true);
+
+  // ── Supabase data sync helpers ──
+  const syncTable = async (table, setter, seedData) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase.from(table).select('*').eq('user_id', user.id);
+    if (error) { console.error(table, error); setter(seedData); return; }
+    if (data && data.length > 0) {
+      setter(data.map(row => row.data));
+    } else {
+      // First time user — seed with demo data and save to DB
+      const rows = seedData.map(item => ({ user_id: user.id, data: item }));
+      await supabase.from(table).insert(rows);
+      setter(seedData);
+    }
+  };
+
+  const makeSetter = (table, localSetter) => async (updater) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { localSetter(updater); return; }
+    let newItems;
+    localSetter(prev => {
+      newItems = typeof updater === 'function' ? updater(prev) : updater;
+      return newItems;
+    });
+    setTimeout(async () => {
+      if (!newItems) return;
+      await supabase.from(table).delete().eq('user_id', user.id);
+      if (newItems.length > 0) {
+        const rows = newItems.map(item => ({ user_id: user.id, data: item }));
+        await supabase.from(table).insert(rows);
+      }
+    }, 100);
+  };
+
+  const [projects, _setProjects] = useState([]);
+  const [contacts, _setContacts] = useState([]);
+  const [tasks, _setTasks] = useState([]);
+  const [transactions, _setTransactions] = useState([]);
+  const [inventory, _setInventory] = useState([]);
+
+  const setProjects = makeSetter('projects', _setProjects);
+  const setContacts = makeSetter('contacts', _setContacts);
+  const setTasks = makeSetter('tasks', _setTasks);
+  const setTransactions = makeSetter('transactions', _setTransactions);
+  const setInventory = makeSetter('inventory', _setInventory);
+
+  useEffect(() => {
+    Promise.all([
+      syncTable('projects', _setProjects, seedProjects),
+      syncTable('contacts', _setContacts, seedContacts),
+      syncTable('tasks', _setTasks, seedTasks),
+      syncTable('transactions', _setTransactions, seedTransactions),
+      syncTable('inventory', _setInventory, seedInventory),
+    ]).then(() => setDbLoading(false));
+  }, []);
   const [media,setMedia]=useState(seedMedia);
   const [resources,setResources]=useState(seedResources);
   const [gallery,setGallery]=useState(seedGallery);
@@ -10101,6 +10153,14 @@ export default function App() {
     setPendingProject(proj);
     setPage("projects");
   };
+
+  if (dbLoading) return (
+    <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+      <style>{CSS}</style>
+      <div style={{fontSize:28,color:"var(--accent)"}}>◈</div>
+      <div style={{color:"var(--muted)",fontSize:14,fontFamily:"var(--mono)"}}>Loading your shop data…</div>
+    </div>
+  );
 
   const pageProps={projects,tasks,transactions,contacts,inventory,media,resources,gallery,samples,quotes,quoteItems,bp};
   const mainPad = bp==="phone" ? "18px 16px" : "28px 32px";
