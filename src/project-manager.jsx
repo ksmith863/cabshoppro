@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
+
 // ─── Breakpoint Hook ──────────────────────────────────────────────────────────
 function useBreakpoint() {
   const [bp, setBp] = useState(() => {
@@ -68,6 +69,19 @@ const CSS = `
   .mic-pulse { animation:pulse 0.7s ease infinite; }
   /* Safe area for iPhone notch/home bar */
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 12px); }
+  /* Hide Shepherd.js default arrow — all variants */
+  .shepherd-arrow, .shepherd-arrow:before, .shepherd-arrow:after,
+  .shepherd-element .shepherd-arrow, .shepherd-element .shepherd-arrow:before,
+  .shepherd-has-cancel-icon .shepherd-arrow,
+  [data-popper-arrow], [data-popper-arrow]:before, [data-popper-arrow]:after {
+    display:none !important;
+    visibility:hidden !important;
+    width:0 !important;
+    height:0 !important;
+    opacity:0 !important;
+    border:none !important;
+    background:none !important;
+  }
 `;
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
@@ -464,6 +478,7 @@ function NavItems({active, setActive, collapsed, openGroups, setOpenGroups}) {
     if(!hasChildren){
       return(
         <button key={n.id} onClick={()=>setActive(n.id)} title={n.label}
+          data-tour={`nav-${n.id}`}
           style={{display:"flex",alignItems:"center",gap:10,padding:collapsed?"12px 0":"9px 20px",
             justifyContent:collapsed?"center":"flex-start",width:"100%",
             background:selfActive?"var(--accent)18":"transparent",border:"none",
@@ -512,6 +527,7 @@ function NavItems({active, setActive, collapsed, openGroups, setOpenGroups}) {
         {/* Children — shown when open and not collapsed */}
         {!collapsed&&isOpen&&n.children.map(c=>(
           <button key={c.id} onClick={()=>setActive(c.id)} title={c.label}
+            data-tour={`nav-${c.id}`}
             style={{display:"flex",alignItems:"center",gap:8,
               padding:"7px 20px 7px 36px",width:"100%",
               background:active===c.id?"var(--accent)18":"transparent",border:"none",
@@ -611,7 +627,7 @@ function PageHeader({title,sub,action,bp}) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,onNavigate,onOpenProject,onOpenQuote}) {
+function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,onNavigate,onOpenProject,onOpenQuote,onStartTour}) {
   const totalIncome  = transactions.filter(t=>t.type==="income").reduce((a,b)=>a+b.amount,0);
   const totalExpense = transactions.filter(t=>t.type==="expense").reduce((a,b)=>a+b.amount,0);
 
@@ -629,9 +645,22 @@ function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,on
 
   return (
     <div className="fadein">
-      <div style={{marginBottom:22}}>
-        <div style={{fontSize:bp==="phone"?22:26,fontWeight:800,letterSpacing:"-0.02em"}}>Dashboard ✦</div>
-        <div style={{color:"var(--muted)",marginTop:4,fontSize:13}}>Your Shop. Managed.</div>
+      <div style={{marginBottom:22,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div>
+          <div style={{fontSize:bp==="phone"?22:26,fontWeight:800,letterSpacing:"-0.02em"}}>Dashboard ✦</div>
+          <div style={{color:"var(--muted)",marginTop:4,fontSize:13}}>Your Shop. Managed.</div>
+        </div>
+        {onStartTour&&(
+          <button onClick={onStartTour}
+            style={{padding:"7px 14px",borderRadius:8,background:"var(--surface2)",
+              border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,
+              fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",
+              display:"flex",alignItems:"center",gap:6,flexShrink:0,marginTop:4}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.color="var(--accent)";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";}}>
+            ◎ Take a Tour
+          </button>
+        )}
       </div>
 
       {/* ── Stat tiles ── */}
@@ -1010,26 +1039,54 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
     photoInputRef.current.click();
   };
 
-  const handlePhotoFile=(e)=>{
+  const handlePhotoFile=async(e)=>{
     const file=e.target.files[0];
     if(!file||!photoStageTarget)return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>{
-      const dataUrl=ev.target.result;
+    e.target.value="";
+    const stageId=photoStageTarget;
+    setPhotoStageTarget(null);
+
+    try {
+      // Upload to Supabase Storage
+      const { data: { user } } = await supabase.auth.getUser();
+      const ext = file.name.split(".").pop() || "jpg";
+      const fileName = `${user.id}/${p.id}/${stageId}-${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from("cabshoppro-files")
+        .upload(fileName, file, { contentType: file.type, upsert: false });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("cabshoppro-files")
+        .getPublicUrl(fileName);
+
       const photoEntry={
         id:Date.now(),
-        url:dataUrl,
-        caption:`${PROJECT_STAGES.find(s=>s.id===photoStageTarget)?.label||photoStageTarget} — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
-        stageId:photoStageTarget,
+        url:publicUrl,
+        storagePath:fileName,
+        caption:`${PROJECT_STAGES.find(s=>s.id===stageId)?.label||stageId} — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
+        stageId:stageId,
         date:new Date().toISOString().slice(0,10),
       };
-      // Add to project photos array
       const updated={...p,photos:[...(p.photos||[]),photoEntry]};
       setProjects(prev=>prev.map(proj=>proj.id===p.id?updated:proj));
-    };
-    reader.readAsDataURL(file);
-    e.target.value=""; // reset so same file can be selected again
-    setPhotoStageTarget(null);
+    } catch(err) {
+      console.error("Photo upload error:", err);
+      // Fallback to base64 if upload fails
+      const reader=new FileReader();
+      reader.onload=(ev)=>{
+        const photoEntry={
+          id:Date.now(),
+          url:ev.target.result,
+          stageId:stageId,
+          date:new Date().toISOString().slice(0,10),
+        };
+        setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:[...(proj.photos||[]),photoEntry]}:proj));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Timer controls
@@ -10375,10 +10432,199 @@ function ToolsEquipment({tools,setTools,contacts,bp}) {
   );
 }
 
+
+// ─── Product Tour ─────────────────────────────────────────────────────────────
+function ProductTour({onClose, setPage}) {
+  const [step, setStep] = useState(0);
+  const [targetRect, setTargetRect] = useState(null);
+
+  const steps = [
+    { id:"welcome",    title:"Welcome to CabShop Pro! 👋", text:"Let me show you around the key features in about 2 minutes.", target:null, nav:null },
+    { id:"projects",   title:"📋 Projects", text:"Everything starts here. Create a project for every client job and track it from Design all the way to Installation.", target:'[data-tour="nav-projects"]', nav:"projects" },
+    { id:"crm",        title:"👥 CRM", text:"Store all your clients, partners, and suppliers here. Link contacts directly to projects and quotes.", target:'[data-tour="nav-crm"]', nav:"crm" },
+    { id:"quotes",     title:"📄 Quotes & Invoices", text:"Build professional quotes with line items and markup. Send for digital approval — clients sign right on their phone.", target:'[data-tour="nav-quotes"]', nav:"quotes" },
+    { id:"finance",    title:"💰 Finance Tracker", text:"Track income and expenses by project. See your P&L, pipeline revenue, and outstanding invoices at a glance.", target:'[data-tour="nav-financetracker"]', nav:"financetracker" },
+    { id:"inventory",  title:"📦 Inventory", text:"Track every material and piece of hardware. Get alerts when stock runs low and log usage directly to projects.", target:'[data-tour="nav-inventory"]', nav:"inventory" },
+    { id:"chatbot",    title:"💬 AI Assistant", text:"Stuck on anything? Your AI assistant knows every feature in CabShop Pro. Ask it anything, anytime.", target:'[data-tour="chatbot-btn"]', nav:"dashboard" },
+    { id:"done",       title:"You're all set! 🎉", text:"Start by creating your first project or adding a client in CRM. Good luck with the shop!", target:null, nav:null },
+  ];
+
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
+  const isFirst = step === 0;
+
+  useEffect(() => {
+    if (current.nav) setPage(current.nav);
+    const updateRect = () => {
+      if (!current.target) { setTargetRect(null); return; }
+      setTimeout(() => {
+        const el = document.querySelector(current.target);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          setTargetRect(rect);
+        } else {
+          setTargetRect(null);
+        }
+      }, 350);
+    };
+    updateRect();
+    window.addEventListener("resize", updateRect);
+    return () => window.removeEventListener("resize", updateRect);
+  }, [step]);
+
+  // Calculate tooltip position relative to target
+  const getTooltipStyle = () => {
+    if (!targetRect) return {
+      position:"fixed", top:"50%", left:"50%",
+      transform:"translate(-50%,-50%)", zIndex:10001,
+    };
+    const margin = 16;
+    const tooltipW = 280;
+    const tooltipH = 200;
+    const spaceRight = window.innerWidth - targetRect.right;
+    const spaceLeft = targetRect.left;
+
+    if (spaceRight >= tooltipW + margin) {
+      // Place to the right
+      return {
+        position:"fixed",
+        left: targetRect.right + margin,
+        top: Math.min(targetRect.top, window.innerHeight - tooltipH - margin),
+        zIndex:10001,
+        width: tooltipW,
+      };
+    } else if (spaceLeft >= tooltipW + margin) {
+      // Place to the left
+      return {
+        position:"fixed",
+        left: targetRect.left - tooltipW - margin,
+        top: Math.min(targetRect.top, window.innerHeight - tooltipH - margin),
+        zIndex:10001,
+        width: tooltipW,
+      };
+    } else {
+      // Place below
+      return {
+        position:"fixed",
+        left: Math.max(margin, Math.min(targetRect.left, window.innerWidth - tooltipW - margin)),
+        top: targetRect.bottom + margin,
+        zIndex:10001,
+        width: tooltipW,
+      };
+    }
+  };
+
+  return (
+    <>
+      {/* Dark overlay with cutout for target element */}
+      <div style={{position:"fixed",inset:0,zIndex:10000,pointerEvents:"none"}}>
+        {targetRect ? (
+          <svg style={{position:"absolute",inset:0,width:"100%",height:"100%"}}>
+            <defs>
+              <mask id="tour-mask">
+                <rect width="100%" height="100%" fill="white" />
+                <rect
+                  x={targetRect.left - 6} y={targetRect.top - 6}
+                  width={targetRect.width + 12} height={targetRect.height + 12}
+                  rx="8" fill="black"
+                />
+              </mask>
+            </defs>
+            <rect width="100%" height="100%" fill="rgba(0,0,0,0.65)" mask="url(#tour-mask)" />
+            {/* Highlight border around target */}
+            <rect
+              x={targetRect.left - 6} y={targetRect.top - 6}
+              width={targetRect.width + 12} height={targetRect.height + 12}
+              rx="8" fill="none" stroke="#4fffb0" strokeWidth="2"
+            />
+          </svg>
+        ) : (
+          <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.65)"}} />
+        )}
+      </div>
+
+      {/* Tooltip */}
+      <div className="scalein" key={step} style={{
+        ...getTooltipStyle(),
+        background:"#13161e",
+        border:"1px solid #2a3040",
+        borderRadius:14,
+        padding:"18px 18px 14px",
+        boxShadow:"0 8px 40px rgba(0,0,0,0.7)",
+        fontFamily:"'Syne',sans-serif",
+        pointerEvents:"all",
+      }}>
+        {/* Step indicator */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontSize:11,color:"#4fffb0",fontFamily:"monospace",letterSpacing:"0.06em"}}>
+            STEP {step + 1} OF {steps.length}
+          </div>
+          <button onClick={onClose}
+            style={{background:"none",border:"none",color:"#6b7590",fontSize:18,cursor:"pointer",lineHeight:1,padding:0}}>
+            ×
+          </button>
+        </div>
+
+        <div style={{fontWeight:700,fontSize:14,color:"#e8ecf4",marginBottom:8}}>{current.title}</div>
+        <div style={{fontSize:13,color:"#8b93a8",lineHeight:1.6,marginBottom:16}}>{current.text}</div>
+
+        {/* Progress dots */}
+        <div style={{display:"flex",gap:4,marginBottom:14}}>
+          {steps.map((_,i)=>(
+            <div key={i} style={{
+              height:3, flex: i===step?2:1,
+              borderRadius:3,
+              background: i===step?"#4fffb0" : i<step?"#4fffb044":"#1a1e28",
+              transition:"all 0.3s",
+            }} />
+          ))}
+        </div>
+
+        {/* Buttons */}
+        <div style={{display:"flex",gap:8}}>
+          {!isFirst&&(
+            <button onClick={()=>setStep(s=>s-1)}
+              style={{padding:"7px 14px",borderRadius:8,background:"#1a1e28",border:"1px solid #2a3040",
+                color:"#6b7590",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+              ← Back
+            </button>
+          )}
+          {isFirst&&(
+            <button onClick={onClose}
+              style={{padding:"7px 14px",borderRadius:8,background:"#1a1e28",border:"1px solid #2a3040",
+                color:"#6b7590",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+              Skip tour
+            </button>
+          )}
+          <button onClick={()=>{ if(isLast) onClose(); else setStep(s=>s+1); }}
+            style={{flex:1,padding:"7px 14px",borderRadius:8,background:"#4fffb0",border:"none",
+              color:"#000",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+            {isLast ? "Start using CabShop Pro →" : "Next →"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function useProductTour(setPage) {
+  const startTour = () => {}; // placeholder — tour is controlled via state in App
+  return { startTour };
+}
+
 // ─── App Root ─────────────────────────────────────────────────────────────────
-export default function App() {
+export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const bp = useBreakpoint();
-  const [page,setPage]=useState("dashboard");
+  const [page,setPage]=useState(initialPage);
+  const [tourActive,setTourActive]=useState(false);
+
+  const startTour = () => setTourActive(true);
+
+  useEffect(() => {
+    if (startTourOnMount) {
+      setTimeout(() => setTourActive(true), 800);
+    }
+  }, []);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [dbLoading,setDbLoading]=useState(true);
 
@@ -10477,7 +10723,7 @@ export default function App() {
   const renderPage=()=>{
     const p={...pageProps,setProjects,setContacts,setTasks,setTransactions,setInventory,setMedia,setResources,setGallery,setSamples,setQuotes,setQuoteItems};
     switch(page){
-      case "dashboard":  return <Dashboard  {...p} contacts={contacts} onNavigate={setPage} onOpenProject={openProjectDetail} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}}/>;
+      case "dashboard":  return <Dashboard  {...p} contacts={contacts} onNavigate={setPage} onOpenProject={openProjectDetail} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onStartTour={startTour}/>;
       case "projects":   return <Projects   {...p} contacts={contacts} setContacts={p.setContacts} tasks={tasks} setTasks={p.setTasks} inventory={inventory} resources={resources} setResources={p.setResources} quotes={quotes} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingProject={pendingProject} onClearPending={()=>setPendingProject(null)}/>;
       case "crm":        return <CRM        {...p} inventory={inventory} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
       case "tasks":      return <Tasks      {...p} onOpenProject={openProjectDetail} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
@@ -10511,6 +10757,7 @@ export default function App() {
         {bp==="phone" && <BottomNav active={page} setActive={setPage} />}
       </div>
       <CabShopChatbot />
+      {tourActive&&<ProductTour onClose={()=>setTourActive(false)} setPage={setPage} />}
     </>
   );
 }
@@ -10695,6 +10942,7 @@ function CabShopChatbot() {
           transition: "all 0.2s", color: open ? "var(--muted)" : "#000",
         }}
         title={open ? "Minimize chat" : "CabShop AI Assistant"}
+        data-tour="chatbot-btn"
       >
         {open ? "−" : "💬"}
       </button>
@@ -10918,6 +11166,167 @@ Provide:
 }
 
 
+// ─── Onboarding / Success Screen ─────────────────────────────────────────────
+function OnboardingScreen({onComplete, setPage}) {
+  const [step, setStep] = useState(0);
+
+  const steps = [
+    {
+      icon: "◈",
+      title: "Welcome to CabShop Pro!",
+      message: `Hey, I'm Kerry — I built CabShop Pro because I needed it myself.
+
+After years of juggling spreadsheets, sticky notes, and three different apps just to run one cabinet job, I decided to build something better. Something built specifically for how a cabinet shop actually works.
+
+I'm glad you're here. Let me show you around.`,
+      action: "Show me around →",
+    },
+    {
+      icon: "📋",
+      title: "Projects — Your Command Center",
+      message: `Every job lives in Projects. Create a project for each client job and track it through every stage — from Design all the way to Installation.
+
+Each stage has its own time log, photo capture, and task list. You'll always know exactly where every job stands.
+
+Tip: Use the color picker to color-code your projects by client or job type.`,
+      action: "Got it →",
+    },
+    {
+      icon: "💬",
+      title: "Quotes & Invoices",
+      message: `Build professional quotes with line items, markup, and tax — then send them to clients for digital approval with a single click.
+
+Clients get a clean approval page where they can review, sign, and approve — no printing, no scanning, no back and forth.
+
+Once approved, convert to an invoice in one click.`,
+      action: "Got it →",
+    },
+    {
+      icon: "📦",
+      title: "Inventory & Finance",
+      message: `Track every sheet of plywood, every pull, every piece of hardware. CabShop Pro alerts you when stock runs low and lets you log material usage directly to projects.
+
+The Finance Tracker ties everything together — see your P&L, pipeline revenue, and job cost vs estimate in real time.`,
+      action: "Got it →",
+    },
+    {
+      icon: "💬",
+      title: "Your AI Assistant",
+      message: `See that chat button in the bottom right corner? That's your CabShop Assistant — powered by AI and trained specifically on CabShop Pro.
+
+Ask it anything. How to log time, how to convert a quote, how to set up inventory reordering — it knows the whole app inside and out.
+
+It's like having a teammate available 24/7.`,
+      action: "Got it →",
+    },
+    {
+      icon: "🚀",
+      title: "You're All Set!",
+      message: `That's the quick tour. Here's my suggestion for getting started:
+
+1. Set up your shop info under Admin
+2. Add your first client in CRM
+3. Create your first project
+4. Build a quote and send it for approval
+
+If you ever get stuck, the AI Assistant is always there. And you can always reach me directly at support@cabshoppro.com.
+
+Let's build something great.
+— Kerry`,
+      action: "Start using CabShop Pro →",
+      isFinal: true,
+    },
+  ];
+
+  const current = steps[step];
+  const progress = ((step) / (steps.length - 1)) * 100;
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0d0f14",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 20, fontFamily: "'Syne', sans-serif",
+    }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap');`}</style>
+      <div style={{ width: "100%", maxWidth: 520 }}>
+
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#4fffb0" }}>◈ CabShop Pro</div>
+          <div style={{ fontSize: 13, color: "#6b7590", marginTop: 4 }}>by Gotham Woodworks</div>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ height: 3, background: "#1a1e28", borderRadius: 3, marginBottom: 32, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", width: `${progress}%`,
+            background: "#4fffb0", borderRadius: 3,
+            transition: "width 0.4s ease",
+          }} />
+        </div>
+
+        {/* Card */}
+        <div className="scalein" key={step} style={{
+          background: "#13161e", border: "1px solid #2a3040",
+          borderRadius: 20, padding: "32px 28px",
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16, textAlign: "center" }}>{current.icon}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 16, color: "#e8ecf4", textAlign: "center" }}>
+            {current.title}
+          </div>
+          <div style={{
+            fontSize: 14, color: "#8b93a8", lineHeight: 1.8,
+            whiteSpace: "pre-wrap", marginBottom: 28,
+          }}>
+            {current.message}
+          </div>
+
+          <button
+            onClick={() => {
+              if (current.isFinal) {
+                onComplete();
+                setPage("dashboard");
+              } else {
+                setStep(s => s + 1);
+              }
+            }}
+            style={{
+              width: "100%", padding: "14px",
+              borderRadius: 12, background: "#4fffb0",
+              border: "none", color: "#000",
+              fontWeight: 700, fontSize: 15,
+              cursor: "pointer", fontFamily: "'Syne', sans-serif",
+            }}>
+            {current.action}
+          </button>
+
+          {/* Skip link */}
+          {!current.isFinal && (
+            <div style={{ textAlign: "center", marginTop: 14 }}>
+              <button onClick={() => { onComplete(); setPage("dashboard"); }}
+                style={{ background: "none", border: "none", color: "#6b7590", fontSize: 12, cursor: "pointer", fontFamily: "'Syne', sans-serif" }}>
+                Skip tour, take me to the app
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Step dots */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
+          {steps.map((_, i) => (
+            <div key={i} style={{
+              width: i === step ? 20 : 8, height: 8,
+              borderRadius: 4, background: i === step ? "#4fffb0" : i < step ? "#4fffb066" : "#1a1e28",
+              transition: "all 0.3s",
+            }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── Auth Screen ──────────────────────────────────────────────────────────────
 function AuthScreen() {
   const [mode, setMode] = useState("login");
@@ -11026,10 +11435,13 @@ export function Root() {
   const [session, setSession] = useState(undefined);
   const [approvalQuotes, setApprovalQuotes] = useState(seedQuotes);
 
-  // Check for approval link in URL
+  // Check for approval link or success redirect in URL
   const params = new URLSearchParams(window.location.search);
   const approveToken = params.get("approve");
   const approveQid = params.get("qid");
+  const isSuccess = params.get("success") === "1";
+  const [showOnboarding, setShowOnboarding] = useState(isSuccess);
+  const [onboardingPage, setOnboardingPage] = useState("dashboard");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -11056,7 +11468,8 @@ export function Root() {
   );
 
   if (!session) return <AuthScreen />;
-  return <App />;
+  if (session && showOnboarding) return <OnboardingScreen onComplete={()=>{ setShowOnboarding(false); window.history.replaceState({}, "", "/"); }} setPage={setOnboardingPage} />;
+  return <App initialPage={onboardingPage} startTourOnMount={isSuccess&&!showOnboarding} />;
 }
 
 // ─── Client Approval Page ─────────────────────────────────────────────────────
