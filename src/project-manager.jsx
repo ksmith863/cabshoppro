@@ -998,6 +998,64 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
   const [activeTab,setActiveTab]=useState("financials"); // "financials" | "stages" | "tasks" | "documents" | "notes"
   const [timeModal,setTimeModal]=useState(null);
   const [timeForm,setTimeForm]=useState({minutes:"",date:new Date().toISOString().slice(0,10),note:""});
+  const [timerRunning,setTimerRunning]=useState(false);
+  const photoInputRef=useRef(null);
+  const [photoStageTarget,setPhotoStageTarget]=useState(null);
+  const [timerSeconds,setTimerSeconds]=useState(0);
+  const timerRef=useRef(null);
+
+  // Photo capture handler
+  const handlePhotoCapture=(stageId)=>{
+    setPhotoStageTarget(stageId);
+    photoInputRef.current.click();
+  };
+
+  const handlePhotoFile=(e)=>{
+    const file=e.target.files[0];
+    if(!file||!photoStageTarget)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const dataUrl=ev.target.result;
+      const photoEntry={
+        id:Date.now(),
+        url:dataUrl,
+        caption:`${PROJECT_STAGES.find(s=>s.id===photoStageTarget)?.label||photoStageTarget} — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
+        stageId:photoStageTarget,
+        date:new Date().toISOString().slice(0,10),
+      };
+      // Add to project photos array
+      const updated={...p,photos:[...(p.photos||[]),photoEntry]};
+      setProjects(prev=>prev.map(proj=>proj.id===p.id?updated:proj));
+    };
+    reader.readAsDataURL(file);
+    e.target.value=""; // reset so same file can be selected again
+    setPhotoStageTarget(null);
+  };
+
+  // Timer controls
+  const startTimer=()=>{
+    setTimerRunning(true);
+    timerRef.current=setInterval(()=>setTimerSeconds(s=>s+1),1000);
+  };
+  const stopTimer=()=>{
+    setTimerRunning(false);
+    clearInterval(timerRef.current);
+    const mins=Math.ceil(timerSeconds/60);
+    if(mins>0)setTimeForm(f=>({...f,minutes:String(mins)}));
+  };
+  const resetTimer=()=>{
+    setTimerRunning(false);
+    clearInterval(timerRef.current);
+    setTimerSeconds(0);
+    setTimeForm(f=>({...f,minutes:""}));
+  };
+  const fmtTimer=(secs)=>{
+    const h=Math.floor(secs/3600);
+    const m=Math.floor((secs%3600)/60);
+    const s=secs%60;
+    if(h>0)return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  };
   const [expandedStage,setExpandedStage]=useState(null);
   const [addDocModal,setAddDocModal]=useState(false);
   const [newDocForm,setNewDocForm]=useState({name:"",category:"Client Specs",type:"document",url:"",desc:"",version:"",addedDate:new Date().toISOString().slice(0,10),tags:""});
@@ -1360,6 +1418,129 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
             </div>
           </div>
 
+          {/* ── Job Cost vs Estimate ── */}
+          {(()=>{
+            const projQuotes=(quotes||[]).filter(q=>String(q.projectId)===String(p.id)&&!q.isInvoice);
+            const approvedQuote=projQuotes.find(q=>q.status==="approved")||projQuotes[0];
+            const lineExtPrice=(l)=>{
+              const base=l.qty*(l.costPer||0);
+              if(l.profitMargin>0&&l.profitMargin<100)return base/(1-l.profitMargin/100);
+              if(l.markupFlat>0)return base+l.markupFlat;
+              if(l.markupPct>0)return base*(1+l.markupPct/100);
+              return base;
+            };
+            const quotedRevenue=approvedQuote
+              ?(approvedQuote.lines||[]).reduce((s,l)=>s+lineExtPrice(l),0)*(1+(approvedQuote.taxRate||0)/100)
+              :p.budget||0;
+            const quotedLabel=approvedQuote?"Approved Quote":"Budget";
+
+            // Estimated costs — use budget as a proxy split if no quote line breakdown
+            // We use actual costs vs quoted revenue
+            const actualRevenue=income;
+            const actualCost=totalCost;
+            const estimatedCost=quotedRevenue*(1-0.30); // assume 30% margin target if no detailed estimate
+            const budgetVariance=actualRevenue-quotedRevenue;
+            const costVariance=actualCost-estimatedCost;
+
+            const rows=[
+              {label:"Revenue",estimated:quotedRevenue,actual:actualRevenue,higherIsBetter:true},
+              {label:"Total Costs",estimated:estimatedCost,actual:actualCost,higherIsBetter:false},
+              {label:"Gross Profit",estimated:quotedRevenue-estimatedCost,actual:grossProfit,higherIsBetter:true},
+            ];
+
+            const statusIcon=(est,act,higherIsBetter)=>{
+              if(act===0&&est===0)return"—";
+              const better=higherIsBetter?(act>=est):(act<=est);
+              const pctOff=est!==0?Math.abs((act-est)/est*100):0;
+              if(pctOff<5)return"✅";
+              return better?"✅":"⚠️";
+            };
+
+            const varColor=(est,act,higherIsBetter)=>{
+              if(act===0&&est===0)return"var(--muted)";
+              const better=higherIsBetter?(act>=est):(act<=est);
+              return better?"var(--accent)":"var(--accent3)";
+            };
+
+            return(
+              <div style={{background:"var(--surface2)",borderRadius:12,padding:"16px 18px",marginBottom:16,border:"1px solid var(--accent2)33"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                  <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em"}}>JOB COST vs. ESTIMATE</div>
+                  {approvedQuote&&(
+                    <button onClick={()=>onOpenQuote&&onOpenQuote(approvedQuote)}
+                      style={{fontSize:11,color:"var(--accent2)",background:"none",border:"none",cursor:"pointer",fontFamily:"var(--mono)",padding:0}}>
+                      View Quote ↗
+                    </button>
+                  )}
+                </div>
+
+                {/* Column headers */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 100px 100px 36px",gap:8,marginBottom:8}}>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.05em"}}></div>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.05em",textAlign:"right"}}>{quotedLabel.toUpperCase()}</div>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.05em",textAlign:"right"}}>ACTUAL</div>
+                  <div></div>
+                </div>
+
+                {/* Data rows */}
+                {rows.map(({label,estimated,actual,higherIsBetter})=>{
+                  const variance=actual-estimated;
+                  const pct=estimated!==0?Math.round(Math.abs(variance/estimated)*100):0;
+                  const col=varColor(estimated,actual,higherIsBetter);
+                  const icon=statusIcon(estimated,actual,higherIsBetter);
+                  return(
+                    <div key={label} style={{display:"grid",gridTemplateColumns:"1fr 100px 100px 36px",gap:8,alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)22"}}>
+                      <div style={{fontSize:13,fontWeight:600}}>{label}</div>
+                      <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--muted)",textAlign:"right"}}>{fmt(estimated)}</div>
+                      <div style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:col,textAlign:"right"}}>{fmt(actual)}</div>
+                      <div style={{fontSize:16,textAlign:"center"}}>{icon}</div>
+                    </div>
+                  );
+                })}
+
+                {/* Variance summary */}
+                <div style={{marginTop:12,padding:"10px 12px",background:"var(--surface3)",borderRadius:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12,color:"var(--muted)"}}>Revenue vs {quotedLabel}</span>
+                    <span style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:budgetVariance>=0?"var(--accent)":"var(--accent3)"}}>
+                      {budgetVariance>=0?"+":""}{fmt(budgetVariance)}
+                    </span>
+                  </div>
+                  {actualRevenue===0&&(
+                    <div style={{fontSize:11,color:"var(--muted)",marginTop:6,lineHeight:1.5}}>
+                      No revenue recorded yet. Add income transactions to see actuals.
+                    </div>
+                  )}
+                  {actualRevenue>0&&quotedRevenue>0&&(
+                    <div style={{marginTop:8}}>
+                      <div style={{height:4,background:"var(--surface2)",borderRadius:3,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${Math.min(100,Math.round(actualRevenue/quotedRevenue*100))}%`,
+                          background:actualRevenue>=quotedRevenue?"var(--accent)":"var(--accent4)",
+                          borderRadius:3,transition:"width 0.6s ease"}} />
+                      </div>
+                      <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginTop:4}}>
+                        {Math.round(actualRevenue/quotedRevenue*100)}% of {quotedLabel.toLowerCase()} collected
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <AiCostAnalysis
+                  quotedRevenue={quotedRevenue}
+                  actualRevenue={actualRevenue}
+                  actualCost={actualCost}
+                  estimatedCost={estimatedCost}
+                  grossProfit={grossProfit}
+                  quotedLabel={quotedLabel}
+                  onSaveToNotes={(text)=>{
+                    const note={id:Date.now(),text:"AI Cost Analysis — "+new Date().toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"})+"\n\n"+text,createdAt:new Date().toISOString()};
+                    setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,notes:[...(proj.notes||[]),note]}:proj));
+                    setActiveTab("notes");
+                  }}
+                />
+              </div>
+            );
+          })()}
+
           {/* ── Materials Section ── */}
           <div style={{marginBottom:18}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1721,6 +1902,13 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                       style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--accent5)",borderRadius:6,padding:"4px 9px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,fontFamily:"var(--mono)"}}>
                       + Time
                     </button>
+
+                    {/* Camera button */}
+                    <button onClick={()=>handlePhotoCapture(s.id)}
+                      title="Take or attach a photo for this stage"
+                      style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--accent2)",borderRadius:6,padding:"4px 9px",fontSize:14,cursor:"pointer",flexShrink:0}}>
+                      📷
+                    </button>
                   </div>
 
                   {/* Expanded time log */}
@@ -1736,6 +1924,32 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                       ))}
                     </div>
                   )}
+
+                  {/* Stage photos */}
+                  {(()=>{
+                    const stagePhotos=(p.photos||[]).filter(ph=>ph.stageId===s.id);
+                    if(!stagePhotos.length)return null;
+                    return(
+                      <div style={{padding:"10px 14px",borderTop:"1px solid var(--border)22"}}>
+                        <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em",marginBottom:8}}>PHOTOS ({stagePhotos.length})</div>
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                          {stagePhotos.map(ph=>(
+                            <div key={ph.id} style={{position:"relative",flexShrink:0}}>
+                              <img src={ph.url} alt={ph.caption}
+                                style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer"}}
+                                onClick={()=>window.open(ph.url,"_blank")} />
+                              <button
+                                onClick={()=>setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:(proj.photos||[]).filter(x=>x.id!==ph.id)}:proj))}
+                                style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",background:"var(--accent3)",border:"none",color:"#fff",fontSize:11,fontWeight:900,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
+                                ×
+                              </button>
+                              <div style={{fontSize:9,color:"var(--muted)",marginTop:3,textAlign:"center",maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ph.date}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -2529,6 +2743,16 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
         </div>
       </div>
 
+      {/* Hidden file input for camera/photo capture */}
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handlePhotoFile}
+        style={{display:"none"}}
+      />
+
       {/* ── Log Time modal ── */}
       {timeModal&&(()=>{
         const stage=PROJECT_STAGES.find(s=>s.id===timeModal);
@@ -2542,8 +2766,40 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                   <div style={{fontWeight:700,fontSize:16}}>{stage?.icon} {stage?.label}</div>
                   {existingMins>0&&<div style={{fontSize:12,color:"var(--accent4)",fontFamily:"var(--mono)",marginTop:2}}>Already logged: {fmtMins(existingMins)}</div>}
                 </div>
-                <button onClick={()=>setTimeModal(null)} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",borderRadius:8,width:32,height:32,fontSize:18,cursor:"pointer"}}>×</button>
+                <button onClick={()=>{setTimeModal(null);resetTimer();}} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",borderRadius:8,width:32,height:32,fontSize:18,cursor:"pointer"}}>×</button>
               </div>
+              {/* ── Live Timer ── */}
+              <div style={{background:"var(--surface2)",borderRadius:12,padding:"16px",marginBottom:14,textAlign:"center"}}>
+                <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em",marginBottom:8}}>LIVE TIMER</div>
+                <div style={{fontSize:42,fontWeight:800,fontFamily:"var(--mono)",color:timerRunning?p.color:"var(--text)",marginBottom:12,letterSpacing:"0.05em",transition:"color 0.3s"}}>
+                  {fmtTimer(timerSeconds)}
+                </div>
+                <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+                  {!timerRunning?(
+                    <button onClick={startTimer}
+                      style={{padding:"8px 20px",borderRadius:8,background:p.color,border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:6}}>
+                      ▶ {timerSeconds>0?"Resume":"Start"}
+                    </button>
+                  ):(
+                    <button onClick={stopTimer}
+                      style={{padding:"8px 20px",borderRadius:8,background:"var(--accent3)",border:"none",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:6}}>
+                      ■ Stop
+                    </button>
+                  )}
+                  {timerSeconds>0&&!timerRunning&&(
+                    <button onClick={resetTimer}
+                      style={{padding:"8px 14px",borderRadius:8,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>
+                      Reset
+                    </button>
+                  )}
+                </div>
+                {timerSeconds>0&&!timerRunning&&(
+                  <div style={{fontSize:11,color:"var(--accent)",fontFamily:"var(--mono)",marginTop:8}}>
+                    ✓ {fmtMins(Math.ceil(timerSeconds/60))} filled into minutes below
+                  </div>
+                )}
+              </div>
+
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
                 <div>
                   <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:5,letterSpacing:"0.06em"}}>MINUTES</div>
@@ -2579,7 +2835,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                 </div>
               )}
               <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-                <button onClick={()=>setTimeModal(null)} style={{padding:"9px 18px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>Cancel</button>
+                <button onClick={()=>{setTimeModal(null);resetTimer();}} style={{padding:"9px 18px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>Cancel</button>
                 <button onClick={logTime} style={{padding:"9px 18px",borderRadius:8,background:p.color,border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>Log Time</button>
               </div>
             </div>
@@ -7292,6 +7548,38 @@ Est. 2005`
     window.open(`mailto:${to}?subject=${subject}&body=${body}`);
   };
 
+  // ── Send for approval (generates unique approval link) ──
+  const sendForApproval=(q)=>{
+    const token=btoa(`${q.id}:${Date.now()}:cabshoppro`).replace(/=/g,"");
+    const approvalUrl=`${window.location.origin}/?approve=${token}&qid=${q.id}`;
+    // Store token on quote
+    setQuotes(prev=>prev.map(x=>x.id===q.id?{...x,status:"sent",approvalToken:token}:x));
+    setSel(s=>({...s,status:"sent",approvalToken:token}));
+    // Open email with approval link
+    const contact=contacts.find(c=>c.id===q.contactId);
+    const total=quoteTotal(q);
+    const body=encodeURIComponent(
+`Dear ${contact?contact.name:""},
+
+Please review and approve your quote from Gotham Woodworks.
+
+Quote: ${q.number}
+Project: ${q.title}
+Total: ${fmt(total)}
+
+To review and sign off on this quote, please visit the link below:
+${approvalUrl}
+
+This link allows you to approve or decline the quote and provide your digital signature.
+
+Best regards,
+Gotham Woodworks`
+    );
+    const subject=encodeURIComponent(`Quote ${q.number} — Please Review & Approve`);
+    const to=contact?.email||"";
+    window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+  };
+
   // ── Convert quote to invoice ──
   const convertToInvoice=(q)=>{
     // Derive due date from payment terms
@@ -7995,6 +8283,19 @@ Est. 2005`
               ⇒ Convert to Invoice
             </Btn>
           )}
+          {/* Approval link copy — shown when quote is sent and has a token */}
+          {!isInv&&sel.status==="sent"&&sel.approvalToken&&(
+            <Btn variant="secondary" small onClick={()=>{
+              const url=`${window.location.origin}/?approve=${sel.approvalToken}&qid=${sel.id}`;
+              navigator.clipboard?.writeText(url).then(()=>alert("Approval link copied!")).catch(()=>alert("Approval link:\n"+url));
+            }}>🔗 Copy Link</Btn>
+          )}
+          {/* Signature confirmation badge */}
+          {!isInv&&sel.signature&&(
+            <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:8,background:"var(--accent)18",border:"1px solid var(--accent)44",fontSize:11,color:"var(--accent)",fontFamily:"var(--mono)"}}>
+              ✍ Signed: {sel.signature.name} · {sel.signature.date}
+            </div>
+          )}
           {/* Mark Paid shortcut for invoices */}
           {isInv&&sel.status!=="paid"&&(
             <Btn variant="secondary" small onClick={()=>setSel(s=>({...s,status:"paid",paidDate:new Date().toISOString().slice(0,10)}))}>
@@ -8005,7 +8306,13 @@ Est. 2005`
         <div style={{display:"flex",gap:10}}>
           {isInv
             ?<><Btn variant="secondary" onClick={()=>emailInvoice(sel)}>✉ Send Invoice</Btn><Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ Save as PDF</Btn></>
-            :<><Btn variant="secondary" onClick={()=>emailQuote(sel)}>✉ Send via Email</Btn><Btn variant="secondary" onClick={()=>printQuote(sel)}>⎙ Save as PDF</Btn></>
+            :<>
+              <Btn variant="secondary" onClick={()=>emailQuote(sel)}>✉ Send via Email</Btn>
+              <Btn variant="secondary" onClick={()=>printQuote(sel)}>⎙ Save as PDF</Btn>
+              {sel.status!=="approved"&&sel.status!=="declined"&&(
+                <Btn variant="purple" onClick={()=>sendForApproval(sel)}>✍ Send for Approval</Btn>
+              )}
+            </>
           }
           <Btn onClick={saveQuote}>Save {isInv?"Invoice":"Quote"}</Btn>
         </div>
@@ -10203,6 +10510,7 @@ export default function App() {
         </main>
         {bp==="phone" && <BottomNav active={page} setActive={setPage} />}
       </div>
+      <CabShopChatbot />
     </>
   );
 }
@@ -10324,6 +10632,292 @@ function SubscriptionPage({bp}) {
   );
 }
 
+// ─── CabShop AI Chatbot ───────────────────────────────────────────────────────
+function CabShopChatbot() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "Hi! I'm CabShop Assistant. Ask me anything about using CabShop Pro — features, how-tos, or tips for running your shop. How can I help?" }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [messages, open]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: "user", content: input.trim() };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/.netlify/functions/claude-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "chat",
+          messages: newMessages.filter(m => m.role !== "assistant" || messages.indexOf(m) > 0),
+        }),
+      });
+      const data = await res.json();
+      if (data.content) {
+        setMessages(prev => [...prev, { role: "assistant", content: data.content }]);
+      } else {
+        setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I had trouble responding. Please try again." }]);
+      }
+    } catch(e) {
+      setMessages(prev => [...prev, { role: "assistant", content: "Connection error. Please try again." }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      {/* Floating button */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 5000,
+          width: 54, height: 54, borderRadius: "50%",
+          background: open ? "var(--surface2)" : "var(--accent)",
+          border: open ? "1px solid var(--border)" : "none",
+          cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: open ? 20 : 24, boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+          transition: "all 0.2s", color: open ? "var(--muted)" : "#000",
+        }}
+        title={open ? "Minimize chat" : "CabShop AI Assistant"}
+      >
+        {open ? "−" : "💬"}
+      </button>
+
+      {/* Chat panel */}
+      {open && (
+        <div className="scalein" style={{
+          position: "fixed", bottom: 90, right: 24, zIndex: 4999,
+          width: 360, height: 520,
+          background: "var(--surface)", border: "1px solid var(--border)",
+          borderRadius: 16, display: "flex", flexDirection: "column",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+          overflow: "hidden",
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "14px 16px", borderBottom: "1px solid var(--border)",
+            background: "var(--surface2)",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: "var(--accent)22", color: "var(--accent)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 16, flexShrink: 0,
+            }}>◈</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>CabShop Assistant</div>
+              <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)" }}>● Online</div>
+            </div>
+            <button onClick={() => setOpen(false)}
+              style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 20, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}
+              title="Close">×</button>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px 8px" }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{
+                display: "flex",
+                justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+                marginBottom: 10,
+              }}>
+                <div style={{
+                  maxWidth: "85%",
+                  padding: "10px 13px",
+                  borderRadius: m.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                  background: m.role === "user" ? "var(--accent)" : "var(--surface2)",
+                  color: m.role === "user" ? "#000" : "var(--text)",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  fontWeight: m.role === "user" ? 600 : 400,
+                  whiteSpace: "pre-wrap",
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
+                <div style={{
+                  padding: "10px 14px", borderRadius: "14px 14px 14px 4px",
+                  background: "var(--surface2)", fontSize: 13, color: "var(--muted)",
+                }}>
+                  <span style={{ animation: "pulse 1s infinite" }}>◈ Thinking…</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Suggested questions — shown when only 1 message */}
+          {messages.length === 1 && (
+            <div style={{ padding: "0 14px 8px", display: "flex", flexDirection: "column", gap: 5 }}>
+              {[
+                "How do I log time on a stage?",
+                "How do I convert a quote to invoice?",
+                "How does inventory reordering work?",
+              ].map(q => (
+                <button key={q} onClick={() => { setInput(q); setTimeout(() => sendMessage(), 50); }}
+                  style={{
+                    padding: "7px 12px", borderRadius: 8, background: "var(--surface2)",
+                    border: "1px solid var(--border)", color: "var(--muted)",
+                    fontSize: 12, cursor: "pointer", textAlign: "left",
+                    fontFamily: "var(--font)", transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--muted)"; }}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <div style={{
+            padding: "10px 12px", borderTop: "1px solid var(--border)",
+            display: "flex", gap: 8, alignItems: "flex-end",
+          }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              placeholder="Ask anything about CabShop Pro…"
+              rows={1}
+              style={{
+                flex: 1, padding: "9px 12px", borderRadius: 10,
+                background: "var(--surface2)", border: "1px solid var(--border)",
+                color: "var(--text)", fontSize: 13, outline: "none",
+                resize: "none", fontFamily: "var(--font)",
+                maxHeight: 80, overflowY: "auto",
+              }}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={loading || !input.trim()}
+              style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: input.trim() ? "var(--accent)" : "var(--surface3)",
+                border: "none", cursor: input.trim() ? "pointer" : "not-allowed",
+                fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.15s", flexShrink: 0,
+              }}>
+              ↑
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── AI Cost Analysis Button ──────────────────────────────────────────────────
+function AiCostAnalysis({quotedRevenue, actualRevenue, actualCost, estimatedCost, grossProfit, quotedLabel, onSaveToNotes}) {
+  const [loading, setLoading] = useState(false);
+  const [analysis, setAnalysis] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const runAnalysis = async () => {
+    setLoading(true);
+    setOpen(true);
+    setAnalysis("");
+    const variance = actualRevenue - quotedRevenue;
+    const costVariance = actualCost - estimatedCost;
+    const prompt = `Analyze this cabinet shop job's financial performance:
+
+${quotedLabel}: $${Math.round(quotedRevenue)}
+Actual Revenue: $${Math.round(actualRevenue)} (${variance >= 0 ? "+" : ""}$${Math.round(variance)} variance)
+
+Estimated Costs: $${Math.round(estimatedCost)}
+Actual Costs: $${Math.round(actualCost)} (${costVariance >= 0 ? "+" : ""}$${Math.round(costVariance)} variance)
+
+Gross Profit: $${Math.round(grossProfit)}
+Margin: ${actualRevenue > 0 ? Math.round((grossProfit / actualRevenue) * 100) : 0}%
+
+Provide:
+1. A brief assessment of the job's financial performance
+2. The most likely causes of any variances
+3. 2-3 specific recommendations to improve profitability on similar jobs
+4. Whether this performance is concerning or acceptable for a custom cabinet shop`;
+
+    try {
+      const res = await fetch("/.netlify/functions/claude-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "cost_analysis",
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      const data = await res.json();
+      setAnalysis(data.content || "Unable to generate analysis. Please try again.");
+    } catch(e) {
+      setAnalysis("Connection error. Please try again.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {!open ? (
+        <button onClick={runAnalysis}
+          style={{
+            width: "100%", padding: "9px", borderRadius: 9,
+            background: "var(--accent2)18", border: "1px solid var(--accent2)44",
+            color: "var(--accent2)", fontWeight: 700, fontSize: 12,
+            cursor: "pointer", fontFamily: "var(--font)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}>
+          ◈ AI Cost Analysis
+        </button>
+      ) : (
+        <div style={{ background: "var(--surface3)", borderRadius: 10, padding: "14px 16px", border: "1px solid var(--accent2)33" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: "var(--accent2)", fontFamily: "var(--mono)", fontWeight: 700, letterSpacing: "0.06em" }}>◈ AI COST ANALYSIS</div>
+            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 16, cursor: "pointer" }}>×</button>
+          </div>
+          {loading ? (
+            <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Analyzing your job financials…</div>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{analysis}</div>
+              {analysis && onSaveToNotes && (
+                <button onClick={() => onSaveToNotes(analysis)}
+                  style={{
+                    marginTop: 12, padding: "6px 14px", borderRadius: 8,
+                    background: "var(--surface2)", border: "1px solid var(--border)",
+                    color: "var(--muted)", fontSize: 11, cursor: "pointer",
+                    fontFamily: "var(--font)", fontWeight: 600,
+                  }}>
+                  Save to Notes
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Auth Screen ──────────────────────────────────────────────────────────────
 function AuthScreen() {
   const [mode, setMode] = useState("login");
@@ -10429,13 +11023,31 @@ function AuthScreen() {
 
 // ─── Root with Auth ───────────────────────────────────────────────────────────
 export function Root() {
-  const [session, setSession] = useState(undefined); // undefined = loading
+  const [session, setSession] = useState(undefined);
+  const [approvalQuotes, setApprovalQuotes] = useState(seedQuotes);
+
+  // Check for approval link in URL
+  const params = new URLSearchParams(window.location.search);
+  const approveToken = params.get("approve");
+  const approveQid = params.get("qid");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => subscription.unsubscribe();
   }, []);
+
+  // Show client approval page if approval params present — no login required
+  if (approveToken && approveQid) {
+    return (
+      <ClientApprovalPage
+        qid={approveQid}
+        token={approveToken}
+        quotes={approvalQuotes}
+        setQuotes={setApprovalQuotes}
+      />
+    );
+  }
 
   if (session === undefined) return (
     <div style={{minHeight:"100vh",background:"#0d0f14",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -10445,4 +11057,283 @@ export function Root() {
 
   if (!session) return <AuthScreen />;
   return <App />;
+}
+
+// ─── Client Approval Page ─────────────────────────────────────────────────────
+function ClientApprovalPage({qid, token, quotes, setQuotes}) {
+  const [quote, setQuote] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading | invalid | pending | signing | approved | declined
+  const [sigName, setSigName] = useState("");
+  const [sigDrawn, setSigDrawn] = useState(false);
+  const [error, setError] = useState("");
+  const canvasRef = useRef(null);
+  const drawing = useRef(false);
+  const lastPos = useRef({x:0,y:0});
+
+  useEffect(() => {
+    const q = quotes.find(x => x.id === qid);
+    if (!q || q.approvalToken !== token) { setStatus("invalid"); return; }
+    setQuote(q);
+    if (q.status === "approved") setStatus("approved");
+    else if (q.status === "declined") setStatus("declined");
+    else setStatus("pending");
+  }, [qid, token, quotes]);
+
+  // Canvas signature drawing
+  const getPos = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches?.[0];
+    return {
+      x: (touch ? touch.clientX : e.clientX) - rect.left,
+      y: (touch ? touch.clientY : e.clientY) - rect.top,
+    };
+  };
+
+  const startDraw = (e) => {
+    e.preventDefault();
+    drawing.current = true;
+    lastPos.current = getPos(e, canvasRef.current);
+  };
+
+  const draw = (e) => {
+    e.preventDefault();
+    if (!drawing.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const pos = getPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    lastPos.current = pos;
+    setSigDrawn(true);
+  };
+
+  const stopDraw = () => { drawing.current = false; };
+
+  const clearSig = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setSigDrawn(false);
+  };
+
+  const handleApprove = () => {
+    if (!sigName.trim()) { setError("Please enter your full name."); return; }
+    if (!sigDrawn) { setError("Please draw your signature above."); return; }
+    const canvas = canvasRef.current;
+    const sigImage = canvas.toDataURL();
+    const sig = { name: sigName.trim(), date: new Date().toISOString().slice(0,10), image: sigImage };
+    setQuotes(prev => prev.map(x => x.id === quote.id ? {...x, status:"approved", signature:sig} : x));
+    setStatus("approved");
+  };
+
+  const handleDecline = () => {
+    setQuotes(prev => prev.map(x => x.id === quote.id ? {...x, status:"declined"} : x));
+    setStatus("declined");
+  };
+
+  // Line price helpers
+  const lineExtPrice = (l) => {
+    const base = l.qty * (l.costPer||0);
+    if (l.profitMargin>0&&l.profitMargin<100) return base/(1-l.profitMargin/100);
+    if (l.markupFlat>0) return base+l.markupFlat;
+    if (l.markupPct>0) return base*(1+l.markupPct/100);
+    return base;
+  };
+  const subtotal = quote ? (quote.lines||[]).reduce((s,l)=>s+lineExtPrice(l),0) : 0;
+  const tax = quote ? subtotal*(quote.taxRate||0)/100 : 0;
+  const total = subtotal + tax;
+
+  const s = { fontFamily:"'Syne',sans-serif" };
+
+  if (status === "loading") return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center",...s}}>
+      <div style={{color:"#888"}}>Loading quote…</div>
+    </div>
+  );
+
+  if (status === "invalid") return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center",padding:20,...s}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:16}}>🔗</div>
+        <div style={{fontWeight:800,fontSize:20,marginBottom:8}}>Invalid or expired link</div>
+        <div style={{color:"#888",fontSize:14}}>This approval link is not valid. Please contact Gotham Woodworks for a new link.</div>
+      </div>
+    </div>
+  );
+
+  if (status === "approved") return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center",padding:20,...s}}>
+      <div style={{textAlign:"center",maxWidth:480}}>
+        <div style={{fontSize:64,marginBottom:16}}>✅</div>
+        <div style={{fontWeight:800,fontSize:24,marginBottom:8,color:"#1a7a40"}}>Quote Approved!</div>
+        <div style={{color:"#666",fontSize:15,lineHeight:1.6,marginBottom:16}}>
+          Thank you for approving <strong>{quote?.number}</strong>. Gotham Woodworks will be in touch shortly to confirm next steps.
+        </div>
+        {quote?.signature && (
+          <div style={{background:"#fff",borderRadius:12,padding:"14px 18px",border:"1px solid #e0e0d0",fontSize:13,color:"#888"}}>
+            Signed by <strong style={{color:"#1a1a1a"}}>{quote.signature.name}</strong> on {quote.signature.date}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (status === "declined") return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center",padding:20,...s}}>
+      <div style={{textAlign:"center",maxWidth:480}}>
+        <div style={{fontSize:64,marginBottom:16}}>❌</div>
+        <div style={{fontWeight:800,fontSize:24,marginBottom:8,color:"#c0392b"}}>Quote Declined</div>
+        <div style={{color:"#666",fontSize:15,lineHeight:1.6}}>
+          You have declined quote <strong>{quote?.number}</strong>. Please contact Gotham Woodworks if you'd like to discuss revisions.
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",...s}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap');`}</style>
+
+      {/* Header */}
+      <div style={{background:"#1a1a12",color:"#fff",padding:"16px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontWeight:800,fontSize:18}}>◈ Gotham Woodworks</div>
+        <div style={{fontSize:13,color:"#aaa"}}>Quote Approval</div>
+      </div>
+
+      <div style={{maxWidth:720,margin:"0 auto",padding:"24px 20px"}}>
+        {/* Quote header */}
+        <div style={{background:"#fff",borderRadius:16,padding:"24px",marginBottom:16,border:"1px solid #e0e0d0"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+            <div>
+              <div style={{fontWeight:800,fontSize:22,marginBottom:4}}>{quote.title}</div>
+              <div style={{fontSize:13,color:"#888"}}>{quote.number} · {quote.date}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:28,fontWeight:800,color:"#1a1a12"}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+              <div style={{fontSize:12,color:"#888",marginTop:2}}>Total</div>
+            </div>
+          </div>
+
+          {/* Line items */}
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead>
+              <tr style={{background:"#1a1a12",color:"#fff"}}>
+                {["Description","Qty","Unit","Price"].map(h=>(
+                  <th key={h} style={{padding:"8px 10px",textAlign:h==="Price"?"right":"left",fontSize:11,letterSpacing:"0.06em"}}>{h.toUpperCase()}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(quote.lines||[]).map((l,i)=>(
+                <tr key={i} style={{borderBottom:"1px solid #eee"}}>
+                  <td style={{padding:"10px",fontSize:13}}>
+                    <div style={{fontWeight:700}}>{l.name}</div>
+                    {l.desc&&<div style={{fontSize:11,color:"#888",marginTop:2}}>{l.desc}</div>}
+                  </td>
+                  <td style={{padding:"10px",textAlign:"center",fontSize:13}}>{l.qty}</td>
+                  <td style={{padding:"10px",textAlign:"center",fontSize:12,color:"#888"}}>{l.unit}</td>
+                  <td style={{padding:"10px",textAlign:"right",fontSize:13,fontWeight:700}}>${lineExtPrice(l).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Totals */}
+          <div style={{display:"flex",justifyContent:"flex-end",marginTop:16}}>
+            <div style={{width:240}}>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #eee",fontSize:13}}>
+                <span style={{color:"#888"}}>Subtotal</span>
+                <span style={{fontWeight:600}}>${subtotal.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+              </div>
+              {quote.taxRate>0&&(
+                <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #eee",fontSize:13}}>
+                  <span style={{color:"#888"}}>Tax ({quote.taxRate}%)</span>
+                  <span style={{fontWeight:600}}>${tax.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                </div>
+              )}
+              <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",fontSize:18,fontWeight:900}}>
+                <span>TOTAL</span>
+                <span>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+              </div>
+            </div>
+          </div>
+
+          {quote.notes&&(
+            <div style={{background:"#f8f7f3",borderLeft:"4px solid #1a1a12",padding:"12px 16px",borderRadius:"0 8px 8px 0",marginTop:16,fontSize:13,color:"#444",lineHeight:1.7}}>
+              <div style={{fontWeight:700,fontSize:11,letterSpacing:"0.08em",color:"#888",marginBottom:6}}>NOTES</div>
+              {quote.notes}
+            </div>
+          )}
+        </div>
+
+        {/* Signature section */}
+        <div style={{background:"#fff",borderRadius:16,padding:"24px",border:"1px solid #e0e0d0"}}>
+          <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>Approve this Quote</div>
+          <div style={{fontSize:13,color:"#888",marginBottom:20,lineHeight:1.6}}>
+            By signing below, you approve the scope of work and pricing outlined above. This constitutes a binding agreement.
+          </div>
+
+          {/* Name field */}
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.08em",color:"#888",marginBottom:6}}>YOUR FULL NAME</div>
+            <input
+              value={sigName}
+              onChange={e=>setSigName(e.target.value)}
+              placeholder="Type your full name…"
+              style={{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #ddd",fontSize:15,outline:"none",fontFamily:"'Syne',sans-serif",boxSizing:"border-box"}}
+            />
+          </div>
+
+          {/* Signature canvas */}
+          <div style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.08em",color:"#888"}}>DRAW YOUR SIGNATURE</div>
+              <button onClick={clearSig} style={{background:"none",border:"none",color:"#888",fontSize:12,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>Clear</button>
+            </div>
+            <canvas
+              ref={canvasRef}
+              width={680}
+              height={120}
+              onMouseDown={startDraw}
+              onMouseMove={draw}
+              onMouseUp={stopDraw}
+              onMouseLeave={stopDraw}
+              onTouchStart={startDraw}
+              onTouchMove={draw}
+              onTouchEnd={stopDraw}
+              style={{width:"100%",height:120,border:"1px solid #ddd",borderRadius:10,background:"#fafaf8",cursor:"crosshair",touchAction:"none",display:"block"}}
+            />
+            {!sigDrawn&&(
+              <div style={{textAlign:"center",marginTop:-70,pointerEvents:"none",color:"#ccc",fontSize:13}}>Sign here with your mouse or finger</div>
+            )}
+          </div>
+
+          {error&&(
+            <div style={{background:"#fde8e8",border:"1px solid #f5c6c6",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#c0392b"}}>{error}</div>
+          )}
+
+          {/* Buttons */}
+          <div style={{display:"flex",gap:12,marginTop:8}}>
+            <button onClick={handleApprove}
+              style={{flex:1,padding:"14px",borderRadius:12,background:"#1a7a40",border:"none",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+              ✓ Approve Quote
+            </button>
+            <button onClick={handleDecline}
+              style={{padding:"14px 20px",borderRadius:12,background:"#fff",border:"1px solid #ddd",color:"#888",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+              Decline
+            </button>
+          </div>
+
+          <div style={{textAlign:"center",marginTop:14,fontSize:11,color:"#aaa"}}>
+            Secure quote approval powered by CabShop Pro
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
