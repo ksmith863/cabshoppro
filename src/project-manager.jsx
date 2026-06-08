@@ -10664,7 +10664,7 @@ function CabShopChatbot() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "chat",
-          messages: newMessages.filter(m => m.role !== "assistant" || messages.indexOf(m) > 0),
+          messages: newMessages.filter(m => !(m.role === "assistant" && newMessages.indexOf(m) === 0)),
         }),
       });
       const data = await res.json();
