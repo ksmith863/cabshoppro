@@ -599,7 +599,8 @@ function DesktopSidebar({active,setActive,adminEmail}) {
         <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginTop:2}}>Your Shop. Managed.</div>
       </div>
       <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} adminEmail={adminEmail} />
-      <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid var(--border)"}}>
+      <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+        <FeatureRequestButton />
         <button onClick={()=>supabase.auth.signOut()}
           style={{width:"100%",padding:"10px",borderRadius:10,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:16}}>⇥</span> Sign Out
@@ -11335,6 +11336,95 @@ Let's build something great.
 }
 
 
+// ─── Feature Request Button ───────────────────────────────────────────────────
+function FeatureRequestButton() {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (!title.trim()) { setError("Please enter a title for your request."); return; }
+    setLoading(true); setError("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("feature_requests").insert({
+        user_id: user.id,
+        email: user.email,
+        title: title.trim(),
+        description: description.trim(),
+        status: "new",
+      });
+      if (error) throw error;
+      setSuccess(true);
+      setTitle(""); setDescription("");
+      setTimeout(() => { setSuccess(false); setOpen(false); }, 2500);
+    } catch(e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}
+        style={{
+          width: "100%", padding: "10px", borderRadius: 10,
+          background: "transparent", border: "1px solid var(--border)",
+          color: "var(--muted)", fontSize: 13, fontWeight: 600,
+          cursor: "pointer", fontFamily: "var(--font)",
+          display: "flex", alignItems: "center", gap: 8,
+          transition: "all 0.15s",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.color = "var(--accent2)"; e.currentTarget.style.borderColor = "var(--accent2)44"; }}
+        onMouseLeave={e => { e.currentTarget.style.color = "var(--muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+        <span style={{ fontSize: 14 }}>💡</span> Suggest a Feature
+      </button>
+
+      {open && (
+        <Modal title="Suggest a Feature" onClose={() => { setOpen(false); setError(""); setSuccess(false); }}>
+          {success ? (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Thanks for the suggestion!</div>
+              <div style={{ color: "var(--muted)", fontSize: 13 }}>We review every request and use them to guide development.</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16, lineHeight: 1.6 }}>
+                Have an idea that would make CabShop Pro better? We'd love to hear it!
+              </div>
+              {error && <div style={{ background: "var(--accent3)22", border: "1px solid var(--accent3)44", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "var(--accent3)" }}>{error}</div>}
+              <div style={{ marginBottom: 4, fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em" }}>FEATURE TITLE</div>
+              <input value={title} onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. Export projects to PDF"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)", marginBottom: 12, boxSizing: "border-box" }} />
+              <div style={{ marginBottom: 4, fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em" }}>DESCRIPTION (optional)</div>
+              <textarea value={description} onChange={e => setDescription(e.target.value)}
+                placeholder="Describe the feature and how it would help your workflow…"
+                rows={4}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)", marginBottom: 16, boxSizing: "border-box", resize: "vertical" }} />
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => { setOpen(false); setError(""); }}
+                  style={{ flex: 1, padding: "10px", borderRadius: 9, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}>
+                  Cancel
+                </button>
+                <button onClick={submit} disabled={loading}
+                  style={{ flex: 2, padding: "10px", borderRadius: 9, background: "var(--accent2)", border: "none", color: "#000", fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "var(--font)", opacity: loading ? 0.7 : 1 }}>
+                  {loading ? "Submitting…" : "Submit Request"}
+                </button>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}
+
+
 // ─── Auth Screen ──────────────────────────────────────────────────────────────
 function AuthScreen() {
   const [mode, setMode] = useState("login");
@@ -11993,6 +12083,9 @@ function SuperAdminPage({bp}) {
         </div>
       )}
 
+      {/* Feature Requests Section */}
+      <FeatureRequestsAdmin />
+
       {/* Confirm dialog */}
       {confirmAction && (
         <Modal title={`Confirm: ${confirmAction.label}`} onClose={() => setConfirmAction(null)}>
@@ -12015,6 +12108,99 @@ function SuperAdminPage({bp}) {
             </button>
           </div>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── Feature Requests Admin View ─────────────────────────────────────────────
+function FeatureRequestsAdmin() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+
+  const STATUS_OPTIONS = ["new", "under_review", "planned", "shipped", "declined"];
+  const STATUS_COLORS = {
+    new: "var(--accent2)",
+    under_review: "var(--accent4)",
+    planned: "var(--accent)",
+    shipped: "var(--accent)",
+    declined: "var(--muted)",
+  };
+
+  const loadRequests = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("feature_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error) setRequests(data || []);
+    setLoading(false);
+  };
+
+  const updateStatus = async (id, status) => {
+    await supabase.from("feature_requests").update({ status }).eq("id", id);
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  };
+
+  const deleteRequest = async (id) => {
+    await supabase.from("feature_requests").delete().eq("id", id);
+    setRequests(prev => prev.filter(r => r.id !== id));
+  };
+
+  useEffect(() => { loadRequests(); }, []);
+
+  const filtered = filter === "all" ? requests : requests.filter(r => r.status === filter);
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>💡 Feature Requests</div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{requests.length} total requests</div>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {["all", ...STATUS_OPTIONS].map(s => (
+            <button key={s} onClick={() => setFilter(s)}
+              style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font)", border: "1px solid var(--border)", background: filter === s ? "var(--accent)" : "var(--surface2)", color: filter === s ? "#000" : "var(--muted)", transition: "all 0.15s", textTransform: "capitalize" }}>
+              {s.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 24, color: "var(--muted)", fontSize: 13 }}>Loading requests…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 24, color: "var(--muted)", fontSize: 13 }}>No requests found</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtered.map(r => (
+            <div key={r.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{r.title}</div>
+                  {r.description && <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, marginBottom: 8 }}>{r.description}</div>}
+                  <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)" }}>
+                    {r.email} · {new Date(r.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+                  <select value={r.status} onChange={e => updateStatus(r.id, e.target.value)}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: "var(--surface2)", border: `1px solid ${STATUS_COLORS[r.status] || "var(--border)"}44`, color: STATUS_COLORS[r.status] || "var(--muted)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font)", outline: "none", textTransform: "capitalize" }}>
+                    {STATUS_OPTIONS.map(s => (
+                      <option key={s} value={s} style={{ background: "#13161e", color: "#e8ecf4", textTransform: "capitalize" }}>{s.replace("_", " ")}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => deleteRequest(r.id)}
+                    style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)", opacity: 0.6 }}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
