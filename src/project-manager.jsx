@@ -431,6 +431,7 @@ const NAV = [
   {id:"gallery",   label:"Galleries", icon:"◫"},
   {id:"samples",   label:"Samples",   icon:"◉"},
   {id:"admin",     label:"Admin",     icon:"⚙"},
+  {id:"subscription", label:"Subscription", icon:"★"},
 ];
 
 // Phone: bottom tab bar (scrollable, 5 visible + overflow)
@@ -10185,6 +10186,7 @@ export default function App() {
       case "gallery":    return <Gallery    {...p} contacts={contacts}/>;
       case "tools":      return <ToolsEquipment tools={tools} setTools={setTools} contacts={contacts} bp={bp}/>;
       case "admin":      return <AdminPage settings={adminSettings} setSettings={setAdminSettings} transactions={transactions} quotes={quotes} chartOfAccounts={chartOfAccounts} setChartOfAccounts={setChartOfAccounts} bp={bp}/>;
+      case "subscription": return <SubscriptionPage bp={bp}/>;
       case "samples":    return <SamplesLibrary samples={samples} setSamples={p.setSamples} bp={bp}/>;
       default: return null;
     }
@@ -10202,6 +10204,123 @@ export default function App() {
         {bp==="phone" && <BottomNav active={page} setActive={setPage} />}
       </div>
     </>
+  );
+}
+
+
+// ─── Subscription Page ────────────────────────────────────────────────────────
+const PLANS = [
+  {
+    id:"solo", name:"Solo", icon:"◎",
+    monthly:{price:29, priceId:"price_1TfrUxC3U2ovb6PYWFCevHMf"},
+    annual:{price:232, priceId:"price_1TfrdpC3U2ovb6PYIvmfTxQ4"},
+    color:"var(--accent5)",
+    description:"Perfect for a one-person shop just getting organized.",
+    features:["1 user","Up to 10 active projects","Projects, Tasks & CRM","Basic Finance Tracker","Inventory Management","Calendar","Email support"],
+  },
+  {
+    id:"pro", name:"Pro", icon:"◈", popular:true,
+    monthly:{price:45, priceId:"price_1TfrZsC3U2ovb6PYXO60G9A0"},
+    annual:{price:360, priceId:"price_1TfreRC3U2ovb6PYmeWzC53B"},
+    color:"var(--accent)",
+    description:"The full toolkit for a growing shop.",
+    features:["1 user","Unlimited projects","Everything in Solo","Quotes & Invoicing","Item Library","Resource & Document Library","Media Library & Gallery","Samples Library","Tools & Equipment tracker","AI Project Analysis","Group Review & benchmarking","Priority email support"],
+  },
+  {
+    id:"team", name:"Team", icon:"⊞",
+    monthly:{price:69, priceId:"price_1Tfrc4C3U2ovb6PY8fvw0H2n"},
+    annual:{price:552, priceId:"price_1TfrevC3U2ovb6PYy9Gmzx5f"},
+    color:"var(--accent2)",
+    description:"For shops with multiple people needing access.",
+    features:["Up to 5 users","Unlimited projects","Everything in Pro","Multi-user access","Admin dashboard","Priority support"],
+  },
+];
+
+function SubscriptionPage({bp}) {
+  const [billing, setBilling] = useState("monthly");
+  const [loading, setLoading] = useState(null);
+  const [error, setError] = useState("");
+
+  const handleSubscribe = async (plan) => {
+    setLoading(plan.id);
+    setError("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const priceId = billing === "monthly" ? plan.monthly.priceId : plan.annual.priceId;
+      const res = await fetch("/.netlify/functions/create-checkout-session", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ priceId, email: user?.email }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.error || "Something went wrong. Please try again.");
+      }
+    } catch(e) {
+      setError("Connection error. Please try again.");
+    }
+    setLoading(null);
+  };
+
+  return (
+    <div className="fadein">
+      <PageHeader bp={bp} title="Subscription" sub="Choose the plan that fits your shop" />
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:28}}>
+        <span style={{fontSize:13,color:billing==="monthly"?"var(--text)":"var(--muted)",fontWeight:600}}>Monthly</span>
+        <button onClick={()=>setBilling(b=>b==="monthly"?"annual":"monthly")}
+          style={{width:48,height:26,borderRadius:13,background:billing==="annual"?"var(--accent)":"var(--surface3)",border:"none",cursor:"pointer",position:"relative",transition:"background 0.2s"}}>
+          <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:billing==="annual"?25:3,transition:"left 0.2s"}} />
+        </button>
+        <span style={{fontSize:13,color:billing==="annual"?"var(--text)":"var(--muted)",fontWeight:600}}>
+          Annual <span style={{color:"var(--accent)",fontSize:11,fontWeight:700}}>2 months free</span>
+        </span>
+      </div>
+      {error&&<div style={{background:"var(--accent3)22",border:"1px solid var(--accent3)44",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"var(--accent3)",textAlign:"center"}}>{error}</div>}
+      <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":bp==="tablet"?"1fr 1fr":"repeat(3,1fr)",gap:16,marginBottom:24}}>
+        {PLANS.map(plan=>{
+          const price = billing==="monthly" ? plan.monthly.price : Math.round(plan.annual.price/12);
+          const isLoading = loading===plan.id;
+          return(
+            <div key={plan.id} style={{background:"var(--surface)",border:"2px solid "+(plan.popular?"var(--accent)":"var(--border)"),borderRadius:16,padding:"24px 20px",position:"relative",display:"flex",flexDirection:"column"}}>
+              {plan.popular&&(
+                <div style={{position:"absolute",top:-12,left:"50%",transform:"translateX(-50%)",background:"var(--accent)",color:"#000",fontSize:11,fontWeight:800,padding:"3px 12px",borderRadius:20,whiteSpace:"nowrap"}}>MOST POPULAR</div>
+              )}
+              <div style={{fontSize:24,marginBottom:8}}>{plan.icon}</div>
+              <div style={{fontWeight:800,fontSize:20,marginBottom:4,color:plan.color}}>{plan.name}</div>
+              <div style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.5}}>{plan.description}</div>
+              <div style={{marginBottom:20}}>
+                <span style={{fontSize:36,fontWeight:800,color:"var(--text)"}}>${price}</span>
+                <span style={{fontSize:13,color:"var(--muted)"}}>/mo</span>
+                {billing==="annual"&&<div style={{fontSize:11,color:"var(--accent)",fontFamily:"var(--mono)",marginTop:2}}>${plan.annual.price}/year billed annually</div>}
+              </div>
+              <div style={{flex:1,marginBottom:20}}>
+                {plan.features.map(f=>(
+                  <div key={f} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
+                    <span style={{color:"var(--accent)",fontSize:13,flexShrink:0,marginTop:1}}>✓</span>
+                    <span style={{fontSize:13,color:"var(--muted)",lineHeight:1.4}}>{f}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>handleSubscribe(plan)} disabled={isLoading}
+                style={{width:"100%",padding:"12px",borderRadius:10,
+                  background:plan.popular?"var(--accent)":"var(--surface2)",
+                  border:plan.popular?"none":"1px solid "+plan.color,
+                  color:plan.popular?"#000":plan.color,
+                  fontWeight:700,fontSize:14,cursor:isLoading?"not-allowed":"pointer",
+                  fontFamily:"var(--font)",opacity:isLoading?0.7:1}}>
+                {isLoading?"Processing...":"Get Started"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{textAlign:"center",fontSize:12,color:"var(--muted)",lineHeight:1.8}}>
+        All plans include a <strong style={{color:"var(--text)"}}>14-day free trial</strong>. No credit card required to start.<br/>
+        Cancel anytime. Payments processed securely by Stripe.
+      </div>
+    </div>
   );
 }
 
