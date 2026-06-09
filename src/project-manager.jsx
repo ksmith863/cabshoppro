@@ -12411,14 +12411,27 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
 // ─── Super Admin Dashboard ────────────────────────────────────────────────────
 function SuperAdminPage({bp}) {
   const ADMIN_EMAIL = "kerrysmith863@gmail.com";
+  const PRICE_IDS = {
+    solo_monthly: "price_1TfrUxC3U2ovb6PYWFCevHMf",
+    pro_monthly:  "price_1TfrZsC3U2ovb6PYXO60G9A0",
+    team_monthly: "price_1Tfrc4C3U2ovb6PY8fvw0H2n",
+  };
+
   const [users, setUsers] = useState([]);
   const [revenue, setRevenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all"); // all | subscribers | free | suspended
+  const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [actionLoading, setActionLoading] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview"); // overview | users | broadcast | export
+  const [emailModal, setEmailModal] = useState(null);
+  const [emailForm, setEmailForm] = useState({ subject: "", message: "" });
+  const [broadcastForm, setBroadcastForm] = useState({ subject: "", message: "", planFilter: "all" });
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState("");
+  const [changePlanModal, setChangePlanModal] = useState(null);
 
   const callAdmin = async (action, extra = {}) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -12433,8 +12446,7 @@ function SuperAdminPage({bp}) {
   };
 
   const loadData = async () => {
-    setLoading(true);
-    setError("");
+    setLoading(true); setError("");
     try {
       const [usersData, revenueData] = await Promise.all([
         callAdmin("get_users"),
@@ -12442,9 +12454,7 @@ function SuperAdminPage({bp}) {
       ]);
       setUsers(usersData.users || []);
       setRevenue(revenueData);
-    } catch(e) {
-      setError(e.message);
-    }
+    } catch(e) { setError(e.message); }
     setLoading(false);
   };
 
@@ -12455,11 +12465,43 @@ function SuperAdminPage({bp}) {
     try {
       await callAdmin(action, { userId, data: extra });
       await loadData();
-    } catch(e) {
-      alert("Error: " + e.message);
-    }
+    } catch(e) { alert("Error: " + e.message); }
     setActionLoading(null);
     setConfirmAction(null);
+  };
+
+  const sendEmail = async () => {
+    if (!emailForm.subject || !emailForm.message) { alert("Please fill in subject and message."); return; }
+    setActionLoading("email");
+    try {
+      await callAdmin("email_user", { data: { toEmail: emailModal.email, subject: emailForm.subject, message: emailForm.message } });
+      alert("Email sent to " + emailModal.email);
+      setEmailModal(null);
+      setEmailForm({ subject: "", message: "" });
+    } catch(e) { alert("Error: " + e.message); }
+    setActionLoading(null);
+  };
+
+  const sendBroadcast = async () => {
+    if (!broadcastForm.subject || !broadcastForm.message) { alert("Please fill in subject and message."); return; }
+    if (!window.confirm(`Send to all ${broadcastForm.planFilter} users? This cannot be undone.`)) return;
+    setBroadcastSending(true); setBroadcastResult("");
+    try {
+      const result = await callAdmin("broadcast", { data: broadcastForm });
+      setBroadcastResult(`✅ Sent to ${result.sent} users successfully!`);
+    } catch(e) { setBroadcastResult("❌ Error: " + e.message); }
+    setBroadcastSending(false);
+  };
+
+  const downloadExport = async () => {
+    try {
+      const result = await callAdmin("get_revenue_export");
+      const blob = new Blob([result.csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `cabshoppro-subscribers-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch(e) { alert("Export error: " + e.message); }
   };
 
   const filteredUsers = users.filter(u => {
@@ -12474,19 +12516,15 @@ function SuperAdminPage({bp}) {
 
   const planColor = (plan) => {
     if (!plan) return "var(--muted)";
-    const p = plan.toLowerCase();
-    if (p.includes("team")) return "var(--accent2)";
-    if (p.includes("pro")) return "var(--accent)";
-    return "var(--accent5)";
+    if (plan === "team") return "var(--accent2)";
+    if (plan === "pro") return "var(--accent)";
+    if (plan === "solo") return "var(--accent5)";
+    return "var(--muted)";
   };
 
   const planName = (u) => {
     if (!u.subscription) return "Free";
-    const plan = u.subscription.plan || "";
-    if (plan.includes("team") || plan.includes("Team")) return "Team";
-    if (plan.includes("pro") || plan.includes("Pro")) return "Pro";
-    if (plan.includes("solo") || plan.includes("Solo")) return "Solo";
-    return "Subscriber";
+    return u.subscription.plan ? u.subscription.plan.charAt(0).toUpperCase() + u.subscription.plan.slice(1) : "Subscriber";
   };
 
   const subStatusColor = (status) => {
@@ -12499,6 +12537,13 @@ function SuperAdminPage({bp}) {
 
   const fmt = (n) => n?.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }) || "$0";
 
+  const tabs = [
+    { id: "overview", label: "📊 Overview" },
+    { id: "users", label: "👥 Users" },
+    { id: "broadcast", label: "📢 Broadcast" },
+    { id: "export", label: "📥 Export" },
+  ];
+
   return (
     <div className="fadein">
       <PageHeader bp={bp} title="Super Admin" sub="Manage users, subscriptions, and revenue" />
@@ -12509,141 +12554,345 @@ function SuperAdminPage({bp}) {
         </div>
       )}
 
-      {/* Revenue summary */}
-      {revenue && (
-        <div style={{ display: "grid", gridTemplateColumns: bp === "phone" ? "1fr 1fr" : "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
-          {[
-            { label: "Monthly Recurring Revenue", value: fmt(revenue.mrr), color: "var(--accent)", icon: "◈" },
-            { label: "Active Subscribers", value: revenue.active_subscriptions, color: "var(--accent2)", icon: "◎" },
-            { label: "Revenue (Last 30 Days)", value: fmt(revenue.revenue_30d), color: "var(--accent4)", icon: "$" },
-          ].map(s => (
-            <div key={s.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}>
-              <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", letterSpacing: "0.06em", marginBottom: 6 }}>{s.label.toUpperCase()}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Filters and search */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search by email…"
-          style={{ flex: 1, minWidth: 200, padding: "8px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)" }} />
-        <div style={{ display: "flex", gap: 6 }}>
-          {[["all","All"],["subscribers","Subscribers"],["free","Free"],["suspended","Suspended"]].map(([v,l]) => (
-            <button key={v} onClick={() => setFilter(v)}
-              style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font)", border: "1px solid var(--border)", background: filter === v ? "var(--accent)" : "var(--surface2)", color: filter === v ? "#000" : "var(--muted)", transition: "all 0.15s" }}>
-              {l}
-            </button>
-          ))}
-        </div>
-        <button onClick={loadData} style={{ padding: "7px 14px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)" }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 24, borderBottom: "1px solid var(--border)", paddingBottom: 0 }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            style={{ padding: "10px 16px", background: "none", border: "none",
+              borderBottom: `2px solid ${activeTab === t.id ? "var(--accent)" : "transparent"}`,
+              color: activeTab === t.id ? "var(--accent)" : "var(--muted)",
+              fontSize: 13, fontWeight: activeTab === t.id ? 700 : 500,
+              cursor: "pointer", fontFamily: "var(--font)", marginBottom: -1 }}>
+            {t.label}
+          </button>
+        ))}
+        <button onClick={loadData} style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)" }}>
           ↺ Refresh
         </button>
       </div>
 
-      {/* Users table */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--muted)", fontSize: 14 }}>Loading users…</div>
-      ) : (
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-          {/* Table header */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 120px 120px", gap: 0, background: "var(--surface2)", padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
-            {["User", "Plan", "Status", "Joined", "Actions"].map(h => (
-              <div key={h} style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", letterSpacing: "0.06em", fontWeight: 700 }}>{h.toUpperCase()}</div>
-            ))}
-          </div>
+      {/* ── OVERVIEW TAB ── */}
+      {activeTab === "overview" && (
+        <div>
+          {/* Revenue summary cards */}
+          {revenue && (
+            <div style={{ display: "grid", gridTemplateColumns: bp === "phone" ? "1fr 1fr" : "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+              {[
+                { label: "Monthly Recurring Revenue", value: fmt(revenue.mrr), color: "var(--accent)", icon: "◈" },
+                { label: "Active Subscribers", value: revenue.active_subscriptions, color: "var(--accent2)", icon: "◎" },
+                { label: "Revenue (30 Days)", value: fmt(revenue.revenue_30d), color: "var(--accent4)", icon: "$" },
+                { label: "Total Users", value: users.length, color: "var(--accent5)", icon: "▦" },
+              ].map(s => (
+                <div key={s.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}>
+                  <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", letterSpacing: "0.06em", marginBottom: 6 }}>{s.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
-          {filteredUsers.length === 0 ? (
-            <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>No users found</div>
-          ) : (
-            filteredUsers.map((u, i) => (
-              <div key={u.id} style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 120px 120px", gap: 0, padding: "12px 16px", borderBottom: i < filteredUsers.length - 1 ? "1px solid var(--border)44" : "none", alignItems: "center", background: u.banned ? "var(--accent3)08" : "transparent" }}>
-
-                {/* Email */}
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: u.banned ? "var(--muted)" : "var(--text)" }}>{u.email}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", marginTop: 2 }}>
-                    {u.email_confirmed_at ? "✓ Confirmed" : "⚠ Unconfirmed"}
-                    {u.last_sign_in_at && ` · Last: ${new Date(u.last_sign_in_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+          {/* Revenue chart */}
+          {revenue?.monthly_revenue && (
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px", marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: "var(--muted)", letterSpacing: "0.05em" }}>MONTHLY REVENUE (LAST 6 MONTHS)</div>
+              {(() => {
+                const max = Math.max(...revenue.monthly_revenue.map(m => m.amount), 1);
+                return (
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 120 }}>
+                    {revenue.monthly_revenue.map((m, i) => (
+                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                        <div style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--mono)", fontWeight: 700 }}>
+                          {m.amount > 0 ? "$" + m.amount : ""}
+                        </div>
+                        <div style={{
+                          width: "100%", borderRadius: "6px 6px 0 0",
+                          height: Math.max(4, Math.round((m.amount / max) * 80)),
+                          background: i === revenue.monthly_revenue.length - 1 ? "var(--accent)" : "var(--accent)55",
+                          transition: "height 0.4s ease",
+                        }} />
+                        <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)" }}>{m.label}</div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                );
+              })()}
+            </div>
+          )}
 
-                {/* Plan */}
-                <div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: planColor(planName(u)) }}>
-                    {planName(u)}
-                  </span>
-                  {u.subscription?.amount && (
-                    <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)" }}>
-                      ${u.subscription.amount}/{u.subscription.interval}
-                    </div>
-                  )}
-                </div>
-
-                {/* Subscription status */}
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: u.banned ? "var(--accent3)" : subStatusColor(u.subscription?.status) }}>
-                    {u.banned ? "SUSPENDED" : u.subscription?.status?.toUpperCase() || "FREE"}
-                  </span>
-                  {u.subscription?.cancel_at_period_end && (
-                    <div style={{ fontSize: 10, color: "var(--accent3)", fontFamily: "var(--mono)" }}>Cancels soon</div>
-                  )}
-                </div>
-
-                {/* Joined */}
-                <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)" }}>
-                  {new Date(u.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {u.email !== ADMIN_EMAIL && (
-                    <>
-                      {u.banned ? (
-                        <button
-                          onClick={() => setConfirmAction({ action: "unsuspend_user", userId: u.id, email: u.email, label: "Unsuspend" })}
-                          disabled={!!actionLoading}
-                          style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent)22", border: "1px solid var(--accent)44", color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
-                          Unsuspend
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmAction({ action: "suspend_user", userId: u.id, email: u.email, label: "Suspend" })}
-                          disabled={!!actionLoading}
-                          style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent4)22", border: "1px solid var(--accent4)44", color: "var(--accent4)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
-                          Suspend
-                        </button>
-                      )}
-                      {u.subscription?.id && (
-                        <button
-                          onClick={() => setConfirmAction({ action: "cancel_subscription", userId: u.id, email: u.email, subscriptionId: u.subscription.id, label: "Cancel Sub" })}
-                          disabled={!!actionLoading}
-                          style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent3)22", border: "1px solid var(--accent3)44", color: "var(--accent3)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
-                          Cancel Sub
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setConfirmAction({ action: "delete_user", userId: u.id, email: u.email, label: "Delete User" })}
-                        disabled={!!actionLoading}
-                        style={{ padding: "4px 8px", borderRadius: 6, background: "var(--accent3)22", border: "1px solid var(--accent3)44", color: "var(--accent3)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)", fontWeight: 600 }}>
-                        Delete
-                      </button>
-                    </>
-                  )}
-                  {u.email === ADMIN_EMAIL && (
-                    <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 700 }}>★ Admin</span>
-                  )}
-                </div>
+          {/* Plan breakdown */}
+          {revenue?.plan_breakdown && (
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px", marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: "var(--muted)", letterSpacing: "0.05em" }}>SUBSCRIPTION BREAKDOWN</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {[
+                  { label: "Solo", count: revenue.plan_breakdown.solo || 0, color: "var(--accent5)" },
+                  { label: "Pro", count: revenue.plan_breakdown.pro || 0, color: "var(--accent)" },
+                  { label: "Team", count: revenue.plan_breakdown.team || 0, color: "var(--accent2)" },
+                  { label: "Free/Trial", count: users.length - (revenue.plan_breakdown.solo || 0) - (revenue.plan_breakdown.pro || 0) - (revenue.plan_breakdown.team || 0), color: "var(--muted)" },
+                  { label: "Canceled", count: revenue.plan_breakdown.canceled || 0, color: "var(--accent3)" },
+                ].map(p => (
+                  <div key={p.label} style={{ background: "var(--surface2)", borderRadius: 10, padding: "12px 16px", minWidth: 100, textAlign: "center", borderTop: `3px solid ${p.color}` }}>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: p.color }}>{p.count}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>{p.label}</div>
+                  </div>
+                ))}
               </div>
-            ))
+            </div>
           )}
         </div>
       )}
 
-      {/* Feature Requests Section */}
-      <FeatureRequestsAdmin />
+      {/* ── USERS TAB ── */}
+      {activeTab === "users" && (
+        <div>
+          {/* Filters */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search by email…"
+              style={{ flex: 1, minWidth: 180, padding: "8px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)" }} />
+            <div style={{ display: "flex", gap: 5 }}>
+              {[["all","All"],["subscribers","Subscribers"],["free","Free"],["suspended","Suspended"]].map(([v,l]) => (
+                <button key={v} onClick={() => setFilter(v)}
+                  style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font)", border: "1px solid var(--border)", background: filter === v ? "var(--accent)" : "var(--surface2)", color: filter === v ? "#000" : "var(--muted)" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--muted)", fontSize: 14 }}>Loading users…</div>
+          ) : (
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 110px 160px", gap: 0, background: "var(--surface2)", padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+                {["User", "Plan", "Status", "Joined", "Actions"].map(h => (
+                  <div key={h} style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", letterSpacing: "0.06em", fontWeight: 700 }}>{h.toUpperCase()}</div>
+                ))}
+              </div>
+
+              {filteredUsers.length === 0 ? (
+                <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>No users found</div>
+              ) : filteredUsers.map((u, i) => (
+                <div key={u.id} style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 110px 160px", gap: 0, padding: "12px 16px", borderBottom: i < filteredUsers.length - 1 ? "1px solid var(--border)44" : "none", alignItems: "center", background: u.banned ? "var(--accent3)08" : "transparent" }}>
+
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: u.banned ? "var(--muted)" : "var(--text)" }}>{u.email}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", marginTop: 2 }}>
+                      {u.email_confirmed_at ? "✓ Verified" : "⚠ Unverified"}
+                      {u.last_sign_in_at && ` · Last: ${new Date(u.last_sign_in_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: planColor(u.subscription?.plan) }}>
+                      {planName(u)}
+                    </span>
+                    {u.subscription?.amount > 0 && (
+                      <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)" }}>${u.subscription.amount}/mo</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: u.banned ? "var(--accent3)" : subStatusColor(u.subscription?.status) }}>
+                      {u.banned ? "SUSPENDED" : (u.subscription?.status?.toUpperCase() || "FREE")}
+                    </span>
+                    {u.subscription?.cancel_at_period_end && (
+                      <div style={{ fontSize: 10, color: "var(--accent3)", fontFamily: "var(--mono)" }}>Cancels soon</div>
+                    )}
+                  </div>
+
+                  <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)" }}>
+                    {new Date(u.created_at).toLocaleDateString("en-US", { year: "2-digit", month: "short", day: "numeric" })}
+                  </div>
+
+                  {/* Actions */}
+                  {u.email !== ADMIN_EMAIL ? (
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {/* Email */}
+                      <button onClick={() => { setEmailModal(u); setEmailForm({ subject: "", message: "" }); }}
+                        title="Send email" style={{ padding: "3px 7px", borderRadius: 5, background: "var(--accent2)22", border: "1px solid var(--accent2)44", color: "var(--accent2)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)" }}>
+                        ✉
+                      </button>
+                      {/* Change plan */}
+                      {u.subscription?.id && (
+                        <button onClick={() => setChangePlanModal(u)}
+                          title="Change plan" style={{ padding: "3px 7px", borderRadius: 5, background: "var(--accent4)22", border: "1px solid var(--accent4)44", color: "var(--accent4)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)" }}>
+                          ↑↓
+                        </button>
+                      )}
+                      {/* Suspend/Unsuspend */}
+                      {u.banned ? (
+                        <button onClick={() => setConfirmAction({ action: "unsuspend_user", userId: u.id, email: u.email, label: "Unsuspend" })}
+                          style={{ padding: "3px 7px", borderRadius: 5, background: "var(--accent)22", border: "1px solid var(--accent)44", color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)" }}>
+                          ✓
+                        </button>
+                      ) : (
+                        <button onClick={() => setConfirmAction({ action: "suspend_user", userId: u.id, email: u.email, label: "Suspend" })}
+                          style={{ padding: "3px 7px", borderRadius: 5, background: "var(--accent4)22", border: "1px solid var(--accent4)44", color: "var(--accent4)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)" }}>
+                          ⊘
+                        </button>
+                      )}
+                      {/* Cancel sub */}
+                      {u.subscription?.id && (
+                        <button onClick={() => setConfirmAction({ action: "cancel_subscription", userId: u.id, email: u.email, subscriptionId: u.subscription.id, label: "Cancel Sub" })}
+                          style={{ padding: "3px 7px", borderRadius: 5, background: "var(--accent3)22", border: "1px solid var(--accent3)44", color: "var(--accent3)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)" }}>
+                          ✕
+                        </button>
+                      )}
+                      {/* Delete */}
+                      <button onClick={() => setConfirmAction({ action: "delete_user", userId: u.id, email: u.email, label: "Delete" })}
+                        style={{ padding: "3px 7px", borderRadius: 5, background: "var(--accent3)22", border: "1px solid var(--accent3)44", color: "var(--accent3)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)" }}>
+                        🗑
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 700 }}>★ Admin</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BROADCAST TAB ── */}
+      {activeTab === "broadcast" && (
+        <div style={{ maxWidth: 600 }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>📢 Send Announcement</div>
+            <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
+              Send an email to all users or a specific plan tier. Use this for feature announcements, updates, or re-engagement campaigns.
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em", marginBottom: 5 }}>SEND TO</div>
+              <select value={broadcastForm.planFilter} onChange={e => setBroadcastForm(f => ({ ...f, planFilter: e.target.value }))}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)" }}>
+                <option value="all">All confirmed users</option>
+                <option value="subscribers">Active subscribers only</option>
+                <option value="trial">Free/trial users only</option>
+                <option value="solo">Solo plan users</option>
+                <option value="pro">Pro plan users</option>
+                <option value="team">Team plan users</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em", marginBottom: 5 }}>SUBJECT LINE</div>
+              <input value={broadcastForm.subject} onChange={e => setBroadcastForm(f => ({ ...f, subject: e.target.value }))}
+                placeholder="e.g. New feature: Time Tracking Timer is here!"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)" }} />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em", marginBottom: 5 }}>MESSAGE</div>
+              <textarea value={broadcastForm.message} onChange={e => setBroadcastForm(f => ({ ...f, message: e.target.value }))}
+                placeholder="Write your message here…"
+                rows={8}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)", resize: "vertical" }} />
+            </div>
+
+            {broadcastResult && (
+              <div style={{ padding: "10px 14px", borderRadius: 8, background: broadcastResult.startsWith("✅") ? "var(--accent)18" : "var(--accent3)18", border: `1px solid ${broadcastResult.startsWith("✅") ? "var(--accent)44" : "var(--accent3)44"}`, fontSize: 13, marginBottom: 14, color: broadcastResult.startsWith("✅") ? "var(--accent)" : "var(--accent3)" }}>
+                {broadcastResult}
+              </div>
+            )}
+
+            <button onClick={sendBroadcast} disabled={broadcastSending}
+              style={{ width: "100%", padding: "12px", borderRadius: 10, background: "var(--accent)", border: "none", color: "#000", fontWeight: 700, fontSize: 14, cursor: broadcastSending ? "not-allowed" : "pointer", fontFamily: "var(--font)", opacity: broadcastSending ? 0.7 : 1 }}>
+              {broadcastSending ? "Sending…" : "📢 Send Broadcast"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── EXPORT TAB ── */}
+      {activeTab === "export" && (
+        <div style={{ maxWidth: 500 }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>📥 Revenue Export</div>
+            <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24, lineHeight: 1.6 }}>
+              Download a CSV file of all subscribers including their plan, status, billing amount, and join date. Perfect for sharing with your accountant.
+            </div>
+            <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "14px 16px", marginBottom: 20, fontSize: 13, color: "var(--muted)", fontFamily: "var(--mono)" }}>
+              Columns: Email, Plan, Status, Price/mo, Period End, Joined
+            </div>
+            <button onClick={downloadExport}
+              style={{ width: "100%", padding: "12px", borderRadius: 10, background: "var(--accent)", border: "none", color: "#000", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "var(--font)" }}>
+              📥 Download Subscriber CSV
+            </button>
+          </div>
+
+          {/* Feature requests also in export tab */}
+          <div style={{ marginTop: 24 }}>
+            <FeatureRequestsAdmin />
+          </div>
+        </div>
+      )}
+
+      {/* Email user modal */}
+      {emailModal && (
+        <Modal title={`Email ${emailModal.email}`} onClose={() => setEmailModal(null)}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em", marginBottom: 5 }}>SUBJECT</div>
+            <input value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
+              placeholder="Subject line…"
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.06em", marginBottom: 5 }}>MESSAGE</div>
+            <textarea value={emailForm.message} onChange={e => setEmailForm(f => ({ ...f, message: e.target.value }))}
+              placeholder="Your message…" rows={6}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "var(--font)", resize: "vertical", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setEmailModal(null)}
+              style={{ flex: 1, padding: "10px", borderRadius: 9, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}>
+              Cancel
+            </button>
+            <button onClick={sendEmail} disabled={actionLoading === "email"}
+              style={{ flex: 2, padding: "10px", borderRadius: 9, background: "var(--accent)", border: "none", color: "#000", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}>
+              {actionLoading === "email" ? "Sending…" : "✉ Send Email"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Change plan modal */}
+      {changePlanModal && (
+        <Modal title={`Change Plan — ${changePlanModal.email}`} onClose={() => setChangePlanModal(null)}>
+          <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
+            Current plan: <strong style={{ color: planColor(changePlanModal.subscription?.plan) }}>{planName(changePlanModal)}</strong>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { label: "Solo — $29/mo", priceId: PRICE_IDS.solo_monthly, color: "var(--accent5)" },
+              { label: "Pro — $45/mo", priceId: PRICE_IDS.pro_monthly, color: "var(--accent)" },
+              { label: "Team — $69/mo", priceId: PRICE_IDS.team_monthly, color: "var(--accent2)" },
+            ].map(plan => (
+              <button key={plan.priceId}
+                onClick={async () => {
+                  setActionLoading("changeplan");
+                  try {
+                    await callAdmin("change_plan", { data: { subscriptionId: changePlanModal.subscription.id, newPriceId: plan.priceId } });
+                    await loadData();
+                    alert("Plan changed successfully!");
+                    setChangePlanModal(null);
+                  } catch(e) { alert("Error: " + e.message); }
+                  setActionLoading(null);
+                }}
+                disabled={!!actionLoading}
+                style={{ padding: "12px 16px", borderRadius: 10, background: "var(--surface2)", border: `1px solid ${plan.color}44`, color: plan.color, fontWeight: 700, fontSize: 14, cursor: actionLoading ? "not-allowed" : "pointer", fontFamily: "var(--font)", textAlign: "left", opacity: actionLoading ? 0.7 : 1 }}>
+                {plan.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setChangePlanModal(null)}
+            style={{ marginTop: 14, width: "100%", padding: "10px", borderRadius: 9, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}>
+            Cancel
+          </button>
+        </Modal>
+      )}
 
       {/* Confirm dialog */}
       {confirmAction && (
@@ -12651,7 +12900,7 @@ function SuperAdminPage({bp}) {
           <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 20, lineHeight: 1.6 }}>
             Are you sure you want to <strong style={{ color: "var(--text)" }}>{confirmAction.label.toLowerCase()}</strong> the account for <strong style={{ color: "var(--accent3)" }}>{confirmAction.email}</strong>?
             {confirmAction.action === "delete_user" && (
-              <div style={{ marginTop: 10, color: "var(--accent3)", fontSize: 13 }}>⚠ This action cannot be undone. All user data will be permanently deleted.</div>
+              <div style={{ marginTop: 10, color: "var(--accent3)", fontSize: 13 }}>⚠ This cannot be undone. All user data will be permanently deleted.</div>
             )}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -12668,9 +12917,11 @@ function SuperAdminPage({bp}) {
           </div>
         </Modal>
       )}
+
     </div>
   );
 }
+
 
 // ─── Feature Requests Admin View ─────────────────────────────────────────────
 function FeatureRequestsAdmin() {
