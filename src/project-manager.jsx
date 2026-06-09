@@ -3406,6 +3406,13 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
 
   const gridCols={phone:1,tablet:2,desktop:3};
   const COLORS=["#4fffb0","#7b6fff","#ffc46b","#ff6b6b","#6bf7ff"];
+  const [viewMode,setViewMode]=useState("card"); // "card" | "list"
+  const [sortCol,setSortCol]=useState("name");
+  const [sortDir,setSortDir]=useState("asc");
+  const handleListSort=(col)=>{
+    if(sortCol===col) setSortDir(d=>d==="asc"?"desc":"asc");
+    else{setSortCol(col);setSortDir(col==="name"||col==="client"?"asc":"desc");}
+  };
   const [statusFilter,setStatusFilter]=useState("active"); // "active" | "paused" | "completed" | "archived" | "all"
 
   const statusColor=s=>({active:"var(--accent)",completed:"var(--accent4)",paused:"var(--muted)",archived:"#7a7a8a"})[s]||"var(--muted)";
@@ -3697,9 +3704,114 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
             📦 Archived projects are read-only
           </div>
         )}
+        {/* View toggle */}
+        <div style={{display:"flex",gap:2,marginLeft:"auto",background:"var(--surface2)",borderRadius:8,padding:2,border:"1px solid var(--border)"}}>
+          {[["card","⊞"],["list","☰"]].map(([v,icon])=>(
+            <button key={v} onClick={()=>setViewMode(v)}
+              title={v==="card"?"Card view":"List view"}
+              style={{padding:"5px 12px",borderRadius:6,border:"none",cursor:"pointer",fontSize:14,fontWeight:700,
+                background:viewMode===v?"var(--surface)":"transparent",
+                color:viewMode===v?"var(--accent)":"var(--muted)",
+                transition:"all 0.15s"}}>
+              {icon}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <Grid bp={bp} cols={gridCols} gap={14}>
+      {/* ── LIST VIEW ── */}
+      {viewMode==="list"&&(()=>{
+        const sortedProjects=[...visibleProjects].sort((a,b)=>{
+          const dir=sortDir==="asc"?1:-1;
+          if(sortCol==="name") return dir*a.name.localeCompare(b.name);
+          if(sortCol==="client"){
+            const ca=contacts.find(c=>c.id===a.clientContactId)?.name||"";
+            const cb=contacts.find(c=>c.id===b.clientContactId)?.name||"";
+            return dir*ca.localeCompare(cb);
+          }
+          if(sortCol==="budget") return dir*((a.budget||0)-(b.budget||0));
+          if(sortCol==="status") return dir*a.status.localeCompare(b.status);
+          if(sortCol==="stages"){
+            const pct=p=>{const r=p.stages;const obj=Array.isArray(r)?r.reduce((ac,s)=>{ac[s]={done:false,timeLog:[]};return ac;},{}):r||{};const tot=Object.keys(obj).length;return tot?Object.values(obj).filter(s=>s?.done).length/tot:0;};
+            return dir*(pct(a)-pct(b));
+          }
+          if(sortCol==="tasks"){
+            const ot=p=>tasks.filter(t=>String(t.projectId)===String(p.id)&&t.status!=="done").length;
+            return dir*(ot(a)-ot(b));
+          }
+          return 0;
+        });
+        const SortHdr=({col,label,align="left"})=>(
+          <div onClick={()=>handleListSort(col)}
+            style={{fontSize:10,fontFamily:"var(--mono)",letterSpacing:"0.06em",fontWeight:700,
+              cursor:"pointer",userSelect:"none",textAlign:align,display:"flex",alignItems:"center",
+              gap:3,justifyContent:align==="center"?"center":"flex-start",
+              color:sortCol===col?"var(--accent)":"var(--muted)"}}>
+            {label.toUpperCase()}
+            {sortCol===col
+              ?<span style={{fontSize:8}}>{sortDir==="asc"?"▲":"▼"}</span>
+              :<span style={{fontSize:8,opacity:0.3}}>▼</span>}
+          </div>
+        );
+        return(
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,overflow:"hidden"}}>
+          <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 80px":"2fr 1fr 1fr 1fr 90px 80px",
+            background:"var(--surface2)",padding:"9px 16px",borderBottom:"1px solid var(--border)"}}>
+            <SortHdr col="name" label="Project" />
+            {bp!=="phone"&&<SortHdr col="client" label="Client" />}
+            {bp!=="phone"&&<SortHdr col="budget" label="Budget" align="center"/>}
+            <SortHdr col="status" label="Status" align="center"/>
+            {bp!=="phone"&&<SortHdr col="stages" label="Stages" align="center"/>}
+            {bp!=="phone"&&<SortHdr col="tasks" label="Tasks" align="center"/>}
+          </div>
+          {visibleProjects.length===0&&(
+            <div style={{padding:"32px 16px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No projects found.</div>
+          )}
+          {sortedProjects.map((p,i)=>{
+            const isArchived=p.status==="archived";
+            const client=contacts.find(c=>c.id===p.clientContactId);
+            const projTasks=tasks.filter(t=>String(t.projectId)===String(p.id));
+            const openTasks=projTasks.filter(t=>t.status!=="done").length;
+            const stagesObj2=(()=>{const r=p.stages;if(!r)return defaultStages();if(Array.isArray(r))return r.reduce((a,s)=>{a[s]={done:false,timeLog:[]};return a;},{});return typeof r==="object"?r:defaultStages();})();
+            const stagesDone2=Object.values(stagesObj2).filter(s=>s?.done).length;
+            const stagesTotal2=Object.keys(stagesObj2).length;
+            const statusCol=p.status==="active"?"var(--accent)":p.status==="completed"?"var(--accent4)":p.status==="paused"?"var(--muted)":"#7a7a8a";
+            return(
+              <div key={p.id} onClick={()=>setDetail(p)}
+                style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 80px":"2fr 1fr 1fr 1fr 90px 80px",
+                  padding:"11px 16px",borderBottom:i<sortedProjects.length-1?"1px solid var(--border)22":"none",
+                  alignItems:"center",cursor:"pointer",transition:"background 0.12s",opacity:isArchived?0.7:1}}
+                onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:p.color,flexShrink:0}}/>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                    {p.startDate&&<div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>{p.startDate}{p.endDate?` → ${p.endDate}`:""}</div>}
+                  </div>
+                </div>
+                {bp!=="phone"&&<div style={{fontSize:12,color:"var(--muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{client?.name||"—"}</div>}
+                {bp!=="phone"&&<div style={{textAlign:"center",fontFamily:"var(--mono)",fontSize:12,color:"var(--muted)"}}>{p.budget?fmt(p.budget):"—"}</div>}
+                <div style={{textAlign:"center"}}>
+                  <span style={{padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:700,background:statusCol+"22",color:statusCol}}>{p.status}</span>
+                </div>
+                {bp!=="phone"&&<div style={{textAlign:"center"}}>
+                  <div style={{fontSize:12,fontFamily:"var(--mono)",color:"var(--muted)"}}>{stagesDone2}/{stagesTotal2}</div>
+                  <div style={{height:3,background:"var(--surface3)",borderRadius:2,marginTop:3,overflow:"hidden",width:60,margin:"3px auto 0"}}>
+                    <div style={{height:"100%",width:`${stagesTotal2?Math.round(stagesDone2/stagesTotal2*100):0}%`,background:p.color,borderRadius:2}}/>
+                  </div>
+                </div>}
+                {bp!=="phone"&&<div style={{textAlign:"center",fontSize:12,color:openTasks>0?"var(--accent4)":"var(--muted)",fontFamily:"var(--mono)",fontWeight:openTasks>0?700:400}}>
+                  {openTasks>0?`${openTasks} open`:"✓ done"}
+                </div>}
+              </div>
+            );
+          })}
+        </div>
+      );
+      })()}
+
+      {viewMode==="card"&&<Grid bp={bp} cols={gridCols} gap={14}>
         {visibleProjects.map(p=>{
           const isArchived=p.status==="archived";
           const income=transactions.filter(t=>t.projectId===p.id&&t.type==="income").reduce((a,b)=>a+b.amount,0);
@@ -3852,7 +3964,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
             </Card>
           );
         })}
-      </Grid>
+      </Grid>}
 
       {/* ── Project detail modal ── */}
       {detail&&(
