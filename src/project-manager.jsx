@@ -7756,7 +7756,7 @@ Est. 2005`
       await supabase.from("quotes_store").upsert({
         user_id: user.id,
         quote_id: String(q.id),
-        data: updatedQuote,
+        data: {...updatedQuote, ownerId: user.id},
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,quote_id" });
     } catch(e) { console.error("Quote save error:", e); }
@@ -7764,32 +7764,43 @@ Est. 2005`
     setQuotes(prev=>prev.map(x=>x.id===q.id?updatedQuote:x));
     setSel(s=>({...s,...updatedQuote}));
 
-    // Open email with approval link
+    // Send email via SendGrid
     const contact=contacts.find(c=>c.id===q.contactId);
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
-    const shopEmail=adminSettings?.companyEmail||"";
+    const shopEmail=adminSettings?.companyEmail||"kerry@gothamwoodworks.com";
     const total=quoteTotal(q);
-    const body=encodeURIComponent(
-`Dear ${contact?contact.name:""},
+    const expiryFormatted=new Date(Date.now()+30*24*60*60*1000).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
 
-Please review and approve your quote from ${shopName}.
+    if(!contact?.email){
+      alert("This contact has no email address. Please add one in CRM before sending for approval.");
+      return;
+    }
 
-Quote: ${q.number}
-Project: ${q.title}
-Total: ${fmt(total)}
-
-To review and sign off on this quote, please click the link below:
-${approvalUrl}
-
-This link expires in 30 days. It allows you to review, approve or decline the quote and provide your digital signature.
-
-Best regards,
-${shopName}
-${shopEmail}`
-    );
-    const subject=encodeURIComponent(`Quote ${q.number} — Please Review & Approve`);
-    const to=contact?.email||"";
-    window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+    try {
+      const res = await fetch("/.netlify/functions/send-approval-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toEmail: contact.email,
+          toName: contact.name,
+          fromName: shopName,
+          fromEmail: shopEmail,
+          quoteNumber: q.number,
+          quoteTitle: q.title,
+          quoteTotal: fmt(total),
+          approvalUrl,
+          expiryDate: expiryFormatted,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Approval email sent to ${contact.email}`);
+      } else {
+        throw new Error(data.error || "Email failed to send");
+      }
+    } catch(e) {
+      alert("Email error: " + e.message + "\n\nApproval link: " + approvalUrl);
+    }
   };
 
   // ── Convert quote to invoice ──
@@ -10836,18 +10847,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const setInventory = makeSetter('inventory', _setInventory);
 
   useEffect(() => {
-    Promise.all([
-      syncTable('projects', _setProjects, seedProjects),
-      syncTable('contacts', _setContacts, seedContacts),
-      syncTable('tasks', _setTasks, seedTasks),
-      syncTable('transactions', _setTransactions, seedTransactions),
-      syncTable('inventory', _setInventory, seedInventory),
-    ]).then(() => setDbLoading(false));
-  }, []);
-
-  // Sync quotes from quotes_store (for approval status updates)
-  useEffect(() => {
-    const syncQuotes = async () => {
+    const syncQuotesFromDB = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -10856,25 +10856,98 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
           .select("data")
           .eq("user_id", user.id);
         if (data && data.length > 0) {
-          const storedQuotes = data.map(r => r.data);
-          setQuotes(prev => prev.map(q => {
-            const stored = storedQuotes.find(sq => String(sq.id) === String(q.id));
-            return stored ? { ...q, ...stored } : q;
-          }));
+          _setQuotes(data.map(r => r.data));
         }
-      } catch(e) { console.error("Quote sync error:", e); }
+      } catch(e) { console.error("Quotes load error:", e); }
     };
-    syncQuotes();
-    // Poll every 30 seconds for approval updates
-    const interval = setInterval(syncQuotes, 30000);
+
+    Promise.all([
+      syncTable('projects', _setProjects, seedProjects),
+      syncTable('contacts', _setContacts, seedContacts),
+      syncTable('tasks', _setTasks, seedTasks),
+      syncTable('transactions', _setTransactions, seedTransactions),
+      syncTable('inventory', _setInventory, seedInventory),
+      syncQuotesFromDB(),
+    ]).then(() => setDbLoading(false));
+  }, []);
+
+  // Poll for approval status updates every 30 seconds
+  useEffect(() => {
+    const pollApprovals = async () => {
+      try {
+        _setQuotes(prev => {
+          const sentQuotes = prev.filter(q => q.status === "sent" && q.approvalToken);
+          if (!sentQuotes.length) return prev;
+
+          // Fetch approval status for each sent quote by quote_id (no user_id filter)
+          Promise.all(sentQuotes.map(async q => {
+            const { data } = await supabase
+              .from("quotes_store")
+              .select("data")
+              .eq("quote_id", String(q.id))
+              .neq("user_id", "00000000-0000-0000-0000-000000000000")
+              .order("updated_at", { ascending: false })
+              .limit(1);
+            if (data && data.length > 0) {
+              const stored = data[0].data;
+              if (stored.status && stored.status !== q.status) {
+                return { id: q.id, updates: {
+                  status: stored.status,
+                  signature: stored.signature,
+                  declineReason: stored.declineReason,
+                }};
+              }
+            }
+            return null;
+          })).then(results => {
+            const updates = results.filter(Boolean);
+            if (updates.length > 0) {
+              _setQuotes(prev => prev.map(q => {
+                const update = updates.find(u => String(u.id) === String(q.id));
+                return update ? { ...q, ...update.updates } : q;
+              }));
+            }
+          });
+
+          return prev; // return unchanged for now, async updates apply separately
+        });
+      } catch(e) { console.error("Approval poll error:", e); }
+    };
+    pollApprovals(); // run immediately on mount
+    const interval = setInterval(pollApprovals, 30000);
     return () => clearInterval(interval);
   }, []);
   const [media,setMedia]=useState(seedMedia);
   const [resources,setResources]=useState(seedResources);
   const [gallery,setGallery]=useState(seedGallery);
   const [samples,setSamples]=useState(seedSamples);
-  const [quotes,setQuotes]=useState(seedQuotes);
+  const [quotes,_setQuotes]=useState(seedQuotes);
   const [quoteItems,setQuoteItems]=useState(seedQuoteItems);
+
+  // Persist quotes to Supabase quotes_store
+  const setQuotes = async (updater) => {
+    let newQuotes;
+    _setQuotes(prev => {
+      newQuotes = typeof updater === 'function' ? updater(prev) : updater;
+      return newQuotes;
+    });
+    setTimeout(async () => {
+      if (!newQuotes) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        // Upsert each quote individually
+        for (const q of newQuotes) {
+          await supabase.from("quotes_store").upsert({
+            user_id: user.id,
+            quote_id: String(q.id),
+            data: {...q, ownerId: user.id},
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id,quote_id" });
+        }
+      } catch(e) { console.error("Quote persist error:", e); }
+    }, 100);
+  };
   const [events,setEvents]=useState(seedEvents);
   const [tools,setTools]=useState(seedTools);
   const [adminSettings,setAdminSettings]=useState(defaultAdminSettings);
@@ -11867,14 +11940,17 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
     const sig = { name: sigName.trim(), date: new Date().toISOString().slice(0,10), image: sigImage };
     const updatedQuote = {...quote, status:"approved", signature:sig};
 
-    // Save to Supabase
+    // Save to Supabase using owner's ID stored on quote
     try {
-      await supabase.from("quotes_store").upsert({
-        quote_id: String(quote.id),
-        user_id: quote.userId || "00000000-0000-0000-0000-000000000000",
-        data: updatedQuote,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id,quote_id" });
+      const ownerId = quote.ownerId;
+      if (ownerId) {
+        await supabase.from("quotes_store").upsert({
+          quote_id: String(quote.id),
+          user_id: ownerId,
+          data: updatedQuote,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,quote_id" });
+      }
     } catch(e) { console.error("Approval save error:", e); }
 
     setQuotes(prev => prev.map(x => String(x.id) === String(quote.id) ? updatedQuote : x));
@@ -11885,14 +11961,17 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
     if (!declineReason.trim()) { setError("Please provide a reason for declining."); return; }
     const updatedQuote = {...quote, status:"declined", declineReason: declineReason.trim()};
 
-    // Save to Supabase
+    // Save to Supabase using owner's ID stored on quote
     try {
-      await supabase.from("quotes_store").upsert({
-        quote_id: String(quote.id),
-        user_id: quote.userId || "00000000-0000-0000-0000-000000000000",
-        data: updatedQuote,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id,quote_id" });
+      const ownerId = quote.ownerId;
+      if (ownerId) {
+        await supabase.from("quotes_store").upsert({
+          quote_id: String(quote.id),
+          user_id: ownerId,
+          data: updatedQuote,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,quote_id" });
+      }
     } catch(e) { console.error("Decline save error:", e); }
 
     setQuotes(prev => prev.map(x => String(x.id) === String(quote.id) ? updatedQuote : x));
