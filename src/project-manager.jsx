@@ -20,6 +20,21 @@ function useBreakpoint() {
 }
 
 
+// ─── Theme Hook ───────────────────────────────────────────────────────────────
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("cabshop-theme") || "dark";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("cabshop-theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === "dark" ? "light" : "dark");
+  return { theme, toggleTheme };
+}
+
 // ─── Subscription Hook ────────────────────────────────────────────────────────
 const PLAN_LEVELS = { trial: 0, solo: 1, pro: 2, team: 3 };
 
@@ -181,6 +196,18 @@ const CSS = `
     --font:'Syne',sans-serif; --mono:'DM Mono',monospace;
     --bottom-nav-h: 68px;
   }
+  /* ── Light theme ── */
+  [data-theme="light"] {
+    --bg:#f5f3ee; --surface:#ffffff; --surface2:#f0ede6; --surface3:#e8e4db;
+    --border:#ddd8ce; --accent:#1a7a40; --accent2:#5b4fd4; --accent3:#c0392b;
+    --accent4:#c87d00; --accent5:#0077a8; --text:#1a1a12; --muted:#7a7260;
+  }
+  [data-theme="light"] input[type="date"],
+  [data-theme="light"] input[type="datetime-local"],
+  [data-theme="light"] input[type="time"],
+  [data-theme="light"] select { color-scheme: light; }
+  [data-theme="light"] ::-webkit-scrollbar-track { background: var(--surface2); }
+  [data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--border); }
   html,body,#root { height:100%; background:var(--bg); color:var(--text); font-family:var(--font); }
   ::-webkit-scrollbar { width:4px; height:4px; }
   ::-webkit-scrollbar-track { background:var(--surface); }
@@ -747,7 +774,7 @@ function TabletSidebar({active,setActive,collapsed,setCollapsed}) {
 }
 
 // Desktop: full sidebar
-function DesktopSidebar({active,setActive,adminEmail,plan,badges={}}) {
+function DesktopSidebar({active,setActive,adminEmail,plan,badges={},theme,toggleTheme}) {
   const initGroups=()=>{
     const g={};
     NAV.forEach(n=>{if(n.children?.some(c=>c.id===active))g[n.id]=true;});
@@ -768,6 +795,19 @@ function DesktopSidebar({active,setActive,adminEmail,plan,badges={}}) {
       </div>
       <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} adminEmail={adminEmail} badges={badges} />
       <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+        {/* Theme toggle */}
+        {toggleTheme&&(
+          <button onClick={toggleTheme}
+            style={{width:"100%",padding:"8px 10px",borderRadius:8,background:"var(--surface2)",
+              border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,
+              cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",
+              justifyContent:"space-between",transition:"all 0.15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.color="var(--accent)";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";}}>
+            <span>{theme==="dark"?"☀ Light Mode":"🌙 Dark Mode"}</span>
+            <span style={{fontSize:14}}>{theme==="dark"?"☀️":"🌙"}</span>
+          </button>
+        )}
         {/* Plan badge */}
         {plan&&(
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 10px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)"}}>
@@ -10965,6 +11005,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const [tourActive,setTourActive]=useState(false);
   const [currentUserEmail,setCurrentUserEmail]=useState("");
   const { plan, subStatus, hasFeature, canAccessPage } = useSubscription();
+  const { theme, toggleTheme } = useTheme();
 
   const startTour = () => setTourActive(true);
 
@@ -11207,7 +11248,8 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       <style>{CSS}</style>
       <div style={{display:"flex",minHeight:"100vh"}}>
         {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} adminEmail={currentUserEmail} plan={plan}
-          badges={{quotes: quotes.filter(q=>q.status==="approved"&&!q.seenApproval).length}} />}
+          badges={{quotes: quotes.filter(q=>q.status==="approved"&&!q.seenApproval).length}}
+          theme={theme} toggleTheme={toggleTheme} />}
         {bp==="tablet"  && <TabletSidebar  active={page} setActive={setPage} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
         <main style={{flex:1,padding:mainPad,paddingBottom:mainPB,overflowY:"auto",maxHeight:"100vh",WebkitOverflowScrolling:"touch"}}>
           {renderPage()}
