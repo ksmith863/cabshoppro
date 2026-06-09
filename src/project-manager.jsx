@@ -41,6 +41,7 @@ const PLAN_FEATURES = {
 
 function useSubscription() {
   const [plan, setPlan] = useState("trial");
+  const [subStatus, setSubStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,23 +50,40 @@ function useSubscription() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { setPlan("trial"); setLoading(false); return; }
 
-        // Check Stripe subscription via our admin function
-        const res = await fetch("/.netlify/functions/get-subscription", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.priceId && PRICE_TO_PLAN[data.priceId]) {
-            setPlan(PRICE_TO_PLAN[data.priceId]);
-          } else if (data.status === "trialing" || data.status === "active") {
-            setPlan("pro"); // fallback for active subs without matched price
-          } else {
+        // Check subscriptions table (populated by Stripe webhook)
+        const { data: sub } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("email", user.email)
+          .single();
+
+        if (sub && (sub.status === "active" || sub.status === "trialing")) {
+          setPlan(sub.plan || "trial");
+          setSubStatus(sub.status);
+        } else if (sub && sub.status === "past_due") {
+          // Keep their plan but flag as past due
+          setPlan(sub.plan || "trial");
+          setSubStatus("past_due");
+        } else {
+          // Fall back to Stripe API check if no webhook data yet
+          try {
+            const res = await fetch("/.netlify/functions/get-subscription", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: user.email }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.priceId && PRICE_TO_PLAN[data.priceId]) {
+                setPlan(PRICE_TO_PLAN[data.priceId]);
+                setSubStatus(data.status);
+              } else {
+                setPlan("trial");
+              }
+            }
+          } catch(e) {
             setPlan("trial");
           }
-        } else {
-          setPlan("trial");
         }
       } catch(e) {
         console.log("Subscription check error:", e.message);
@@ -83,15 +101,16 @@ function useSubscription() {
 
   const canAccessPage = (pageId) => {
     const PAGE_FEATURES = {
-      resources: "resources", media: "media", samples: "samples",
-      gallery: "gallery", tools: "tools",
+      resources: "resources", documents: "resources",
+      media: "media", samples: "samples",
+      gallery: "gallery", tools: "tools", library: "resources",
     };
     const feature = PAGE_FEATURES[pageId];
     if (!feature) return true;
     return hasFeature(feature);
   };
 
-  return { plan, loading, hasFeature, canAccessPage };
+  return { plan, subStatus, loading, hasFeature, canAccessPage };
 }
 
 // ─── Upgrade Prompt ───────────────────────────────────────────────────────────
@@ -176,6 +195,12 @@ const CSS = `
   .mic-pulse { animation:pulse 0.7s ease infinite; }
   /* Safe area for iPhone notch/home bar */
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 12px); }
+  /* Fix dark calendar/date picker icons */
+  input[type="date"], input[type="datetime-local"], input[type="time"] {
+    color-scheme: dark;
+  }
+  /* Fix select dropdown arrow color */
+  select { color-scheme: dark; }
   /* Hide Shepherd.js default arrow — all variants */
   .shepherd-arrow, .shepherd-arrow:before, .shepherd-arrow:after,
   .shepherd-element .shepherd-arrow, .shepherd-element .shepherd-arrow:before,
@@ -533,27 +558,34 @@ function SearchBar({value,onChange,placeholder="Search…"}) {
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 const NAV = [
-  {id:"dashboard", label:"Home",      icon:"⬡"},
+  // ── WORKSPACE ──
+  {id:"dashboard", label:"Home",      icon:"⬡", section:"WORKSPACE"},
   {id:"projects",  label:"Projects",  icon:"◈"},
-  {id:"crm",       label:"CRM",       icon:"◎"},
   {id:"tasks",     label:"Tasks",     icon:"▦"},
   {id:"calendar",  label:"Calendar",  icon:"📅"},
-  {id:"finance",   label:"Finance",   icon:"$",   children:[
-    {id:"financetracker",label:"Finance Tracker",icon:"$"},
-    {id:"quotes",    label:"Quotes",    icon:"◑", badgeKey:"quotes"},
-    {id:"itemlib",   label:"Item Lib",  icon:"⊟"},
-    {id:"inventory", label:"Inventory", icon:"⊞"},
+  // ── CLIENTS & SALES ──
+  {id:"crm",       label:"CRM",       icon:"◎", section:"CLIENTS & SALES"},
+  {id:"quotes",    label:"Quotes & Invoices", icon:"◑", badgeKey:"quotes", children:[
+    {id:"itemlib",   label:"Item Library",  icon:"⊟"},
   ]},
-  {id:"resources", label:"Resources", icon:"⊘",  children:[
-    {id:"documents", label:"Documents", icon:"📄"},
-    {id:"media",     label:"Media",     icon:"⊠"},
+  // ── SHOP ──
+  {id:"financetracker", label:"Finance", icon:"$", section:"SHOP", children:[
+    {id:"inventory",  label:"Inventory",    icon:"⊞"},
+    {id:"tools",      label:"Tools & Equip",icon:"🔧"},
   ]},
-  {id:"tools",     label:"Tools & Equip", icon:"🔧"},
-  {id:"gallery",   label:"Galleries", icon:"◫"},
-  {id:"samples",   label:"Samples",   icon:"◉"},
-  {id:"admin",     label:"Admin",     icon:"⚙"},
-  {id:"subscription", label:"Subscription", icon:"★"},
-  {id:"superadmin",   label:"Super Admin",   icon:"⚡"},
+  // ── LIBRARY ──
+  {id:"library", label:"Library", icon:"◫", section:"LIBRARY", children:[
+    {id:"documents",  label:"Documents", icon:"📄"},
+    {id:"media",      label:"Media",     icon:"⊠"},
+    {id:"gallery",    label:"Gallery",   icon:"◫"},
+    {id:"samples",    label:"Samples",   icon:"◉"},
+  ]},
+  // ── ACCOUNT ──
+  {id:"account", label:"Account", icon:"⚙", section:"ACCOUNT", children:[
+    {id:"admin",        label:"Admin",        icon:"⚙"},
+    {id:"subscription", label:"Subscription", icon:"★"},
+    {id:"superadmin",   label:"Super Admin",  icon:"⚡"},
+  ]},
 ];
 
 // Phone: bottom tab bar (scrollable, 5 visible + overflow)
@@ -577,15 +609,36 @@ function BottomNav({active,setActive}) {
 function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, adminEmail, badges={}}) {
   const ADMIN_EMAIL = "kerrysmith863@gmail.com";
   const isChildActive=(n)=>n.children&&n.children.some(c=>c.id===active);
+  const filteredNav = NAV.filter(n => n.id !== "superadmin" || adminEmail === ADMIN_EMAIL);
 
-  return NAV.filter(n => n.id !== "superadmin" || adminEmail === ADMIN_EMAIL).map(n=>{
+  const items = [];
+  filteredNav.forEach((n, idx) => {
+    // Insert section header if this item starts a new section
+    if(n.section && !collapsed) {
+      items.push(
+        <div key={`section-${n.section}`} style={{
+          padding:"16px 20px 4px",
+          fontSize:9,
+          fontWeight:800,
+          letterSpacing:"0.1em",
+          color:"var(--muted)",
+          fontFamily:"var(--mono)",
+          opacity:0.5,
+          userSelect:"none",
+          marginTop: idx===0?0:8,
+        }}>
+          {n.section}
+        </div>
+      );
+    }
+
     const hasChildren=n.children&&n.children.length>0;
     const isOpen=openGroups[n.id];
     const selfActive=active===n.id;
     const childActive=isChildActive(n);
 
     if(!hasChildren){
-      return(
+      items.push(
         <button key={n.id} onClick={()=>setActive(n.id)} title={n.label}
           data-tour={`nav-${n.id}`}
           style={{display:"flex",alignItems:"center",gap:10,padding:collapsed?"12px 0":"9px 20px",
@@ -594,7 +647,7 @@ function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, admi
             borderLeft:collapsed?"none":`3px solid ${selfActive?"var(--accent)":"transparent"}`,
             color:selfActive?"var(--accent)":"var(--muted)",
             fontSize:13,fontWeight:selfActive?700:500,cursor:"pointer",
-            fontFamily:"var(--font)",transition:"all 0.15s"}}>
+            fontFamily:"var(--font)",transition:"all 0.15s",position:"relative"}}>
           <span style={{fontSize:16}}>{n.icon}</span>
           {!collapsed&&<>
             <span style={{flex:1,textAlign:"left"}}>{n.label}</span>
@@ -603,37 +656,39 @@ function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, admi
           {collapsed&&badges[n.id]>0&&<span style={{position:"absolute",top:6,right:6,background:"var(--accent3)",color:"#fff",borderRadius:"50%",fontSize:9,fontWeight:700,width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center"}}>{badges[n.id]}</span>}
         </button>
       );
+      return;
     }
 
     // Group with children
-    return(
+    items.push(
       <div key={n.id}>
         {/* Group header */}
         <button
           onClick={()=>{
-            // If collapsed sidebar, clicking navigates to the first child
-            if(collapsed){setActive(n.children[0].id);return;}
-            // Toggle group open/closed; also navigate to first child (these are pure group headers)
-            setOpenGroups(g=>({...g,[n.id]:!g[n.id]}));
-            // Only navigate to a page if this group has a real page; otherwise open the group
-            // finance and resources are pure headers — navigate to first child instead
-            if(n.id==="finance"||n.id==="resources"){
-              if(!openGroups[n.id])setActive(n.children[0].id);
-            } else {
-              setActive(n.id);
+            if(collapsed){
+              // On collapsed sidebar, open first child
+              if(n.children?.length) setActive(n.children[0].id);
+              else setActive(n.id);
+              return;
             }
+            setOpenGroups(g=>({...g,[n.id]:!g[n.id]}));
+            // Pure group headers (library, account) don't navigate
+            const pureGroups = ["library","account"];
+            if(!pureGroups.includes(n.id) && !openGroups[n.id]) setActive(n.id);
           }}
           title={n.label}
+          data-tour={`nav-${n.id}`}
           style={{display:"flex",alignItems:"center",gap:10,padding:collapsed?"12px 0":"9px 20px",
             justifyContent:collapsed?"center":"flex-start",width:"100%",
-            background:childActive?"var(--accent)18":"transparent",border:"none",
-            borderLeft:collapsed?"none":`3px solid ${childActive&&!isOpen?"var(--accent)":"transparent"}`,
-            color:childActive?"var(--accent)":"var(--muted)",
-            fontSize:13,fontWeight:childActive?700:500,cursor:"pointer",
+            background:(selfActive||childActive)?"var(--accent)18":"transparent",border:"none",
+            borderLeft:collapsed?"none":`3px solid ${(selfActive||childActive)&&!isOpen?"var(--accent)":"transparent"}`,
+            color:(selfActive||childActive)?"var(--accent)":"var(--muted)",
+            fontSize:13,fontWeight:(selfActive||childActive)?700:500,cursor:"pointer",
             fontFamily:"var(--font)",transition:"all 0.15s"}}>
           <span style={{fontSize:16}}>{n.icon}</span>
           {!collapsed&&<>
             <span style={{flex:1,textAlign:"left"}}>{n.label}</span>
+            {badges[n.id]>0&&<span style={{background:"var(--accent3)",color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 6px",minWidth:18,textAlign:"center"}}>{badges[n.id]}</span>}
             <span style={{fontSize:10,opacity:0.6,transition:"transform 0.2s",display:"inline-block",transform:isOpen?"rotate(90deg)":"none"}}>▶</span>
           </>}
         </button>
@@ -655,6 +710,7 @@ function NavItems({active, setActive, collapsed, openGroups, setOpenGroups, admi
       </div>
     );
   });
+  return items;
 }
 
 // Tablet: collapsible sidebar
@@ -1145,7 +1201,7 @@ Keep the tone practical and grounded. If data is missing or insufficient, note i
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
 // Sub-component for the detail modal — hooks are valid here
-function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,onOpenQuote,onScheduleEvent,onClose,onEdit,onArchive,onUnarchive}) {
+function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,setQuotes,onOpenQuote,onScheduleEvent,onClose,onEdit,onArchive,onUnarchive}) {
   const [newTaskTitle,setNewTaskTitle]=useState("");
   const [activeTab,setActiveTab]=useState("financials"); // "financials" | "stages" | "tasks" | "documents" | "notes"
   const [timeModal,setTimeModal]=useState(null);
@@ -2520,7 +2576,29 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
           <div style={{textAlign:"center",padding:"40px 0",color:"var(--muted)"}}>
             <div style={{fontSize:32,marginBottom:10}}>◑</div>
             <div style={{fontWeight:600,marginBottom:6}}>No quotes linked to this project</div>
-            <div style={{fontSize:12,marginBottom:16}}>Create a quote in the Quotes section and link it to <strong>{p.name}</strong>.</div>
+            <div style={{fontSize:12,marginBottom:16}}>Create a quote for <strong>{p.name}</strong> to get started.</div>
+            {onOpenQuote&&<button onClick={()=>{
+              const contact=p.clientContactId?contacts.find(c=>String(c.id)===String(p.clientContactId)):null;
+              const newQ={
+                id:`q${Date.now()}`,
+                number:`GW-${new Date().getFullYear()}-${String((quotes||[]).length+1).padStart(3,"0")}`,
+                isInvoice:false,status:"draft",
+                projectId:String(p.id),
+                contactId:contact?.id||"",
+                title:p.name,
+                date:new Date().toISOString().slice(0,10),
+                validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",
+                notes:"",taxRate:0,
+                lines:[{id:`l${Date.now()}`,itemId:"",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000"}],
+                attachedTandC:null,
+              };
+              // Add to quotes list then open
+              if(setQuotes) setQuotes(prev=>[newQ,...prev]);
+              setTimeout(()=>onOpenQuote(newQ), 50);
+            }}
+              style={{padding:"10px 22px",borderRadius:10,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>
+              + Create Quote for this Project
+            </button>}
           </div>
         );
 
@@ -2531,6 +2609,30 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
 
         return(
           <div>
+            {/* Create Quote button */}
+            {onOpenQuote&&<div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+              <button onClick={()=>{
+                const contact=p.clientContactId?contacts.find(c=>String(c.id)===String(p.clientContactId)):null;
+                const newQ={
+                  id:`q${Date.now()}`,
+                  number:`GW-${new Date().getFullYear()}-${String((quotes||[]).length+1).padStart(3,"0")}`,
+                  isInvoice:false,status:"draft",
+                  projectId:String(p.id),
+                  contactId:contact?.id||"",
+                  title:p.name,
+                  date:new Date().toISOString().slice(0,10),
+                  validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",
+                  notes:"",taxRate:0,
+                  lines:[{id:`l${Date.now()}`,itemId:"",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000"}],
+                  attachedTandC:null,
+                };
+                if(setQuotes) setQuotes(prev=>[newQ,...prev]);
+                setTimeout(()=>onOpenQuote(newQ), 50);
+              }}
+                style={{padding:"8px 16px",borderRadius:9,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"var(--font)"}}>
+                + New Quote for this Project
+              </button>
+            </div>}
             {/* Summary tiles */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:18}}>
               {[
@@ -3035,7 +3137,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
 }
 
 
-function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,onOpenQuote,onScheduleEvent,pendingProject,onClearPending,bp,plan,hasFeature}) {
+function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,setQuotes,onOpenQuote,onScheduleEvent,pendingProject,onClearPending,bp,plan,hasFeature}) {
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(null);
@@ -3600,6 +3702,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
           resources={resources}
           setResources={setResources}
           quotes={quotes||[]}
+          setQuotes={setQuotes}
           onOpenQuote={onOpenQuote}
           onScheduleEvent={onScheduleEvent}
           onClose={()=>setDetail(null)}
@@ -3646,7 +3749,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
                             onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                             <div style={{width:28,height:28,borderRadius:7,background:col+"33",color:col,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,flexShrink:0}}>{c.avatar}</div>
                             <div style={{minWidth:0}}>
-                              <div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                              <div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"var(--text)"}}>{c.name}</div>
                               <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>{c.role}{c.company?` · ${c.company}`:""}</div>
                             </div>
                           </button>
@@ -7491,6 +7594,8 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   // ── Quote list filters ──
   const [qSearch,setQSearch]=useState("");
   const [qStatus,setQStatus]=useState("all");
+  const [qViewMode,setQViewMode]=useState("card");
+  const [qSort,setQSort]=useState("date_desc"); // date_desc | date_asc | client_asc | client_desc | amount_desc
 
   const blankLine=()=>({id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,itemId:"",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000"});
   const blankQuote=()=>({id:`q${Date.now()}`,number:`GW-${new Date().getFullYear()}-${String(quotes.length+1).padStart(3,"0")}`,isInvoice:false,status:"draft",projectId:"",contactId:"",title:"",date:new Date().toISOString().slice(0,10),validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",notes:"",taxRate:0,lines:[blankLine()],attachedTandC:null});
@@ -7522,8 +7627,27 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   // ── Quote list ──
   const filteredQuotes=quotes.filter(q=>{
     const sm=q.title.toLowerCase().includes(qSearch.toLowerCase())||q.number.toLowerCase().includes(qSearch.toLowerCase());
-    const st=qStatus==="all"||q.status===qStatus;
-    return sm&&st;
+    if(!sm)return false;
+    if(qStatus==="all")return true;
+    if(qStatus==="__quotes")return !q.isInvoice;
+    if(qStatus==="__invoices")return q.isInvoice;
+    if(qStatus==="__overdue")return q.isInvoice&&q.dueDate&&new Date(q.dueDate)<new Date()&&q.status!=="paid";
+    return q.status===qStatus;
+  }).sort((a,b)=>{
+    if(qSort==="date_desc") return new Date(b.date)-new Date(a.date);
+    if(qSort==="date_asc")  return new Date(a.date)-new Date(b.date);
+    if(qSort==="client_asc") {
+      const ca=contacts.find(c=>c.id===a.contactId)?.name||"";
+      const cb=contacts.find(c=>c.id===b.contactId)?.name||"";
+      return ca.localeCompare(cb);
+    }
+    if(qSort==="client_desc") {
+      const ca=contacts.find(c=>c.id===a.contactId)?.name||"";
+      const cb=contacts.find(c=>c.id===b.contactId)?.name||"";
+      return cb.localeCompare(ca);
+    }
+    if(qSort==="amount_desc") return quoteTotal(b)-quoteTotal(a);
+    return 0;
   });
 
   const openNew=()=>{setSel(blankQuote());setView("edit");};
@@ -8372,8 +8496,13 @@ Est. 2005`
                     </div>
                     <div>
                       <div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:3}}>UNIT</div>
-                      <input value={line.unit} onChange={e=>updateLine(line.id,"unit",e.target.value)}
-                        style={{...inp,padding:"7px 8px"}} />
+                      <select value={line.unit} onChange={e=>updateLine(line.id,"unit",e.target.value)}
+                        style={{...inp,padding:"7px 8px",cursor:"pointer"}}>
+                        {["ea","hr","day","lf","sf","bf","set","lot","job","lb","pr"].map(u=>(
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                        <option value={line.unit&&!["ea","hr","day","lf","sf","bf","set","lot","job","lb","pr"].includes(line.unit)?line.unit:""} disabled hidden>{line.unit}</option>
+                      </select>
                     </div>
                     <div>
                       <div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:3}}>COST / UNIT ($) 🔒</div>
@@ -8553,51 +8682,56 @@ Est. 2005`
         <Btn onClick={openNew}>+ New Quote</Btn>
       </div>} />
 
-    <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-      <SearchBar value={qSearch} onChange={e=>setQSearch(e.target.value)} placeholder="Search quotes & invoices…" />
-      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-        {/* Group tabs */}
-        {[
-          ["all","All"],
-          ["__quotes","Quotes"],
-          ["__invoices","Invoices"],
-          ["__overdue","Overdue"],
-        ].map(([v,l])=>(
-          <button key={v} onClick={()=>setQStatus(v)}
-            style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",
-              background:qStatus===v?"var(--surface3)":"var(--surface2)",
-              color:qStatus===v?(v==="__overdue"?"var(--accent3)":v==="__invoices"?"var(--accent4)":"var(--text)"):"var(--muted)",
-              border:`1px solid ${qStatus===v?"var(--border)":"var(--border)44"}`,cursor:"pointer"}}>
-            {l}
-            {v==="__overdue"&&(()=>{const n=quotes.filter(q=>q.isInvoice&&q.dueDate&&new Date(q.dueDate)<new Date()&&q.status!=="paid").length;return n>0?<span style={{marginLeft:4,background:"var(--accent3)",color:"#fff",borderRadius:10,fontSize:10,padding:"1px 5px"}}>{n}</span>:null;})()}
-          </button>
-        ))}
-        {/* Divider */}
-        <div style={{width:1,background:"var(--border)",alignSelf:"stretch",margin:"0 2px"}} />
-        {/* Status filters */}
-        {[...QUOTE_STATUSES,...INVOICE_STATUSES].map(s=>(
-          <button key={s} onClick={()=>setQStatus(s)}
-            style={{padding:"6px 10px",borderRadius:20,fontSize:11,fontWeight:600,fontFamily:"var(--font)",
-              background:qStatus===s?"var(--surface3)":"var(--surface2)",
-              color:qStatus===s?statusColor(s):"var(--muted)",
-              border:`1px solid ${qStatus===s?statusColor(s)+"66":"var(--border)44"}`,cursor:"pointer"}}>
-            {s.charAt(0).toUpperCase()+s.slice(1)}
+    {/* Single clean toolbar */}
+    <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+      <SearchBar value={qSearch} onChange={e=>setQSearch(e.target.value)} placeholder="Search…" style={{flex:1,minWidth:160}} />
+
+      {/* Type filter */}
+      <select value={qStatus} onChange={e=>setQStatus(e.target.value)}
+        style={{padding:"8px 10px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",
+          color:"var(--text)",fontSize:13,outline:"none",fontFamily:"var(--font)",cursor:"pointer"}}>
+        <option value="all">All Types</option>
+        <option value="__quotes">Quotes only</option>
+        <option value="__invoices">Invoices only</option>
+        <option value="__overdue">⚠ Overdue</option>
+        <optgroup label="Quote Status">
+          {QUOTE_STATUSES.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+        </optgroup>
+        <optgroup label="Invoice Status">
+          {INVOICE_STATUSES.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+        </optgroup>
+      </select>
+
+      {/* Sort */}
+      <select value={qSort} onChange={e=>setQSort(e.target.value)}
+        style={{padding:"8px 10px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",
+          color:"var(--text)",fontSize:13,outline:"none",fontFamily:"var(--font)",cursor:"pointer"}}>
+        <option value="date_desc">Newest first</option>
+        <option value="date_asc">Oldest first</option>
+        <option value="client_asc">Client A→Z</option>
+        <option value="client_desc">Client Z→A</option>
+        <option value="amount_desc">Highest amount</option>
+      </select>
+
+      {/* View toggle */}
+      <div style={{display:"flex",gap:4,background:"var(--surface2)",borderRadius:8,padding:3,border:"1px solid var(--border)"}}>
+        {[["card","⊞"],["list","≡"]].map(([v,icon])=>(
+          <button key={v} onClick={()=>setQViewMode(v)}
+            style={{padding:"5px 10px",borderRadius:6,fontSize:14,border:"none",
+              background:qViewMode===v?"var(--accent)":"transparent",
+              color:qViewMode===v?"#000":"var(--muted)",cursor:"pointer",transition:"all 0.15s"}}>
+            {icon}
           </button>
         ))}
       </div>
+
+      {/* Result count */}
+      <div style={{fontSize:12,color:"var(--muted)",whiteSpace:"nowrap"}}>{filteredQuotes.length} results</div>
     </div>
 
     {/* Quote / Invoice cards */}
-    <Grid bp={bp} cols={{phone:1,tablet:2,desktop:3}} gap={14}>
-      {quotes.filter(q=>{
-        const sm=q.title.toLowerCase().includes(qSearch.toLowerCase())||q.number.toLowerCase().includes(qSearch.toLowerCase());
-        if(!sm)return false;
-        if(qStatus==="all")return true;
-        if(qStatus==="__quotes")return !q.isInvoice;
-        if(qStatus==="__invoices")return q.isInvoice;
-        if(qStatus==="__overdue")return q.isInvoice&&q.dueDate&&new Date(q.dueDate)<new Date()&&q.status!=="paid";
-        return q.status===qStatus;
-      }).map(q=>{
+    {(qViewMode==="card"||bp==="phone")&&<Grid bp={bp} cols={{phone:1,tablet:2,desktop:3}} gap={14}>
+      {filteredQuotes.map(q=>{
         const contact=contacts.find(c=>c.id===q.contactId);
         const project=projects.find(p=>p.id===+q.projectId);
         const total=quoteTotal(q);
@@ -8643,7 +8777,52 @@ Est. 2005`
       {quotes.filter(q=>q.title.toLowerCase().includes(qSearch.toLowerCase())||q.number.toLowerCase().includes(qSearch.toLowerCase())).length===0&&(
         <div style={{gridColumn:"1/-1",textAlign:"center",padding:50,color:"var(--muted)",fontSize:14}}>No quotes or invoices found.</div>
       )}
-    </Grid>
+    </Grid>}
+
+    {/* List view */}
+    {qViewMode==="list"&&bp!=="phone"&&(
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,overflow:"hidden",marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 100px 120px 80px",gap:0,background:"var(--surface2)",padding:"9px 16px",borderBottom:"1px solid var(--border)"}}>
+          {["Quote / Invoice","Contact","Project","Total","Status",""].map(h=>(
+            <div key={h} style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em",fontWeight:700}}>{h.toUpperCase()}</div>
+          ))}
+        </div>
+        {filteredQuotes.map((q,i,arr)=>{
+          const contact=contacts.find(c=>c.id===q.contactId);
+          const project=projects.find(p=>p.id===+q.projectId);
+          const total=quoteTotal(q);
+          const isInv=q.isInvoice;
+          const isOverdue=isInv&&q.dueDate&&new Date(q.dueDate)<new Date()&&q.status!=="paid";
+          const sCol=isOverdue?"var(--accent3)":statusColor(q.status);
+          return(
+            <div key={q.id} onClick={()=>openEdit(q)}
+              style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 100px 120px 80px",gap:0,
+                padding:"11px 16px",borderBottom:i<arr.length-1?"1px solid var(--border)33":"none",
+                cursor:"pointer",transition:"background 0.1s",alignItems:"center"}}
+              onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div>
+                <div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.title||"Untitled"}</div>
+                <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>{q.number} · {q.date}{isInv&&<span style={{marginLeft:6,color:"var(--accent4)",fontWeight:700}}>INVOICE</span>}</div>
+              </div>
+              <div style={{fontSize:12,color:"var(--muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{contact?.name||"—"}</div>
+              <div style={{fontSize:12,color:"var(--muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{project?.name||"—"}</div>
+              <div style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:q.status==="paid"?"var(--accent)":isOverdue?"var(--accent3)":"var(--text)"}}>{fmt(total)}</div>
+              <div><Badge color={sCol}>{isOverdue?"overdue":q.status}</Badge></div>
+              <div>
+                <button onClick={e=>{e.stopPropagation();openEdit(q);}}
+                  style={{padding:"5px 10px",borderRadius:6,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)"}}>
+                  Open
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {filteredQuotes.length===0&&(
+          <div style={{textAlign:"center",padding:40,color:"var(--muted)",fontSize:13}}>No quotes or invoices found.</div>
+        )}
+      </div>
+    )}
   </div>);
 }
 
@@ -10784,7 +10963,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const [page,setPage]=useState(initialPage);
   const [tourActive,setTourActive]=useState(false);
   const [currentUserEmail,setCurrentUserEmail]=useState("");
-  const { plan, hasFeature, canAccessPage } = useSubscription();
+  const { plan, subStatus, hasFeature, canAccessPage } = useSubscription();
 
   const startTour = () => setTourActive(true);
 
@@ -10989,6 +11168,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       samples:   { feature:"Samples Library",  plan:"pro" },
       gallery:   { feature:"Gallery",          plan:"pro" },
       tools:     { feature:"Tools & Equipment",plan:"pro" },
+      library:   { feature:"Library",          plan:"pro" },
     };
     if (RESTRICTED_PAGES[page] && !canAccessPage(page)) {
       const r = RESTRICTED_PAGES[page];
@@ -10996,10 +11176,12 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     }
     switch(page){
       case "dashboard":  return <Dashboard  {...p} contacts={contacts} onNavigate={setPage} onOpenProject={openProjectDetail} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onStartTour={startTour}/>;
-      case "projects":   return <Projects   {...p} contacts={contacts} setContacts={p.setContacts} tasks={tasks} setTasks={p.setTasks} inventory={inventory} resources={resources} setResources={p.setResources} quotes={quotes} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingProject={pendingProject} onClearPending={()=>setPendingProject(null)}/>;
+      case "projects":   return <Projects   {...p} contacts={contacts} setContacts={p.setContacts} tasks={tasks} setTasks={p.setTasks} inventory={inventory} resources={resources} setResources={p.setResources} quotes={quotes} setQuotes={p.setQuotes} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingProject={pendingProject} onClearPending={()=>setPendingProject(null)}/>;
       case "crm":        return <CRM        {...p} inventory={inventory} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
       case "tasks":      return <Tasks      {...p} onOpenProject={openProjectDetail} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
       case "finance":    return null; // group header — collapses to financetracker
+      case "library":    return null; // group header
+      case "account":    return null; // group header
       case "financetracker": return <Finance {...p} quotes={quotes}/>;
       case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings}/>;
       case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} bp={bp}/>;
@@ -11032,6 +11214,17 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       </div>
       <CabShopChatbot hasFeature={hasFeature} />
       {tourActive&&<ProductTour onClose={()=>setTourActive(false)} setPage={setPage} />}
+      {subStatus==="past_due"&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,zIndex:9000,background:"var(--accent3)",color:"#fff",
+          padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,fontWeight:600}}>
+          <span>⚠ Your last payment failed. Please update your payment method to avoid losing access.</span>
+          <button onClick={()=>setPage("subscription")}
+            style={{background:"#fff",color:"var(--accent3)",border:"none",borderRadius:6,padding:"5px 12px",
+              fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+            Update Payment →
+          </button>
+        </div>
+      )}
     </>
   );
 }
