@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CabShop Pro — User Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f7f3; color: #1a1a12; line-height: 1.7; }
+  .cover { background: #1a1a12; color: #fff; padding: 60px 40px; text-align: center; }
+  .cover h1 { font-size: 40px; font-weight: 900; color: #4fffb0; letter-spacing: -1px; margin-bottom: 8px; }
+  .cover p { color: #8b9490; font-size: 16px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+  h2 { font-size: 26px; font-weight: 800; margin: 48px 0 16px; color: #1a1a12; display: flex; align-items: center; gap: 12px; }
+  h2 .section-icon { font-size: 28px; }
+  h3 { font-size: 17px; font-weight: 700; margin: 24px 0 8px; color: #333; }
+  p { margin-bottom: 14px; color: #444; font-size: 15px; }
+  .divider { height: 3px; background: linear-gradient(90deg, #4fffb0, transparent); border-radius: 3px; margin: 8px 0 32px; }
+  .toc { background: #fff; border-radius: 16px; padding: 28px; border: 1px solid #e8e4d8; margin-bottom: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .toc h3 { margin: 0 0 16px; font-size: 18px; }
+  .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .toc a { color: #1a7a40; text-decoration: none; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .toc a:hover { color: #4fffb0; }
+  .card { background: #fff; border-radius: 16px; padding: 28px; margin-bottom: 24px; border: 1px solid #e8e4d8; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .tip { background: #4fffb010; border-left: 4px solid #4fffb0; padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 14px 0; font-size: 14px; color: #1a5a3a; }
+  .note { background: #4a9eff10; border-left: 4px solid #4a9eff; padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 14px 0; font-size: 14px; color: #1a3a6a; }
+  ul, ol { padding-left: 22px; margin-bottom: 14px; }
+  li { margin-bottom: 8px; color: #444; font-size: 15px; }
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li { counter-increment: step; display: flex; gap: 14px; margin-bottom: 16px; }
+  .steps li::before { content: counter(step); background: #1a1a12; color: #4fffb0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; margin-top: 2px; }
+  .mockup { background: #1a1a12; border-radius: 14px; padding: 20px; margin: 20px 0; font-family: monospace; }
+  .mockup-bar { background: #2a2a1a; border-radius: 10px 10px 0 0; padding: 8px 14px; display: flex; gap: 6px; align-items: center; margin-bottom: 0; }
+  .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mockup-body { background: #13161e; border-radius: 0 0 10px 10px; padding: 16px; }
+  .ui-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .ui-btn { padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-block; }
+  .ui-btn-primary { background: #4fffb0; color: #000; }
+  .ui-btn-secondary { background: #2a3040; color: #8b93a8; border: 1px solid #3a4050; }
+  .ui-btn-purple { background: #6c3483; color: #fff; }
+  .ui-label { font-size: 11px; color: #6b7590; font-family: monospace; letter-spacing: 0.06em; }
+  .ui-field { background: #1a1e28; border: 1px solid #2a3040; border-radius: 8px; padding: 8px 12px; color: #e8ecf4; font-size: 13px; flex: 1; min-width: 120px; }
+  .ui-badge { padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-green { background: #4fffb022; color: #4fffb0; }
+  .badge-yellow { background: #f39c1222; color: #f39c12; }
+  .badge-red { background: #e74c3c22; color: #e74c3c; }
+  .badge-blue { background: #4a9eff22; color: #4a9eff; }
+  .ui-card { background: #13161e; border: 1px solid #2a3040; border-radius: 12px; padding: 14px; margin-bottom: 8px; }
+  .ui-nav { background: #0d0f14; border-right: 1px solid #1a1e28; padding: 12px 0; border-radius: 12px 0 0 12px; }
+  .ui-nav-item { padding: 8px 16px; font-size: 13px; color: #6b7590; display: flex; align-items: center; gap: 8px; }
+  .ui-nav-item.active { color: #4fffb0; background: #4fffb018; border-left: 3px solid #4fffb0; }
+  .ui-stage { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #13161e; border: 1px solid #2a3040; border-radius: 10px; margin-bottom: 6px; }
+  .ui-stage-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .feature-item { background: #fff; border: 1px solid #e8e4d8; border-radius: 12px; padding: 16px; }
+  .feature-item .fi-icon { font-size: 24px; margin-bottom: 8px; }
+  .feature-item h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .feature-item p { font-size: 13px; color: #666; margin: 0; }
+  .plan-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .plan-table th { background: #1a1a12; color: #4fffb0; padding: 10px 14px; text-align: center; font-size: 13px; }
+  .plan-table td { padding: 10px 14px; border-bottom: 1px solid #f0ece0; text-align: center; font-size: 14px; }
+  .plan-table td:first-child { text-align: left; font-weight: 600; }
+  .check { color: #4fffb0; font-weight: 800; }
+  .lock { color: #ccc; }
+  footer { background: #1a1a12; color: #6b7590; text-align: center; padding: 24px; font-size: 13px; margin-top: 60px; }
+  @media (max-width: 600px) {
+    .toc-grid { grid-template-columns: 1fr; }
+    .feature-grid { grid-template-columns: 1fr; }
+    h2 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>◈ CabShop Pro</h1>
+  <p style="font-size:20px;color:#e8ecf4;margin-bottom:8px;">Complete User Guide</p>
+  <p>Everything you need to run your cabinet shop — in one place</p>
+</div>
+
+<div class="container">
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>📋 What's in this guide</h3>
+    <div class="toc-grid">
+      <a href="#getting-started">⬡ Getting Started</a>
+      <a href="#projects">◈ Projects</a>
+      <a href="#crm">◎ CRM (Clients & Contacts)</a>
+      <a href="#tasks">▦ Tasks</a>
+      <a href="#calendar">📅 Calendar</a>
+      <a href="#quotes">◑ Quotes & Invoices</a>
+      <a href="#finance">$ Finance Tracker</a>
+      <a href="#inventory">⊞ Inventory</a>
+      <a href="#tools">🔧 Tools & Equipment</a>
+      <a href="#library">◫ Library (Documents, Media, Gallery, Samples)</a>
+      <a href="#ai">◈ AI Features</a>
+      <a href="#subscription">★ Subscription & Plans</a>
+    </div>
+  </div>
+
+  <!-- GETTING STARTED -->
+  <h2 id="getting-started"><span class="section-icon">⬡</span> Getting Started</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Creating your account</h3>
+    <ol class="steps">
+      <li><span>Go to <strong>cabshoppro.com</strong> and click <strong>Create Account</strong></span></li>
+      <li><span>Enter your email address and a password (minimum 6 characters)</span></li>
+      <li><span>Check your email for a confirmation link and click it</span></li>
+      <li><span>Sign in and you're ready to go</span></li>
+    </ol>
+    <div class="tip">💡 You'll get a 14-day free trial with access to all features so you can explore before subscribing.</div>
+  </div>
+
+  <div class="card">
+    <h3>Navigating the app</h3>
+    <p>The sidebar on the left is your main navigation. It's organized into sections:</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#ff5f56"></div>
+        <div class="mockup-dot" style="background:#ffbd2e"></div>
+        <div class="mockup-dot" style="background:#27c93f"></div>
+      </div>
+      <div class="mockup-body" style="display:flex;gap:0;border-radius:0 0 10px 10px;padding:0;">
+        <div class="ui-nav" style="width:180px;min-height:280px;">
+          <div style="padding:12px 16px;border-bottom:1px solid #1a1e28;margin-bottom:8px;">
+            <div style="color:#4fffb0;font-weight:800;font-size:14px;">◈ CabShop Pro</div>
+          </div>
+          <div style="padding:4px 16px;font-size:9px;color:#3a4050;letter-spacing:0.1em;font-weight:800;margin-bottom:4px;">WORKSPACE</div>
+          <div class="ui-nav-item active">⬡ Home</div>
+          <div class="ui-nav-item">◈ Projects</div>
+          <div class="ui-nav-item">▦ Tasks</div>
+          <div class="ui-nav-item">📅 Calendar</div>
+          <div style="padding:4px 16px;font-size:9px;color:#3a4050;letter-spacing:0.1em;font-weight:800;margin:8px 0 4px;">CLIENTS & SALES</div>
+          <div class="ui-nav-item">◎ CRM</div>
+          <div class="ui-nav-item">◑ Quotes & Invoices</div>
+          <div style="padding:4px 16px;font-size:9px;color:#3a4050;letter-spacing:0.1em;font-weight:800;margin:8px 0 4px;">SHOP</div>
+          <div class="ui-nav-item">$ Finance</div>
+        </div>
+        <div style="flex:1;padding:16px;background:#0d0f14;">
+          <div style="color:#e8ecf4;font-weight:800;font-size:16px;margin-bottom:4px;">Dashboard ✦</div>
+          <div style="color:#6b7590;font-size:12px;margin-bottom:16px;">Your Shop. Managed.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="ui-card"><div style="font-size:10px;color:#6b7590;margin-bottom:4px;">ACTIVE PROJECTS</div><div style="color:#4fffb0;font-size:22px;font-weight:800;">7</div></div>
+            <div class="ui-card"><div style="font-size:10px;color:#6b7590;margin-bottom:4px;">OPEN QUOTES</div><div style="color:#4a9eff;font-size:22px;font-weight:800;">3</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>Collapsed groups (like <strong>Finance ▾</strong>) expand to show sub-pages when you click them. The <strong>◎ Take a Tour</strong> button on the dashboard walks you through all the key features interactively.</p>
+  </div>
+
+  <!-- PROJECTS -->
+  <h2 id="projects"><span class="section-icon">◈</span> Projects</h2>
+  <div class="divider"></div>
+  <p>Projects are the heart of CabShop Pro. Every client job gets its own project where you track everything from design to installation.</p>
+
+  <div class="card">
+    <h3>Creating a project</h3>
+    <ol class="steps">
+      <li><span>Click <strong>Projects</strong> in the sidebar</span></li>
+      <li><span>Click <strong>+ New Project</strong> in the top right</span></li>
+      <li><span>Fill in the project name, client, budget, and dates</span></li>
+      <li><span>Choose a color to make it easy to identify at a glance</span></li>
+      <li><span>Click <strong>Save Project</strong></span></li>
+    </ol>
+    <div class="tip">💡 Solo plan users can have up to 10 active projects. Pro and Team plans have unlimited projects.</div>
+  </div>
+
+  <div class="card">
+    <h3>Production Stages</h3>
+    <p>Every project has a built-in production pipeline with 13 stages. Check off stages as work progresses:</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#ff5f56"></div>
+        <div class="mockup-dot" style="background:#ffbd2e"></div>
+        <div class="mockup-dot" style="background:#27c93f"></div>
+        <span style="color:#6b7590;font-size:12px;margin-left:8px;">Project Detail — Stages Tab</span>
+      </div>
+      <div class="mockup-body">
+        <div class="ui-stage"><div class="ui-stage-dot" style="background:#4fffb0"></div><span style="color:#4fffb0;text-decoration:line-through;font-size:13px;">Design</span><span style="margin-left:auto;color:#4fffb0;font-size:11px;">✓ Complete</span></div>
+        <div class="ui-stage"><div class="ui-stage-dot" style="background:#4fffb0"></div><span style="color:#4fffb0;text-decoration:line-through;font-size:13px;">Procurement</span><span style="margin-left:auto;color:#4fffb0;font-size:11px;">✓ Complete</span></div>
+        <div class="ui-stage"><div class="ui-stage-dot" style="background:#f39c12"></div><span style="color:#e8ecf4;font-size:13px;">Milling</span><span style="margin-left:auto"><span class="ui-badge badge-yellow">In Progress</span></span></div>
+        <div class="ui-stage"><div class="ui-stage-dot" style="background:#2a3040"></div><span style="color:#6b7590;font-size:13px;">CNC</span><div style="margin-left:auto;display:flex;gap:6px;"><span style="color:#4a9eff;font-size:12px;cursor:pointer;">+ Time</span><span style="color:#9b59b6;font-size:12px;cursor:pointer;">📷</span></div></div>
+        <div class="ui-stage"><div class="ui-stage-dot" style="background:#2a3040"></div><span style="color:#6b7590;font-size:13px;">Assembly</span></div>
+      </div>
+    </div>
+
+    <h3>Logging time on a stage:</h3>
+    <ol class="steps">
+      <li><span>Click <strong>+ Time</strong> next to any stage</span></li>
+      <li><span>Either hit <strong>▶ Start</strong> to run a live timer, or enter minutes manually</span></li>
+      <li><span>Add a note (optional) and click <strong>Log Time</strong></span></li>
+    </ol>
+
+    <h3>Taking photos on a stage:</h3>
+    <ol class="steps">
+      <li><span>Click the <strong>📷</strong> button next to any stage</span></li>
+      <li><span>On mobile: your camera opens directly. On desktop: a file picker opens</span></li>
+      <li><span>The photo uploads to the cloud and appears in the stage's photo gallery</span></li>
+    </ol>
+    <div class="note">📷 Photo capture is a Pro feature.</div>
+  </div>
+
+  <div class="card">
+    <h3>Project Financials Tab</h3>
+    <p>The <strong>$ Financials</strong> tab inside each project shows a complete financial picture:</p>
+    <ul>
+      <li><strong>P&L Summary</strong> — income vs. expenses at a glance</li>
+      <li><strong>Job Cost vs. Estimate</strong> — compares your quoted amount against actual costs with ✅ / ⚠️ indicators</li>
+      <li><strong>◈ AI Cost Analysis</strong> — click to get Claude's analysis of the job's financial performance with recommendations</li>
+      <li><strong>Materials</strong> — inventory items assigned to this project</li>
+      <li><strong>Labor</strong> — time logged across all stages</li>
+      <li><strong>Transactions</strong> — income and expense entries linked to this project</li>
+    </ul>
+    <div class="note">🤖 AI Cost Analysis is a Pro feature.</div>
+  </div>
+
+  <div class="card">
+    <h3>Quotes Tab (within a Project)</h3>
+    <p>The <strong>Quotes</strong> tab inside a project shows all quotes and invoices linked to that job. You can also create a new quote directly from here — it will automatically pre-fill the project and client information.</p>
+  </div>
+
+  <!-- CRM -->
+  <h2 id="crm"><span class="section-icon">◎</span> CRM (Clients & Contacts)</h2>
+  <div class="divider"></div>
+  <p>The CRM stores all your clients, trade partners, and suppliers in one place.</p>
+
+  <div class="card">
+    <h3>Contact types</h3>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <div class="fi-icon">👤</div>
+        <h4>Clients</h4>
+        <p>Homeowners and businesses you build for. Link to projects and quotes.</p>
+      </div>
+      <div class="feature-item">
+        <div class="fi-icon">🤝</div>
+        <h4>Partners</h4>
+        <p>Contractors, designers, and trades you work with regularly.</p>
+      </div>
+      <div class="feature-item">
+        <div class="fi-icon">📦</div>
+        <h4>Suppliers</h4>
+        <p>Lumber yards, hardware suppliers. Link to inventory items with direct ordering URLs.</p>
+      </div>
+      <div class="feature-item">
+        <div class="fi-icon">📅</div>
+        <h4>Schedule from CRM</h4>
+        <p>Create calendar events directly from a contact's profile page.</p>
+      </div>
+    </div>
+
+    <h3>Adding a contact:</h3>
+    <ol class="steps">
+      <li><span>Click <strong>CRM</strong> in the sidebar</span></li>
+      <li><span>Click <strong>+ New Contact</strong></span></li>
+      <li><span>Select the contact type (Client, Partner, or Supplier)</span></li>
+      <li><span>Fill in name, company, phone, email, and address</span></li>
+      <li><span>Click <strong>Save</strong></span></li>
+    </ol>
+  </div>
+
+  <!-- TASKS -->
+  <h2 id="tasks"><span class="section-icon">▦</span> Tasks</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Overview</h3>
+    <p>Tasks is a kanban-style board for tracking everything that needs to get done — both shop work and administrative items.</p>
+    <p>Tasks can be linked to specific projects and contacts, assigned due dates and priorities, broken into subtasks, and added to the calendar.</p>
+
+    <h3>Task views:</h3>
+    <ul>
+      <li><strong>Board view</strong> — drag and drop cards between To Do / In Progress / Done columns</li>
+      <li><strong>List view</strong> — grouped by project, great for a comprehensive overview</li>
+    </ul>
+
+    <h3>Creating a task:</h3>
+    <ol class="steps">
+      <li><span>Click <strong>+ New Task</strong> or the <strong>+</strong> button on any column</span></li>
+      <li><span>Enter a title, description, and due date</span></li>
+      <li><span>Set priority: <span class="ui-badge badge-red">High</span> <span class="ui-badge badge-yellow">Medium</span> <span class="ui-badge badge-blue">Low</span></span></li>
+      <li><span>Link to a project if applicable</span></li>
+      <li><span>Click <strong>Save</strong></span></li>
+    </ol>
+    <div class="tip">💡 Overdue tasks are highlighted in red automatically. Tasks with due dates can be added directly to your Calendar.</div>
+  </div>
+
+  <!-- CALENDAR -->
+  <h2 id="calendar"><span class="section-icon">📅</span> Calendar</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Overview</h3>
+    <p>The calendar shows all your scheduled events in one view — site visits, deliveries, installations, client meetings, and deadlines.</p>
+
+    <h3>Event types:</h3>
+    <ul>
+      <li>Meeting · Site Visit · Deadline · Delivery · Installation · Other</li>
+    </ul>
+
+    <h3>Creating an event:</h3>
+    <ol class="steps">
+      <li><span>Click on any date in the calendar</span></li>
+      <li><span>Give the event a title and select the type</span></li>
+      <li><span>Link it to a project and/or contact (optional)</span></li>
+      <li><span>Add a time, duration, and notes</span></li>
+      <li><span>Enable <strong>Recurring</strong> if it repeats</span></li>
+    </ol>
+    <div class="tip">💡 You can create calendar events directly from a Task (click "Add to Calendar") or from a Contact's profile page.</div>
+  </div>
+
+  <!-- QUOTES -->
+  <h2 id="quotes"><span class="section-icon">◑</span> Quotes & Invoices</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Creating a quote</h3>
+    <ol class="steps">
+      <li><span>Click <strong>Quotes & Invoices</strong> → <strong>+ New Quote</strong></span></li>
+      <li><span>Select the client and link to a project</span></li>
+      <li><span>Add line items — type a name, quantity, unit, and cost per unit</span></li>
+      <li><span>Set markup (% markup, flat amount, or profit margin %)</span></li>
+      <li><span>Add tax rate if applicable</span></li>
+      <li><span>Attach Terms & Conditions from your Resource Library (optional)</span></li>
+      <li><span>Click <strong>Save Quote</strong></span></li>
+    </ol>
+
+    <h3>Unit options:</h3>
+    <div class="ui-row">
+      <span class="ui-badge badge-blue">ea</span>
+      <span class="ui-badge badge-blue">hr</span>
+      <span class="ui-badge badge-blue">day</span>
+      <span class="ui-badge badge-blue">lf</span>
+      <span class="ui-badge badge-blue">sf</span>
+      <span class="ui-badge badge-blue">bf</span>
+      <span class="ui-badge badge-blue">set</span>
+      <span class="ui-badge badge-blue">lot</span>
+      <span class="ui-badge badge-blue">job</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Sending for client approval</h3>
+    <p>CabShop Pro lets you send professional approval emails and get digital signatures — no printing, no scanning.</p>
+    <ol class="steps">
+      <li><span>Open the quote and click <strong>✍ Send for Approval</strong></span></li>
+      <li><span>A branded email is sent to the client via SendGrid</span></li>
+      <li><span>The client clicks <strong>Review & Approve Quote</strong> in the email</span></li>
+      <li><span>They review the full quote, type their name, and draw their signature</span></li>
+      <li><span>They click <strong>Approve Quote</strong> — the signature is saved</span></li>
+      <li><span>Within 30 seconds, your app updates to show the quote as <span class="ui-badge badge-green">approved</span></span></li>
+    </ol>
+    <div class="tip">💡 Approval links expire after 30 days. If a client misses it, use <strong>🔗 Copy Link</strong> to resend.</div>
+    <div class="note">📋 If the client wants changes, they click <strong>Decline</strong> and enter a reason. You'll see this in the app.</div>
+  </div>
+
+  <div class="card">
+    <h3>Converting a quote to an invoice</h3>
+    <ol class="steps">
+      <li><span>Open an approved quote</span></li>
+      <li><span>Click <strong>⇒ Convert to Invoice</strong></span></li>
+      <li><span>The invoice is created with the same line items — edit as needed</span></li>
+      <li><span>When paid, click <strong>✓ Mark Paid</strong></span></li>
+    </ol>
+
+    <h3>Quote statuses:</h3>
+    <div class="ui-row">
+      <span class="ui-badge" style="background:#6b759022;color:#6b7590">Draft</span>
+      <span class="ui-badge badge-blue">Sent</span>
+      <span class="ui-badge badge-green">Approved</span>
+      <span class="ui-badge" style="background:#e74c3c22;color:#e74c3c">Declined</span>
+    </div>
+
+    <h3>Invoice statuses:</h3>
+    <div class="ui-row">
+      <span class="ui-badge badge-yellow">Unpaid</span>
+      <span class="ui-badge badge-blue">Partial</span>
+      <span class="ui-badge badge-green">Paid</span>
+      <span class="ui-badge" style="background:#e74c3c22;color:#e74c3c">Overdue</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Item Library</h3>
+    <p>The Item Library stores reusable line items so you don't have to re-enter common items every time you write a quote.</p>
+    <ol class="steps">
+      <li><span>Click <strong>Quotes & Invoices</strong> → <strong>⊞ Item Library</strong></span></li>
+      <li><span>Click <strong>+ New Item</strong> and fill in the details</span></li>
+      <li><span>When building a quote, click <strong>From Library</strong> to insert saved items instantly</span></li>
+    </ol>
+    <div class="tip">💡 You can link library items to inventory for automatic cost updates when material prices change.</div>
+  </div>
+
+  <!-- FINANCE -->
+  <h2 id="finance"><span class="section-icon">$</span> Finance Tracker</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Overview</h3>
+    <p>The Finance Tracker gives you a real-time view of your shop's financial health — income, expenses, and profitability by project.</p>
+
+    <h3>Views:</h3>
+    <ul>
+      <li><strong>Ledger</strong> — all transactions in chronological order</li>
+      <li><strong>By Account</strong> — grouped by chart of accounts category</li>
+      <li><strong>Pipeline</strong> — shows Collected, Outstanding, Booked, and Pipeline revenue at a glance</li>
+    </ul>
+
+    <h3>Adding a transaction:</h3>
+    <ol class="steps">
+      <li><span>Click <strong>+ Add Transaction</strong></span></li>
+      <li><span>Choose Income or Expense</span></li>
+      <li><span>Enter amount, date, description, and account code</span></li>
+      <li><span>Link to a project (optional but recommended)</span></li>
+      <li><span>Click <strong>Save</strong></span></li>
+    </ol>
+
+    <h3>Downloading reports:</h3>
+    <p>Click the <strong>Download CSV</strong> button to export: Full Ledger, P&L, Income Only, or Expenses Only. These can be imported into accounting software or shared with your accountant.</p>
+  </div>
+
+  <!-- INVENTORY -->
+  <h2 id="inventory"><span class="section-icon">⊞</span> Inventory</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Overview</h3>
+    <p>Track every material and piece of hardware in your shop. Get automatic alerts when stock falls below your minimum reorder quantity.</p>
+
+    <h3>Adding an inventory item:</h3>
+    <ol class="steps">
+      <li><span>Click <strong>Inventory</strong> → <strong>+ New Item</strong></span></li>
+      <li><span>Enter the item name, category, unit cost, and quantity on hand</span></li>
+      <li><span>Set a <strong>minimum reorder quantity</strong> — you'll get an alert when stock drops below this</span></li>
+      <li><span>Link to a supplier contact (optional — enables direct ordering)</span></li>
+      <li><span>Click <strong>Save</strong></span></li>
+    </ol>
+
+    <h3>Logging usage:</h3>
+    <p>When you use materials on a job, click <strong>Log Usage</strong> on the item and link it to a project. This deducts from your stock count and records the cost against the project.</p>
+
+    <h3>Restocking:</h3>
+    <p>Click <strong>Restock</strong> to add inventory and log the purchase cost.</p>
+    <div class="tip">💡 Low stock items appear as alerts on your Dashboard so you never run out mid-job.</div>
+  </div>
+
+  <!-- TOOLS -->
+  <h2 id="tools"><span class="section-icon">🔧</span> Tools & Equipment</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Overview</h3>
+    <p>Keep a complete record of every tool and piece of equipment in your shop — purchase dates, serial numbers, warranties, and service history.</p>
+    <ul>
+      <li>Log service and maintenance events with dates and notes</li>
+      <li>Attach documents (manuals, receipts) to each tool</li>
+      <li>Track warranty expiration dates</li>
+      <li>Categorize by type (Power Tools, Hand Tools, CNC, Finishing, etc.)</li>
+    </ul>
+  </div>
+
+  <!-- LIBRARY -->
+  <h2 id="library"><span class="section-icon">◫</span> Library</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Documents (Resource Library)</h3>
+    <p>Store client specifications, SOPs, templates, terms & conditions, and reference documents. Attach documents to specific projects or keep them as shop-wide resources.</p>
+    <div class="note">📄 Library features are available on Pro and Team plans.</div>
+  </div>
+
+  <div class="card">
+    <h3>Media Library</h3>
+    <p>A central place for all project photos, videos, and documents. Tag items with projects and custom labels. Filter by file type or project.</p>
+  </div>
+
+  <div class="card">
+    <h3>Gallery</h3>
+    <p>A visual portfolio of completed project photos, organized by project. Great for showcasing your work to clients or building a marketing library.</p>
+  </div>
+
+  <div class="card">
+    <h3>Samples Library</h3>
+    <p>Store your finish and material samples — door styles, wood species, paint colors, hardware, edge profiles. Each sample has a description, tags, swatch color, and photo. Share with clients during the design phase.</p>
+  </div>
+
+  <!-- AI FEATURES -->
+  <h2 id="ai"><span class="section-icon">◈</span> AI Features</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>CabShop Assistant (AI Chatbot)</h3>
+    <p>Look for the <strong>💬 button</strong> in the bottom right corner of the app. Click it to open your AI assistant, which knows every feature in CabShop Pro.</p>
+    <p>Ask it anything:</p>
+    <ul>
+      <li>"How do I log time on a project stage?"</li>
+      <li>"How do I convert a quote to an invoice?"</li>
+      <li>"How does inventory reordering work?"</li>
+      <li>"How do I send a quote for approval?"</li>
+    </ul>
+    <div class="note">🤖 AI Assistant is available on Pro and Team plans.</div>
+  </div>
+
+  <div class="card">
+    <h3>AI Cost Analysis</h3>
+    <p>Inside any project, go to the <strong>$ Financials</strong> tab and scroll to the <strong>Job Cost vs. Estimate</strong> section. Click <strong>◈ AI Cost Analysis</strong> to get Claude's assessment of the job's financial performance, including:</p>
+    <ul>
+      <li>Assessment of whether the job is on track</li>
+      <li>Likely causes of any cost variances</li>
+      <li>Specific recommendations to improve profitability on similar jobs</li>
+    </ul>
+    <p>You can save the analysis directly to the project's Notes tab.</p>
+    <div class="note">🤖 AI Cost Analysis is available on Pro and Team plans.</div>
+  </div>
+
+  <!-- SUBSCRIPTION -->
+  <h2 id="subscription"><span class="section-icon">★</span> Subscription & Plans</h2>
+  <div class="divider"></div>
+
+  <div class="card">
+    <h3>Plan comparison</h3>
+    <table class="plan-table">
+      <tr>
+        <th style="text-align:left">Feature</th>
+        <th>Solo<br><span style="font-size:16px;color:#fff">$29/mo</span></th>
+        <th>Pro<br><span style="font-size:16px;color:#4fffb0">$45/mo</span></th>
+        <th>Team<br><span style="font-size:16px;color:#9b59b6">$69/mo</span></th>
+      </tr>
+      <tr><td>Active Projects</td><td>Up to 10</td><td class="check">Unlimited</td><td class="check">Unlimited</td></tr>
+      <tr><td>Tasks, CRM, Finance</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Quotes & Invoices</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Item Library</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Resource & Media Library</td><td class="lock">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Gallery & Samples</td><td class="lock">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Tools & Equipment</td><td class="lock">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Photo Capture on Stages</td><td class="lock">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>E-Signature on Quotes</td><td class="lock">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>AI Assistant & Cost Analysis</td><td class="lock">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Multi-user access</td><td class="lock">—</td><td class="lock">—</td><td class="check">✓ Up to 5</td></tr>
+    </table>
+
+    <h3>Annual billing:</h3>
+    <p>Save the equivalent of 2 months by paying annually. Switch between monthly and annual billing on the Subscription page.</p>
+
+    <h3>Managing your subscription:</h3>
+    <ol class="steps">
+      <li><span>Click <strong>Account → Subscription</strong> in the sidebar</span></li>
+      <li><span>Choose your plan and billing period</span></li>
+      <li><span>Click <strong>Get Started</strong> — you'll be taken to Stripe's secure payment page</span></li>
+    </ol>
+    <div class="tip">💡 All plans include a 14-day free trial. Cancel anytime — no long-term contracts.</div>
+  </div>
+
+  <div class="card">
+    <h3>Suggesting a feature</h3>
+    <p>Have an idea that would make CabShop Pro better? We want to hear it!</p>
+    <ol class="steps">
+      <li><span>Click <strong>💡 Suggest a Feature</strong> at the bottom of the sidebar</span></li>
+      <li><span>Enter a title and description of your idea</span></li>
+      <li><span>Click <strong>Submit Request</strong></span></li>
+    </ol>
+    <p>We review every request and use them to guide what gets built next.</p>
+  </div>
+
+  <div class="card">
+    <h3>Need help?</h3>
+    <ul>
+      <li><strong>AI Assistant</strong> — click 💬 in the bottom right for instant answers about using the app</li>
+      <li><strong>Feature Tour</strong> — click <strong>◎ Take a Tour</strong> on the dashboard for an interactive walkthrough</li>
+      <li><strong>Email support</strong> — support@cabshoppro.com</li>
+    </ul>
+  </div>
+
+</div>
+
+<footer>
+  <p>◈ CabShop Pro User Guide · cabshoppro.com · © 2026 Gotham Woodworks</p>
+</footer>
+
+</body>
+</html>

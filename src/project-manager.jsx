@@ -584,6 +584,7 @@ const NAV = [
   {id:"account", label:"Account", icon:"⚙", section:"ACCOUNT", children:[
     {id:"admin",        label:"Admin",        icon:"⚙"},
     {id:"subscription", label:"Subscription", icon:"★"},
+    {id:"help",         label:"Help & Guide",  icon:"?"},
     {id:"superadmin",   label:"Super Admin",  icon:"⚡"},
   ]},
 ];
@@ -11182,6 +11183,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "finance":    return null; // group header — collapses to financetracker
       case "library":    return null; // group header
       case "account":    return null; // group header
+      case "help":       return <HelpPage bp={bp}/>;
       case "financetracker": return <Finance {...p} quotes={quotes}/>;
       case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings}/>;
       case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} bp={bp}/>;
@@ -12757,6 +12759,192 @@ function FeatureRequestsAdmin() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Help Page ────────────────────────────────────────────────────────────────
+function HelpPage({bp}) {
+  const [section, setSection] = useState("guide");
+
+  const sections = [
+    { id: "guide", label: "User Guide", icon: "📖" },
+    { id: "faq", label: "FAQ", icon: "❓" },
+    { id: "contact", label: "Contact Support", icon: "✉️" },
+  ];
+
+  const faqs = [
+    { q: "How do I log time on a project stage?", a: "Open any project → click the Stages tab → click '+ Time' next to any stage. You can use the live timer (hit Start) or enter minutes manually. Add a note and click Log Time." },
+    { q: "How do I send a quote for client approval?", a: "Open a quote → click '✍ Send for Approval'. A branded email is sent to the client. They can review, sign digitally, and approve right from their phone or computer. The quote updates to Approved in your app within 30 seconds." },
+    { q: "How do I convert an approved quote to an invoice?", a: "Open the approved quote → click '⇒ Convert to Invoice'. The invoice is created with the same line items. Edit as needed, then click Save Invoice." },
+    { q: "How do I create a quote from a project?", a: "Open the project → click the Quotes tab → click '+ New Quote for this Project'. It automatically pre-fills the project and client." },
+    { q: "How does inventory reordering work?", a: "Set a minimum reorder quantity on each inventory item. When stock drops below that level, a low-stock alert appears on your Dashboard and a reorder task is automatically created." },
+    { q: "Where are my files and photos stored?", a: "Photos taken with the camera button are stored securely in Supabase cloud storage. They persist permanently and are linked to your account — you can access them from any device." },
+    { q: "What's the difference between the plans?", a: "Solo ($29/mo): up to 10 projects, core features. Pro ($45/mo): unlimited projects, Library, photo capture, e-signature, AI features. Team ($69/mo): everything in Pro plus up to 5 users." },
+    { q: "How do I cancel my subscription?", a: "Go to Account → Subscription and contact support@cabshoppro.com. You can cancel anytime — you keep access until the end of your billing period." },
+    { q: "Can I access the app on my phone?", a: "Yes! CabShop Pro is fully responsive and works on phones, tablets, and desktops. On mobile, navigation moves to a bottom tab bar." },
+    { q: "How does the AI Assistant work?", a: "Click the 💬 button in the bottom right corner. The AI is trained specifically on CabShop Pro and can answer any how-to question about using the app. Available on Pro and Team plans." },
+  ];
+
+  return (
+    <div className="fadein">
+      <PageHeader bp={bp} title="Help & User Guide" sub="Everything you need to get the most out of CabShop Pro" />
+
+      {/* Section tabs */}
+      <div style={{display:"flex",gap:8,marginBottom:24,borderBottom:"1px solid var(--border)",paddingBottom:0}}>
+        {sections.map(s=>(
+          <button key={s.id} onClick={()=>setSection(s.id)}
+            style={{padding:"10px 18px",background:"none",border:"none",borderBottom:`2px solid ${section===s.id?"var(--accent)":"transparent"}`,
+              color:section===s.id?"var(--accent)":"var(--muted)",fontSize:14,fontWeight:section===s.id?700:500,
+              cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:6,marginBottom:-1}}>
+            {s.icon} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* User Guide */}
+      {section==="guide"&&(
+        <div>
+          <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,overflow:"hidden",marginBottom:16}}>
+            {/* Quick links */}
+            <div style={{padding:"20px 24px",borderBottom:"1px solid var(--border)",background:"var(--surface2)"}}>
+              <div style={{fontSize:13,fontWeight:700,marginBottom:12,color:"var(--muted)",letterSpacing:"0.05em"}}>QUICK NAVIGATION</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {[
+                  ["#getting-started","⬡ Getting Started"],
+                  ["#projects","◈ Projects"],
+                  ["#crm","◎ CRM"],
+                  ["#tasks","▦ Tasks"],
+                  ["#quotes","◑ Quotes"],
+                  ["#finance","$ Finance"],
+                  ["#inventory","⊞ Inventory"],
+                  ["#library","◫ Library"],
+                  ["#ai","◈ AI Features"],
+                  ["#subscription","★ Plans"],
+                ].map(([href,label])=>(
+                  <a key={href} href={`/guide.html${href}`} target="_blank" rel="noopener noreferrer"
+                    style={{padding:"6px 12px",borderRadius:20,background:"var(--surface3)",border:"1px solid var(--border)",
+                      color:"var(--accent)",fontSize:12,fontWeight:600,textDecoration:"none",transition:"all 0.15s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.background="var(--accent)";e.currentTarget.style.color="#000";}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="var(--surface3)";e.currentTarget.style.color="var(--accent)";}}>
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Open guide button */}
+            <div style={{padding:"28px 24px",textAlign:"center"}}>
+              <div style={{fontSize:48,marginBottom:16}}>📖</div>
+              <div style={{fontWeight:800,fontSize:20,marginBottom:8}}>CabShop Pro User Guide</div>
+              <div style={{color:"var(--muted)",fontSize:14,marginBottom:24,maxWidth:400,margin:"0 auto 24px"}}>
+                Complete documentation covering every feature — Projects, Quotes, Finance, Inventory, AI tools, and more.
+              </div>
+              <a href="/guide.html" target="_blank" rel="noopener noreferrer"
+                style={{display:"inline-flex",alignItems:"center",gap:8,padding:"12px 28px",borderRadius:12,
+                  background:"var(--accent)",color:"#000",fontWeight:700,fontSize:15,textDecoration:"none"}}>
+                📖 Open Full User Guide ↗
+              </a>
+              <div style={{color:"var(--muted)",fontSize:12,marginTop:12}}>Opens in a new tab</div>
+            </div>
+          </div>
+
+          {/* Feature highlights */}
+          <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1fr 1fr",gap:12}}>
+            {[
+              {icon:"◈",title:"Projects & Stages",desc:"Track every job through 13 production stages with time logging and photo capture.",href:"/guide.html#projects"},
+              {icon:"◑",title:"Quotes & Approval",desc:"Send professional quotes for digital signature approval — no printing needed.",href:"/guide.html#quotes"},
+              {icon:"$",title:"Finance Tracker",desc:"Real-time P&L, job cost vs estimate, and downloadable reports.",href:"/guide.html#finance"},
+              {icon:"🤖",title:"AI Assistant",desc:"Ask anything about the app — your built-in expert is always available.",href:"/guide.html#ai"},
+            ].map(f=>(
+              <a key={f.icon} href={f.href} target="_blank" rel="noopener noreferrer"
+                style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,padding:"18px 20px",
+                  display:"flex",gap:14,alignItems:"flex-start",textDecoration:"none",transition:"all 0.15s",cursor:"pointer"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.background="var(--surface2)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.background="var(--surface)";}}>
+                <div style={{fontSize:24,flexShrink:0}}>{f.icon}</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14,marginBottom:4,color:"var(--text)"}}>{f.title}</div>
+                  <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>{f.desc}</div>
+                </div>
+                <span style={{marginLeft:"auto",color:"var(--accent)",fontSize:14,flexShrink:0}}>↗</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FAQ */}
+      {section==="faq"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {faqs.map((faq,i)=>(
+            <FaqItem key={i} q={faq.q} a={faq.a} />
+          ))}
+        </div>
+      )}
+
+      {/* Contact */}
+      {section==="contact"&&(
+        <div style={{maxWidth:540}}>
+          <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,padding:"28px"}}>
+            <div style={{fontSize:40,marginBottom:16,textAlign:"center"}}>✉️</div>
+            <div style={{fontWeight:800,fontSize:20,marginBottom:8,textAlign:"center"}}>Get in touch</div>
+            <div style={{color:"var(--muted)",fontSize:14,marginBottom:24,textAlign:"center",lineHeight:1.7}}>
+              Have a question, issue, or feedback? We're here to help.
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <a href="mailto:support@cabshoppro.com"
+                style={{display:"flex",alignItems:"center",gap:14,padding:"16px 20px",background:"var(--surface2)",
+                  border:"1px solid var(--border)",borderRadius:12,textDecoration:"none",color:"var(--text)",transition:"all 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="var(--accent)"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
+                <span style={{fontSize:24}}>✉️</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14}}>Email Support</div>
+                  <div style={{fontSize:13,color:"var(--muted)"}}>support@cabshoppro.com</div>
+                </div>
+                <span style={{marginLeft:"auto",color:"var(--accent)"}}>→</span>
+              </a>
+              <div style={{display:"flex",alignItems:"center",gap:14,padding:"16px 20px",background:"var(--surface2)",
+                border:"1px solid var(--border)",borderRadius:12}}>
+                <span style={{fontSize:24}}>💬</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14}}>AI Assistant</div>
+                  <div style={{fontSize:13,color:"var(--muted)"}}>Click the 💬 button for instant how-to help</div>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:14,padding:"16px 20px",background:"var(--surface2)",
+                border:"1px solid var(--border)",borderRadius:12}}>
+                <span style={{fontSize:24}}>💡</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14}}>Suggest a Feature</div>
+                  <div style={{fontSize:13,color:"var(--muted)"}}>Use the 💡 button at the bottom of the sidebar</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FaqItem({q, a}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{width:"100%",padding:"16px 20px",background:"none",border:"none",cursor:"pointer",
+          display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,fontFamily:"var(--font)",textAlign:"left"}}>
+        <span style={{fontWeight:700,fontSize:14,color:"var(--text)"}}>{q}</span>
+        <span style={{color:"var(--accent)",fontSize:18,flexShrink:0,transition:"transform 0.2s",
+          transform:open?"rotate(45deg)":"none"}}>+</span>
+      </button>
+      {open&&(
+        <div style={{padding:"0 20px 16px",fontSize:14,color:"var(--muted)",lineHeight:1.7,borderTop:"1px solid var(--border)22",paddingTop:14}}>
+          {a}
         </div>
       )}
     </div>
