@@ -12451,6 +12451,21 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const setTransactions = makeSetter('transactions', _setTransactions);
   const setInventory = makeSetter('inventory', _setInventory);
 
+  const syncAdminSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('admin_settings').select('data').eq('user_id', user.id).single();
+      if (data?.data) {
+        // Merge with defaults so new fields added in updates don't disappear
+        _setAdminSettings(s => ({ ...defaultAdminSettings, ...data.data }));
+      } else {
+        // First time — save defaults
+        await supabase.from('admin_settings').insert({ user_id: user.id, data: defaultAdminSettings });
+      }
+    } catch(e) { console.error('adminSettings load error:', e); }
+  };
+
   useEffect(() => {
     const syncQuotesFromDB = async () => {
       try {
@@ -12467,12 +12482,21 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     };
 
     Promise.all([
-      syncTable('projects', _setProjects, seedProjects),
-      syncTable('contacts', _setContacts, seedContacts),
-      syncTable('tasks', _setTasks, seedTasks),
-      syncTable('transactions', _setTransactions, seedTransactions),
-      syncTable('inventory', _setInventory, seedInventory),
+      syncTable('projects',          _setProjects,    seedProjects),
+      syncTable('contacts',          _setContacts,    seedContacts),
+      syncTable('tasks',             _setTasks,       seedTasks),
+      syncTable('transactions',      _setTransactions,seedTransactions),
+      syncTable('inventory',         _setInventory,   seedInventory),
+      syncTable('tools',             _setTools,       seedTools),
+      syncTable('events',            _setEvents,      seedEvents),
+      syncTable('gallery',           _setGallery,     seedGallery),
+      syncTable('samples',           _setSamples,     seedSamples),
+      syncTable('media',             _setMedia,       seedMedia),
+      syncTable('quote_items',       _setQuoteItems,  seedQuoteItems),
+      syncTable('resources',         _setResources,   seedResources),
       syncQuotesFromDB(),
+      syncTable('chart_of_accounts', _setChartOfAccounts, SEED_CHART_OF_ACCOUNTS),
+      syncAdminSettings(),
     ]).then(() => setDbLoading(false));
   }, []);
 
@@ -12522,12 +12546,18 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     const interval = setInterval(pollApprovals, 30000);
     return () => clearInterval(interval);
   }, []);
-  const [media,setMedia]=useState(seedMedia);
-  const [resources,setResources]=useState(seedResources);
-  const [gallery,setGallery]=useState(seedGallery);
-  const [samples,setSamples]=useState(seedSamples);
+  const [media,_setMedia]=useState([]);
+  const [resources,_setResources]=useState([]);
+  const [gallery,_setGallery]=useState([]);
+  const [samples,_setSamples]=useState([]);
   const [quotes,_setQuotes]=useState(seedQuotes);
-  const [quoteItems,setQuoteItems]=useState(seedQuoteItems);
+  const [quoteItems,_setQuoteItems]=useState([]);
+
+  const setMedia      = makeSetter('media',       _setMedia);
+  const setResources  = makeSetter('resources',   _setResources);
+  const setGallery    = makeSetter('gallery',      _setGallery);
+  const setSamples    = makeSetter('samples',      _setSamples);
+  const setQuoteItems = makeSetter('quote_items',  _setQuoteItems);
   const notifications = useNotifications(projects, tasks, inventory, quotes, transactions);
 
   // Persist quotes to Supabase quotes_store
@@ -12554,11 +12584,34 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       } catch(e) { console.error("Quote persist error:", e); }
     }, 100);
   };
-  const [events,setEvents]=useState(seedEvents);
-  const [tools,setTools]=useState(seedTools);
-  const [adminSettings,setAdminSettings]=useState(defaultAdminSettings);
+  const [events,_setEvents]=useState([]);
+  const [tools,_setTools]=useState([]);
+  const setEvents = makeSetter('events',  _setEvents);
+  const setTools  = makeSetter('tools',   _setTools);
+  const [adminSettings,_setAdminSettings]=useState(defaultAdminSettings);
+
+
+  const setAdminSettings = async (updater) => {
+    let newSettings;
+    _setAdminSettings(prev => {
+      newSettings = typeof updater === 'function' ? updater(prev) : updater;
+      return newSettings;
+    });
+    setTimeout(async () => {
+      if (!newSettings) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        await supabase.from('admin_settings').upsert(
+          { user_id: user.id, data: newSettings, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+      } catch(e) { console.error('adminSettings save error:', e); }
+    }, 300);
+  };
   const [pendingEvent,setPendingEvent]=useState(null); // pre-filled event to open in Calendar
-  const [chartOfAccounts,setChartOfAccounts]=useState(SEED_CHART_OF_ACCOUNTS);
+  const [chartOfAccounts,_setChartOfAccounts]=useState(SEED_CHART_OF_ACCOUNTS);
+  const setChartOfAccounts = makeSetter('chart_of_accounts', _setChartOfAccounts);
 
   // Keep module-level aliases in sync so Finance/Review etc. always see current COA
   _currentCOA=chartOfAccounts;
