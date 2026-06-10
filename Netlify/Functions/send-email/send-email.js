@@ -1,5 +1,6 @@
 // netlify/functions/send-email/send-email.js
 // Uses fetch to call SendGrid API directly — no node_modules needed
+// Supports per-user API keys passed from the app (Option A multi-tenant)
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -7,23 +8,26 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { toEmail, toName, subject, body, fromName, fromEmail, attachmentHtml, attachmentName } = JSON.parse(event.body || "{}");
+    const { toEmail, toName, subject, body, fromName, fromEmail, attachmentHtml, attachmentName, userApiKey } = JSON.parse(event.body || "{}");
 
     if (!toEmail || !subject || !body) {
       return { statusCode: 400, body: JSON.stringify({ error: "toEmail, subject, and body are required" }) };
     }
 
-    const apiKey = process.env.SENDGRID_API_KEY;
+    // Use the user's own API key if provided, otherwise fall back to the platform key
+    const apiKey = userApiKey || process.env.SENDGRID_API_KEY;
     if (!apiKey) {
-      return { statusCode: 500, body: JSON.stringify({ error: "Email service not configured (missing SENDGRID_API_KEY)" }) };
+      return { statusCode: 500, body: JSON.stringify({ error: "No email API key configured. Please add your SendGrid API key in Admin Settings → Email." }) };
     }
 
-    const senderEmail = process.env.SENDGRID_FROM_EMAIL || fromEmail || "noreply@cabshoppro.com";
+    // Use user's verified sender if provided, otherwise fall back to platform default
+    const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
     const senderName  = fromName || process.env.SENDGRID_FROM_NAME || "CabShop Pro";
 
     const payload = {
       personalizations: [{ to: [{ email: toEmail, name: toName || "" }] }],
       from: { email: senderEmail, name: senderName },
+      reply_to: { email: senderEmail, name: senderName },
       subject,
       content: [
         { type: "text/plain", value: body },

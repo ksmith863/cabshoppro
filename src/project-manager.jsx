@@ -6080,8 +6080,9 @@ function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp})
       toName: poSupplier.name||"",
       subject: `Purchase Order ${poNumber} — Gotham Woodworks`,
       body: bodyText,
-      fromName: "Gotham Woodworks",
-      fromEmail: "",
+      fromName: adminSettings?.sendgridFromName||adminSettings?.companyName||"Gotham Woodworks",
+      fromEmail: adminSettings?.sendgridFromEmail||adminSettings?.companyEmail||"",
+      userApiKey: adminSettings?.sendgridApiKey||null,
     });
   };
 
@@ -7272,7 +7273,7 @@ function SimpleImageLightbox({url, caption, onClose}) {
 // ─── Email Composer Modal ────────────────────────────────────────────────────
 // Replaces all mailto: links with a proper in-app email composer
 // that sends via the /.netlify/functions/send-email Netlify function.
-function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, onClose }) {
+function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, userApiKey, onClose }) {
   const [to_, setTo]     = useState(to||"");
   const [subject, setSub] = useState(initSubject||"");
   const [body, setBody]   = useState(initBody||"");
@@ -7289,7 +7290,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
       const res = await fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null }),
+        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null, userApiKey: userApiKey||null }),
       });
       const data = await res.json();
       if (data.success) { setSent(true); }
@@ -8647,8 +8648,9 @@ ${shopName}`;
       toName: contact?.name||"",
       subject: `Quote ${q.number} — ${q.title}`,
       body: bodyText,
-      fromName: shopName,
-      fromEmail: shopEmail,
+      fromName: adminSettings?.sendgridFromName||shopName,
+      fromEmail: adminSettings?.sendgridFromEmail||shopEmail,
+      userApiKey: adminSettings?.sendgridApiKey||null,
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
     });
@@ -8903,8 +8905,9 @@ ${shopName}`;
       attachmentName: `Invoice-${q.number}.html`,
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
-      fromName: shopName,
-      fromEmail: shopEmail,
+      fromName: adminSettings?.sendgridFromName||shopName,
+      fromEmail: adminSettings?.sendgridFromEmail||shopEmail,
+      userApiKey: adminSettings?.sendgridApiKey||null,
     });
   };
   const inp={width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,outline:"none",fontFamily:"var(--font)"};
@@ -10135,6 +10138,9 @@ var defaultAdminSettings={
   companyAddress:"123 Shop Lane, Charlotte, NC 28201",
   billingAddress:"",
   poPrefix:"PO",
+  sendgridApiKey:"",
+  sendgridFromEmail:"",
+  sendgridFromName:"",
   companyPhone:"(704) 555-0100",
   companyEmail:"hello@gothamwoodworks.com",
   companyWebsite:"https://www.gothamwoodworks.com",
@@ -10689,6 +10695,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
 
   const TABS=[
     ["company","🏢 Company"],
+    ["email","✉ Email"],
     ["regional","🌐 Regional"],
     ["subscription","💳 Subscription"],
     ["users","👥 Users"],
@@ -10773,6 +10780,28 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
       )}
 
       {/* ── Regional Tab ── */}
+      {activeTab==="email"&&(
+        <div style={{maxWidth:540}}>
+          <div style={{marginBottom:20,padding:"14px 16px",background:"var(--surface2)",borderRadius:10,border:"1px solid var(--border)",fontSize:13,color:"var(--muted)",lineHeight:1.6}}>
+            <strong style={{color:"var(--text)"}}>How it works:</strong> CabShop Pro sends emails (quotes, invoices, POs) via SendGrid.
+            Enter your own SendGrid API key and verified sender address so emails come from your business — not ours.
+            <br/><br/>
+            <strong style={{color:"var(--text)"}}>Setup:</strong> Create a free account at <a href="https://sendgrid.com" target="_blank" rel="noreferrer" style={{color:"var(--accent2)"}}>sendgrid.com</a> →
+            Settings → API Keys → Create API Key (Full Access) → paste it below.
+            Then verify your sender address under Settings → Sender Authentication → Verify a Single Sender.
+          </div>
+          <Input label="SendGrid API Key" value={settings.sendgridApiKey||""} onChange={e=>upd("sendgridApiKey",e.target.value)}
+            placeholder="SG.xxxxxxxxxxxxxxxxxx" />
+          <Input label="From Email Address" value={settings.sendgridFromEmail||""} onChange={e=>upd("sendgridFromEmail",e.target.value)}
+            placeholder="you@yourshop.com" />
+          <Input label="From Name" value={settings.sendgridFromName||""} onChange={e=>upd("sendgridFromName",e.target.value)}
+            placeholder="Your Shop Name" />
+          <div style={{fontSize:12,color:"var(--muted)",marginTop:8,lineHeight:1.6}}>
+            The From Email must be verified in SendGrid before emails will send. Replies from clients go to this address.
+          </div>
+        </div>
+      )}
+
       {activeTab==="regional"&&(
         <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1fr 1fr",gap:16}}>
           <div>
@@ -14636,8 +14665,9 @@ ${(po.items||[]).map(it=>`<tr><td>${it.desc||"—"}</td><td>${it.qty}</td><td>$$
       toName: vendor?.name||"",
       subject: `Purchase Order ${po.poNumber||po.id} — ${shopName}`,
       body: bodyText,
-      fromName: shopName,
-      fromEmail: shopEmail,
+      fromName: adminSettings?.sendgridFromName||shopName,
+      fromEmail: adminSettings?.sendgridFromEmail||shopEmail,
+      userApiKey: adminSettings?.sendgridApiKey||null,
     });
   };
 
