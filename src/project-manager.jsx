@@ -10,7 +10,7 @@ var DEFAULT_TEMPLATES = [
   {
     id:"t1", name:"Kitchen Remodel", icon:"🍳", color:"#4fffb0",
     desc:"Full kitchen cabinet installation project",
-    budget:"", stages:["design","procurement","milling","cnc","edgebanding","joining","assembly","finishing","delivery_prep","delivery","installation"],
+    budget:"", stages:["design","procurement","milling","cnc","edgebanding","joining","assembly","finishing","deliveryprep","delivery","installation"],
     defaultTasks:[
       {title:"Site measure & design consultation",priority:"high"},
       {title:"Finalize material selections",priority:"high"},
@@ -22,7 +22,7 @@ var DEFAULT_TEMPLATES = [
   {
     id:"t2", name:"Bathroom Vanity", icon:"🚿", color:"#7b6fff",
     desc:"Custom bathroom vanity with sink cutout",
-    budget:"", stages:["design","procurement","milling","assembly","finishing","delivery_prep","delivery","installation"],
+    budget:"", stages:["design","procurement","milling","assembly","finishing","deliveryprep","delivery","installation"],
     defaultTasks:[
       {title:"Confirm sink & faucet specs",priority:"high"},
       {title:"Order plumbing fixtures",priority:"medium"},
@@ -32,7 +32,7 @@ var DEFAULT_TEMPLATES = [
   {
     id:"t3", name:"Built-In Shelving", icon:"📚", color:"#ffc46b",
     desc:"Custom built-in bookcase or shelving unit",
-    budget:"", stages:["design","procurement","milling","assembly","finishing","delivery_prep","installation"],
+    budget:"", stages:["design","procurement","milling","assembly","finishing","deliveryprep","installation"],
     defaultTasks:[
       {title:"Confirm wall framing & electrical clearances",priority:"high"},
       {title:"Paint/finish approval from client",priority:"medium"},
@@ -50,7 +50,7 @@ var DEFAULT_TEMPLATES = [
   {
     id:"t5", name:"Entertainment Center", icon:"📺", color:"#ff6b6b",
     desc:"Custom media center or entertainment wall unit",
-    budget:"", stages:["design","procurement","milling","cnc","assembly","finishing","delivery_prep","delivery","installation"],
+    budget:"", stages:["design","procurement","milling","cnc","assembly","finishing","deliveryprep","delivery","installation"],
     defaultTasks:[
       {title:"Confirm AV equipment dimensions & wire routing",priority:"high"},
       {title:"Coordinate with AV installer",priority:"medium"},
@@ -654,14 +654,14 @@ var NAV = [
     {id:"itemlib",   label:"Item Library",  icon:"⊟"},
   ]},
   // ── SHOP ──
-  {id:"financetracker", label:"Finance", icon:"$", section:"SHOP", children:[
+  {id:"financetracker", label:"Finance", icon:"$", section:"MY SHOP", children:[
     {id:"inventory",      label:"Inventory",       icon:"⊞"},
     {id:"tools",          label:"Tools & Equip",   icon:"🔧"},
     {id:"purchaseorders", label:"Purchase Orders", icon:"📦"},
     {id:"profitability",  label:"Profitability",   icon:"📈"},
   ]},
   // ── LIBRARY ──
-  {id:"library", label:"Library", icon:"◫", section:"LIBRARY", children:[
+  {id:"library", label:"Library", icon:"◫", section:"MY LIBRARY", children:[
     {id:"documents",  label:"Documents", icon:"📄"},
     {id:"media",      label:"Media",     icon:"⊠"},
     {id:"gallery",    label:"Gallery",   icon:"◫"},
@@ -967,7 +967,7 @@ function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,on
       <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1.4fr 1fr",gap:14,marginBottom:14}}>
 
         {/* ── Active Projects ── */}
-        <Card>
+        <Card style={{display:"flex",flexDirection:"column"}}>
           <div style={{fontWeight:700,marginBottom:14,fontSize:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             Active Projects
             <button onClick={()=>onNavigate("projects")}
@@ -977,7 +977,8 @@ function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,on
               All projects ↗
             </button>
           </div>
-          {projects.filter(p=>p.status==="active").map(p=>{
+          <div style={{overflowY:"auto",maxHeight:320,flex:1}}>
+          {projects.filter(p=>p.status==="active").slice(0,5).map(p=>{
             const income=transactions.filter(t=>t.projectId===p.id&&t.type==="income").reduce((a,b)=>a+b.amount,0);
             const pct=Math.min(100,Math.round((income/p.budget)*100));
             return (
@@ -1002,6 +1003,7 @@ function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,on
               </div>
             );
           })}
+          </div>
         </Card>
 
         {/* ── Open Tasks ── */}
@@ -1015,7 +1017,8 @@ function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,on
               All tasks ↗
             </button>
           </div>
-          {tasks.filter(t=>t.status!=="done").slice(0,5).map(t=>{
+          <div style={{overflowY:"auto",maxHeight:320}}>
+          {tasks.filter(t=>t.status!=="done").slice(0,10).map(t=>{
             const proj=projects.find(p=>p.id===t.projectId);
             return (
               <div key={t.id}
@@ -1032,6 +1035,7 @@ function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,on
               </div>
             );
           })}
+          </div>
         </Card>
       </div>
 
@@ -1586,6 +1590,18 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
         <div>
           <div style={{fontWeight:800,fontSize:20,marginBottom:6}}>{p.name}</div>
+          {p.address&&(
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+              <span style={{fontSize:13,color:"var(--muted)"}}>📍</span>
+              <span style={{fontSize:13,color:"var(--muted)"}}>{p.address}</span>
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`}
+                target="_blank" rel="noreferrer"
+                style={{fontSize:11,color:"var(--accent)",textDecoration:"none",fontFamily:"var(--mono)",padding:"1px 6px",borderRadius:5,background:"var(--accent)18",border:"1px solid var(--accent)33"}}
+                onClick={e=>e.stopPropagation()}>
+                Map ↗
+              </a>
+            </div>
+          )}
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
             <Badge color={p.status==="active"?"var(--accent)":p.status==="completed"?"var(--accent4)":"var(--muted)"}>{p.status}</Badge>
             <Badge color="var(--accent2)">{stagesDone}/{PROJECT_STAGES.length} stages</Badge>
@@ -2537,12 +2553,16 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                       </div>
                       {/* Actions */}
                       <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
-                        {r.url&&(
+                        {r.url ? (
                           <a href={r.url} target="_blank" rel="noreferrer"
                             style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:7,background:"var(--accent5)22",border:"1px solid var(--accent5)44",color:"var(--accent5)",fontSize:11,fontWeight:700,textDecoration:"none",flexShrink:0}}
                             onClick={e=>e.stopPropagation()}>
                             Open ↗
                           </a>
+                        ) : (
+                          <span title="No URL — edit this document in the Documents library to add a link" style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:7,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,fontWeight:700,flexShrink:0,opacity:0.5,cursor:"help"}}>
+                            No link
+                          </span>
                         )}
                         <button onClick={()=>unassignResource(r.id)}
                           title="Remove from this project"
@@ -3299,7 +3319,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[pendingProject]);
 
-  const blankForm={name:"",clientContactId:"",contactIds:[],contactRoles:{},status:"active",color:"#4fffb0",budget:"",startDate:"",endDate:"",desc:"",_templateId:null,_templateName:null};
+  const blankForm={name:"",clientContactId:"",contactIds:[],contactRoles:{},status:"active",color:"#4fffb0",budget:"",startDate:"",endDate:"",desc:"",address:"",_templateId:null,_templateName:null};
   const [form,setForm]=useState(blankForm);
 
   // Typeahead state for contact search in project modal
@@ -4164,6 +4184,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
             <Input label="Start Date" value={form.startDate} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} type="date" />
             <Input label="End Date"   value={form.endDate}   onChange={e=>setForm(f=>({...f,endDate:e.target.value}))}   type="date" />
           </div>
+          <Input label="Project Address" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} placeholder="123 Main St, City, State ZIP" voice />
           <Input label="Description" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} type="textarea" voice />
           <div style={{marginBottom:16}}>
             <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>COLOR</div>
@@ -4301,7 +4322,7 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(null);
-  const [form,setForm]=useState({name:"",company:"",role:"",email:"",phone:"",address:"",projectIds:[],notes:"",isSupplier:false, contactType:"client",supplierCategories:"",url:""});
+  const [form,setForm]=useState({name:"",company:"",role:"",email:"",phone:"",address:"",projectIds:[],notes:"",referral:"",isSupplier:false, contactType:"client",supplierCategories:"",url:""});
   const [search,setSearch]=useState("");
   const [filterType,setFilterType]=useState("all"); // "all" | "clients" | "suppliers"
   const [viewMode,setViewMode]=useState("card");   // "card" | "list"
@@ -4558,6 +4579,13 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
               </div>
             )}
 
+            {c.referral&&(
+              <div>
+                <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:3}}>REFERRAL SOURCE</div>
+                <div style={{fontSize:13}}>{c.referral}</div>
+              </div>
+            )}
+
             {/* Associated projects — clients only */}
             {(c.contactType==="client"||c.contactType==="partner"||(!c.contactType&&!c.isSupplier))&&(()=>{
               const linked=projects.filter(p=>c.projectIds?.includes(p.id));
@@ -4724,6 +4752,17 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
             </div>
           )}
 
+          {/* Referral From — clients only */}
+          {(!form.isSupplier && form.contactType!=="partner" && form.contactType!=="supplier") && (
+            <div>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:5}}>REFERRAL SOURCE</div>
+              <select value={form.referral||""} onChange={e=>setForm(f=>({...f,referral:e.target.value}))}
+                style={{width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:form.referral?"var(--text)":"var(--muted)",fontSize:13}}>
+                <option value="">Select referral source…</option>
+                {["Website","YouTube","Instagram","Facebook","Client","Partner","Vendor","Other"].map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
           <Input label="Notes" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} type="textarea" voice />
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}><Btn variant="secondary" onClick={()=>setModal(false)}>Cancel</Btn><Btn onClick={save}>Save</Btn></div>
         </Modal>
@@ -8818,7 +8857,7 @@ Est. 2005`
             <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>CLIENT (FROM CRM)</div>
             <select value={sel.contactId} onChange={e=>setSel(s=>({...s,contactId:+e.target.value}))} style={inp}>
               <option value="">Select client…</option>
-              {contacts.filter(c=>!c.isSupplier).map(c=><option key={c.id} value={c.id}>{c.name} — {c.company}</option>)}
+              {contacts.filter(c=>!c.isSupplier&&(c.contactType==="client"||c.contactType==="partner")).map(c=><option key={c.id} value={c.id}>{c.name}{c.company?` — ${c.company}`:""} ({c.contactType==="partner"?"Partner":"Client"})</option>)}
             </select>
           </div>
           <div style={{marginBottom:14}}>
@@ -10919,7 +10958,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
                   <li>When entering expenses, select the matching COA account — this ensures your CSV exports land in the right QBO category automatically</li>
                 </ol>
                 <div style={{marginTop:12,padding:"10px 12px",background:"var(--surface)",borderRadius:8,fontSize:11}}>
-                  💡 The CabShop Pro Chart of Accounts uses codes 4000–9030 which map cleanly to standard QBO categories. If you use different codes in QBO, Claude can update the CabShop Pro account codes to match yours exactly.
+                  💡 CabShop Pro uses account codes 4000–9030 that map cleanly to standard QuickBooks account types. If your QBO setup uses different codes, simply update the account codes in the Chart of Accounts tab to match — this keeps your categorization consistent across both systems.
                 </div>
               </div>
             </div>
@@ -11758,21 +11797,31 @@ function HelpPage({bp}) {
             </a>
           </div>
 
-          {/* Feature highlights */}
+          {/* Explainer */}
+          <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.7,marginBottom:18,padding:"12px 16px",background:"var(--surface2)",borderRadius:10,border:"1px solid var(--border)"}}>
+            Below are the main feature areas of CabShop Pro. Click any section to go directly to that part of the User Guide.
+          </div>
+
+          {/* Feature highlights — clickable links into guide */}
           <div style={{display: "grid", gridTemplateColumns: bp === "phone" ? "1fr" : "1fr 1fr", gap: 14}}>
             {[
-              { icon: "📋", title: "Projects & Quotes", desc: "Manage jobs from estimate to completion with linked quotes and change orders." },
-              { icon: "💰", title: "Finance Tracker", desc: "Track income, expenses, and profitability with QuickBooks export." },
-              { icon: "📦", title: "Inventory & Items", desc: "Build a reusable item library to speed up quoting." },
-              { icon: "📅", title: "Calendar & Tasks", desc: "Schedule jobs and assign tasks to keep your team on track." },
-              { icon: "🤝", title: "CRM", desc: "Manage clients and contacts with full project history." },
-              { icon: "🤖", title: "AI Assistant", desc: "Get instant help, cost analysis, and project insights powered by AI." },
+              { icon: "📋", title: "Projects & Quotes", desc: "Manage jobs from estimate to completion with linked quotes and change orders.", anchor: "#projects" },
+              { icon: "💰", title: "Finance Tracker", desc: "Track income, expenses, and profitability with QuickBooks export.", anchor: "#finance" },
+              { icon: "📦", title: "Inventory & Items", desc: "Build a reusable item library to speed up quoting.", anchor: "#inventory" },
+              { icon: "📅", title: "Calendar & Tasks", desc: "Schedule jobs and assign tasks to keep your team on track.", anchor: "#calendar" },
+              { icon: "🤝", title: "CRM", desc: "Manage clients and contacts with full project history.", anchor: "#crm" },
+              { icon: "🤖", title: "AI Assistant", desc: "Get instant help, cost analysis, and project insights powered by AI.", anchor: "#ai" },
             ].map(f => (
-              <div key={f.title} style={{background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 16px"}}>
+              <a key={f.title} href={`/guide.html${f.anchor}`} target="_blank" rel="noopener noreferrer"
+                style={{background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 16px",
+                  textDecoration:"none", display:"block", transition:"border-color 0.15s, transform 0.15s", cursor:"pointer"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.transform="";}}>
                 <div style={{fontSize: 22, marginBottom: 8}}>{f.icon}</div>
-                <div style={{fontWeight: 700, fontSize: 14, marginBottom: 4}}>{f.title}</div>
+                <div style={{fontWeight: 700, fontSize: 14, marginBottom: 4, color:"var(--text)"}}>{f.title}</div>
                 <div style={{fontSize: 13, color: "var(--muted)", lineHeight: 1.5}}>{f.desc}</div>
-              </div>
+                <div style={{fontSize:11,color:"var(--accent)",marginTop:8,fontFamily:"var(--mono)"}}>Open in guide ↗</div>
+              </a>
             ))}
           </div>
         </div>
