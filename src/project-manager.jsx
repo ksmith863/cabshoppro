@@ -12465,6 +12465,25 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const setTransactions = makeSetter('transactions', _setTransactions);
   const setInventory = makeSetter('inventory', _setInventory);
 
+  const [media,_setMedia]=useState([]);
+  const [resources,_setResources]=useState([]);
+  const [gallery,_setGallery]=useState([]);
+  const [samples,_setSamples]=useState([]);
+  const [quoteItems,_setQuoteItems]=useState([]);
+  const [events,_setEvents]=useState([]);
+  const [tools,_setTools]=useState([]);
+  const [adminSettings,_setAdminSettings]=useState(defaultAdminSettings);
+  const [chartOfAccounts,_setChartOfAccounts]=useState(SEED_CHART_OF_ACCOUNTS);
+
+  const setMedia            = makeSetter('media',             _setMedia);
+  const setResources        = makeSetter('resources',         _setResources);
+  const setGallery          = makeSetter('gallery',           _setGallery);
+  const setSamples          = makeSetter('samples',           _setSamples);
+  const setQuoteItems       = makeSetter('quote_items',       _setQuoteItems);
+  const setEvents           = makeSetter('events',            _setEvents);
+  const setTools            = makeSetter('tools',             _setTools);
+  const setChartOfAccounts  = makeSetter('chart_of_accounts', _setChartOfAccounts);
+
   const syncAdminSettings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -12560,18 +12579,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     const interval = setInterval(pollApprovals, 30000);
     return () => clearInterval(interval);
   }, []);
-  const [media,_setMedia]=useState([]);
-  const [resources,_setResources]=useState([]);
-  const [gallery,_setGallery]=useState([]);
-  const [samples,_setSamples]=useState([]);
   const [quotes,_setQuotes]=useState(seedQuotes);
-  const [quoteItems,_setQuoteItems]=useState([]);
-
-  const setMedia      = makeSetter('media',       _setMedia);
-  const setResources  = makeSetter('resources',   _setResources);
-  const setGallery    = makeSetter('gallery',      _setGallery);
-  const setSamples    = makeSetter('samples',      _setSamples);
-  const setQuoteItems = makeSetter('quote_items',  _setQuoteItems);
   const notifications = useNotifications(projects, tasks, inventory, quotes, transactions);
 
   // Persist quotes to Supabase quotes_store
@@ -12598,11 +12606,8 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       } catch(e) { console.error("Quote persist error:", e); }
     }, 100);
   };
-  const [events,_setEvents]=useState([]);
-  const [tools,_setTools]=useState([]);
-  const setEvents = makeSetter('events',  _setEvents);
-  const setTools  = makeSetter('tools',   _setTools);
-  const [adminSettings,_setAdminSettings]=useState(defaultAdminSettings);
+
+
 
 
   const setAdminSettings = async (updater) => {
@@ -12624,8 +12629,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     }, 300);
   };
   const [pendingEvent,setPendingEvent]=useState(null); // pre-filled event to open in Calendar
-  const [chartOfAccounts,_setChartOfAccounts]=useState(SEED_CHART_OF_ACCOUNTS);
-  const setChartOfAccounts = makeSetter('chart_of_accounts', _setChartOfAccounts);
+
 
   // Keep module-level aliases in sync so Finance/Review etc. always see current COA
   _currentCOA=chartOfAccounts;
