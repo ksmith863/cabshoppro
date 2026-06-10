@@ -6068,23 +6068,21 @@ function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp})
     const a=document.createElement("a");a.href=url;a.download=`${poNumber}.txt`;a.click();URL.revokeObjectURL(url);
   };
 
+  const [invEmailComposer,setInvEmailComposer]=useState(null);
   const emailPO=()=>{
     if(!poSupplier?.email)return;
     const poNumber=`PO-${Date.now().toString().slice(-6)}`;
     const subtotal=poItems.reduce((s,i)=>s+i.qty*i.costPer,0);
     const itemLines=poItems.map(i=>`• ${i.name}: ${i.qty} ${i.unit} @ $${i.costPer}/${i.unit} = $${(i.qty*i.costPer).toFixed(2)}`).join("\n");
-    const body=encodeURIComponent(`Purchase Order ${poNumber}\n\nPlease process the following order:\n
-
-${itemLines}
-
-TOTAL: $${subtotal.toFixed(2)}
-
-Ship to: Gotham Woodworks
-Please confirm receipt of this order.
-
-Thank you`);
-    const subject=encodeURIComponent(`Purchase Order ${poNumber} — Gotham Woodworks`);
-    window.open(`mailto:${poSupplier.email}?subject=${subject}&body=${body}`);
+    const bodyText=`Purchase Order ${poNumber}\n\nPlease process the following order:\n\n${itemLines}\n\nTOTAL: $${subtotal.toFixed(2)}\n\nShip to: Gotham Woodworks\nPlease confirm receipt of this order.\n\nThank you`;
+    setInvEmailComposer({
+      to: poSupplier.email,
+      toName: poSupplier.name||"",
+      subject: `Purchase Order ${poNumber} — Gotham Woodworks`,
+      body: bodyText,
+      fromName: "Gotham Woodworks",
+      fromEmail: "",
+    });
   };
 
   const saveRestock=()=>{
@@ -6564,6 +6562,7 @@ Thank you`);
       )}
 
       {/* ── Purchase Order modal ── */}
+      {invEmailComposer&&<EmailComposerModal {...invEmailComposer} onClose={()=>setInvEmailComposer(null)} />}
       {poModal&&(
         <Modal title="Generate Purchase Order" onClose={()=>setPoModal(false)} wide>
           {poSupplier&&(
@@ -7265,6 +7264,86 @@ function SimpleImageLightbox({url, caption, onClose}) {
         {caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.8))",padding:"20px 20px 14px",color:"#fff",fontSize:14,fontWeight:600}}>{caption}</div>}
       </div>
       <div style={{marginTop:14,color:"rgba(255,255,255,0.4)",fontSize:12,fontFamily:"var(--mono)"}}>Click anywhere or press Esc to close</div>
+    </div>,
+    document.body
+  );
+}
+
+// ─── Email Composer Modal ────────────────────────────────────────────────────
+// Replaces all mailto: links with a proper in-app email composer
+// that sends via the /.netlify/functions/send-email Netlify function.
+function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, onClose }) {
+  const [to_, setTo]     = useState(to||"");
+  const [subject, setSub] = useState(initSubject||"");
+  const [body, setBody]   = useState(initBody||"");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent]   = useState(false);
+  const [error, setError] = useState("");
+
+  const send = async () => {
+    if (!to_.trim())      { setError("Please enter a recipient email address."); return; }
+    if (!subject.trim())  { setError("Please enter a subject."); return; }
+    if (!body.trim())     { setError("Please enter a message."); return; }
+    setSending(true); setError("");
+    try {
+      const res = await fetch("/.netlify/functions/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"" }),
+      });
+      const data = await res.json();
+      if (data.success) { setSent(true); }
+      else { setError(data.error || "Failed to send. Please try again."); }
+    } catch(e) { setError("Network error: " + e.message); }
+    setSending(false);
+  };
+
+  const inp = { width:"100%", padding:"9px 11px", borderRadius:8, background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)", fontSize:13, outline:"none", fontFamily:"var(--font)", boxSizing:"border-box" };
+
+  return createPortal(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,width:"100%",maxWidth:540,boxShadow:"0 24px 64px rgba(0,0,0,0.6)",fontFamily:"var(--font)"}}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",borderBottom:"1px solid var(--border)22"}}>
+          <div style={{fontWeight:700,fontSize:15}}>✉ Compose Email</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"var(--muted)",fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
+        </div>
+        {sent ? (
+          <div style={{padding:"40px 24px",textAlign:"center"}}>
+            <div style={{fontSize:40,marginBottom:12}}>✅</div>
+            <div style={{fontWeight:700,fontSize:16,marginBottom:6}}>Email sent!</div>
+            <div style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Your message was delivered to {to_}</div>
+            <button onClick={onClose} style={{padding:"10px 24px",borderRadius:9,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer"}}>Done</button>
+          </div>
+        ) : (
+          <div style={{padding:"16px 20px"}}>
+            {/* To */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TO</div>
+              <input value={to_} onChange={e=>setTo(e.target.value)} placeholder="recipient@email.com" style={inp} />
+            </div>
+            {/* Subject */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>SUBJECT</div>
+              <input value={subject} onChange={e=>setSub(e.target.value)} style={inp} />
+            </div>
+            {/* Body */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>MESSAGE</div>
+              <textarea value={body} onChange={e=>setBody(e.target.value)} rows={10}
+                style={{...inp,resize:"vertical",lineHeight:1.5}} />
+            </div>
+            {error&&<div style={{color:"var(--accent3)",fontSize:12,marginBottom:10,padding:"8px 10px",background:"var(--accent3)11",borderRadius:7}}>{error}</div>}
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={onClose} style={{padding:"9px 18px",borderRadius:9,background:"none",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,cursor:"pointer"}}>Cancel</button>
+              <button onClick={send} disabled={sending}
+                style={{padding:"9px 22px",borderRadius:9,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:sending?"wait":"pointer",opacity:sending?0.7:1}}>
+                {sending?"Sending…":"Send Email"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>,
     document.body
   );
@@ -8198,6 +8277,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   const [libModal,setLibModal]=useState(false);
   const [libLightbox,setLibLightbox]=useState(null);
   const [quoteLightbox,setQuoteLightbox]=useState(null);
+  const [emailComposer,setEmailComposer]=useState(null);
   const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:""};
   const [libForm,setLibForm]=useState(blankLibForm);
   const [libSel,setLibSel]=useState(null);
@@ -8471,10 +8551,12 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const contact=contacts.find(c=>c.id===q.contactId);
     const subtotal=quoteSubtotal(q);
     const total=quoteTotal(q);
-    const body=encodeURIComponent(
+    const shopName=adminSettings?.companyName||"Gotham Woodworks";
+    const shopEmail=adminSettings?.companyEmail||"";
+    const bodyText=
 `Dear ${contact?contact.name:""},
 
-Please find attached your quote from Gotham Woodworks.
+Please find your quote from ${shopName}.
 
 Quote: ${q.number}
 Project: ${q.title}
@@ -8486,12 +8568,15 @@ TOTAL: ${fmt(total)}
 ${q.notes?("Notes:\n"+q.notes+"\n\n"):""}Please don't hesitate to reach out with any questions.
 
 Best regards,
-Gotham Woodworks
-Est. 2005`
-    );
-    const subject=encodeURIComponent(`Quote ${q.number} — ${q.title}`);
-    const to=contact?.email||"";
-    window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+${shopName}`;
+    setEmailComposer({
+      to: contact?.email||"",
+      toName: contact?.name||"",
+      subject: `Quote ${q.number} — ${q.title}`,
+      body: bodyText,
+      fromName: shopName,
+      fromEmail: shopEmail,
+    });
   };
 
   // ── Send for approval (generates unique approval link) ──
@@ -8718,10 +8803,12 @@ Est. 2005`
     const contact=contacts.find(c=>c.id===q.contactId);
     const total=quoteTotal(q);
     const isOverdue=q.dueDate&&new Date(q.dueDate)<new Date()&&q.status!=="paid";
-    const body=encodeURIComponent(
+    const shopName=adminSettings?.companyName||"Gotham Woodworks";
+    const shopEmail=adminSettings?.companyEmail||"";
+    const bodyText=
 `Dear ${contact?contact.name:""},
 
-${isOverdue?"This invoice is now past due. Please arrange payment at your earliest convenience.\n\n":""}Please find your invoice from Gotham Woodworks.
+${isOverdue?"This invoice is now past due. Please arrange payment at your earliest convenience.\n\n":""}Please find your invoice from ${shopName}.
 
 Invoice: ${q.number}
 Project: ${q.title}
@@ -8730,15 +8817,18 @@ ${q.dueDate?"Due Date: "+q.dueDate+"\n":""}Payment Terms: ${q.paymentTerms||"Net
 
 AMOUNT DUE: ${fmt(total)}
 
-${q.notes?"Notes:\n"+q.notes+"\n\n":""}${q.attachedTandC?"Our standard "+q.attachedTandC.name+" is attached to this quote.\n\n":""}Please don't hesitate to reach out with any questions.
+${q.notes?"Notes:\n"+q.notes+"\n\n":""}${q.attachedTandC?"Our standard "+q.attachedTandC.name+" is attached to this invoice.\n\n":""}Please don't hesitate to reach out with any questions.
 
 Best regards,
-Gotham Woodworks
-Est. 2005`
-    );
-    const subject=encodeURIComponent(`Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`);
-    const to=contact?.email||"";
-    window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+${shopName}`;
+    setEmailComposer({
+      to: contact?.email||"",
+      toName: contact?.name||"",
+      subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
+      body: bodyText,
+      fromName: shopName,
+      fromEmail: shopEmail,
+    });
   };
   const inp={width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,outline:"none",fontFamily:"var(--font)"};
 
@@ -9394,6 +9484,7 @@ Est. 2005`
           <Btn onClick={saveQuote}>Save {isInv?"Invoice":"Quote"}</Btn>
         </div>
       </div>
+    {emailComposer&&<EmailComposerModal {...emailComposer} onClose={()=>setEmailComposer(null)} />}
     </div>);
   }
 
@@ -9548,6 +9639,7 @@ Est. 2005`
         )}
       </div>
     )}
+  {emailComposer&&<EmailComposerModal {...emailComposer} onClose={()=>setEmailComposer(null)} />}
   </div>);
 }
 
@@ -14451,18 +14543,25 @@ ${(po.items||[]).map(it=>`<tr><td>${it.desc||"—"}</td><td>${it.qty}</td><td>$$
   };
 
   // Email PO via mailto (opens mail client)
+  const [poEmailComposer,setPoEmailComposer]=useState(null);
   const emailPO = (po) => {
     const vendor = po.vendorContactId ? contacts?.find(c=>String(c.id)===String(po.vendorContactId)) : null;
     const toEmail = vendor?.email || "";
     const shopName = adminSettings?.companyName || "CabShop Pro";
+    const shopEmail = adminSettings?.companyEmail || "";
     const total = (po.items||[]).reduce((s,it)=>s+(it.qty||0)*(it.unitCost||0),0);
     const lines = (po.items||[]).map(it=>`  ${it.desc||"Item"} — Qty: ${it.qty}, Unit: $${(it.unitCost||0).toFixed(2)}`).join("\n");
-    const subject = encodeURIComponent(`Purchase Order ${po.poNumber||po.id} — ${shopName}`);
     const greeting = vendor?.name ? ` ${vendor.name.split(" ")[0]}` : "";
     const notes = po.notes ? `Notes: ${po.notes}\n\n` : "";
     const bodyText = `Hello${greeting},\n\nPlease process the following Purchase Order:\n\nPO #: ${po.poNumber||po.id}\nDate: ${new Date().toLocaleDateString()}\n\nItems:\n${lines}\n\nTotal: $${total.toFixed(2)}\n\n${notes}Thank you,\n${shopName}`;
-    const body = encodeURIComponent(bodyText);
-    window.location.href = `mailto:${toEmail}?subject=${subject}&body=${body}`;
+    setPoEmailComposer({
+      to: toEmail,
+      toName: vendor?.name||"",
+      subject: `Purchase Order ${po.poNumber||po.id} — ${shopName}`,
+      body: bodyText,
+      fromName: shopName,
+      fromEmail: shopEmail,
+    });
   };
 
     const savePO = () => {
@@ -14626,6 +14725,7 @@ ${(po.items||[]).map(it=>`<tr><td>${it.desc||"—"}</td><td>${it.qty}</td><td>$$
           </div>
         </Modal>
       )}
+      {poEmailComposer&&<EmailComposerModal {...poEmailComposer} onClose={()=>setPoEmailComposer(null)} />}
     </div>
   );
 }
