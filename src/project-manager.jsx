@@ -10214,13 +10214,34 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
     };
   };
 
-  // All items for a given date: events + tasks (if enabled)
+  // Expand recurring events into virtual instances for a date
+  const isRecurringMatch=(ev,dateStr)=>{
+    if(!ev.recurrence||ev.recurrence==="none")return false;
+    if(ev.date===dateStr)return false;
+    const base=new Date(ev.date+"T00:00:00");
+    const check=new Date(dateStr+"T00:00:00");
+    if(check<=base)return false;
+    const diffDays=Math.round((check-base)/(1000*60*60*24));
+    if(ev.recurrence==="daily")return true;
+    if(ev.recurrence==="weekly")return diffDays%7===0;
+    if(ev.recurrence==="biweekly")return diffDays%14===0;
+    if(ev.recurrence==="monthly"){
+      return base.getDate()===check.getDate()&&
+        (check.getFullYear()>base.getFullYear()||(check.getFullYear()===base.getFullYear()&&check.getMonth()>base.getMonth()));
+    }
+    return false;
+  };
+
+  // All items for a given date: events + recurring instances + tasks (if enabled)
   const itemsForDate=(dateStr)=>{
-    const evs=events.filter(e=>e.date===dateStr).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+    const evs=events.filter(e=>e.date===dateStr).sort((a,b)=>(a.startTime||"").localeCompare(b.startTime||""));
+    const recurringEvs=events
+      .filter(e=>e.recurrence&&e.recurrence!=="none"&&isRecurringMatch(e,dateStr))
+      .map(e=>({...e,date:dateStr,_isRecurring:true,id:`${e.id}_${dateStr}`}));
     const taskItems=showTasks
       ?(tasks||[]).filter(t=>t.due===dateStr&&t.status!=="done").map(taskToItem)
       :[];
-    return [...evs,...taskItems];
+    return [...evs,...recurringEvs,...taskItems];
   };
 
   const DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -10286,9 +10307,9 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
                         style={{fontSize:10,background:"transparent",color:item.color,borderRadius:4,padding:"1px 5px",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600,border:`1px dashed ${item.color}`,cursor:"default"}}>
                         ☐ {item.title}
                       </div>
-                    :<div key={item.id} onClick={e=>{e.stopPropagation();open(item);}}
+                    :<div key={item.id} onClick={e=>{e.stopPropagation();if(item._isRecurring){const base=events.find(ev=>item.id.startsWith(String(ev.id)));open(base||item);}else{open(item);}}}
                         style={{fontSize:10,background:item.color+"33",color:item.color,borderRadius:4,padding:"1px 5px",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600,cursor:"pointer"}}>
-                        {!item.allDay&&item.startTime?item.startTime+" ":""}{item.title}
+                        {item._isRecurring?"🔁 ":""}{!item.allDay&&item.startTime?item.startTime+" ":""}{item.title}
                       </div>
                 ))}
                 {dayItems.length>(bp==="phone"?1:3)&&<div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)"}}> +{dayItems.length-(bp==="phone"?1:3)} more</div>}
