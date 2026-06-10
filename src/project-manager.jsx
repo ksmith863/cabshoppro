@@ -10896,18 +10896,26 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
     ["coa","📋 Chart of Accounts"],
     ["quickbooks","📊 QuickBooks"],
   ];
-  const [custTemplates,setCustTemplates]=useState(()=>settings?._templates||DEFAULT_TEMPLATES);
+  const [custTemplates,setCustTemplates]=useState(()=>{
+    try{return (settings?._templates && Array.isArray(settings._templates)) ? settings._templates : DEFAULT_TEMPLATES;}
+    catch{return DEFAULT_TEMPLATES;}
+  });
   // Sync templates from adminSettings when it loads from Supabase
-  React.useEffect(()=>{
-    if(settings?._templates)setCustTemplates(settings._templates);
-  },[settings?._templates]);
+  useEffect(()=>{
+    try{
+      if(settings?._templates && Array.isArray(settings._templates)){
+        setCustTemplates(settings._templates);
+      }
+    }catch(e){console.error("Template sync error:",e);}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[settings]);
   const saveTemplates=async(t)=>{
     setCustTemplates(t);
     try{
       const {data:{user}}=await supabase.auth.getUser();
       if(!user)return;
       await supabase.from("admin_settings").upsert(
-        {user_id:user.id,data:{...(adminSettings||{}),_templates:t},updated_at:new Date().toISOString()},
+        {user_id:user.id,data:{...(settings||{}),_templates:t},updated_at:new Date().toISOString()},
         {onConflict:"user_id"}
       );
     }catch(e){console.error("Template save error:",e);}
@@ -12590,7 +12598,13 @@ function HelpPage({bp}) {
 export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const bp = useBreakpoint();
   const [page,_setPage]=useState(()=>{
-    try{const saved=localStorage.getItem("csp_page");return saved||initialPage;}catch{return initialPage;}
+    try{
+      const saved=localStorage.getItem("csp_page");
+      // Safety: if saved page is "admin" and we're recovering from a crash, 
+      // fall back to dashboard to break the crash loop
+      const safeSaved = saved && ["dashboard","projects","crm","tasks","finance","inventory","media","samples","gallery","tools","calendar","quotes","documents","profitability","help","subscription"].includes(saved) ? saved : initialPage;
+      return safeSaved;
+    }catch{return initialPage;}
   });
   const setPage=(p)=>{
     _setPage(p);
