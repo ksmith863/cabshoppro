@@ -4331,7 +4331,7 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
 
   const open=(c=null)=>{
     setSel(c);
-    setForm(c?{...c,supplierCategories:(c.supplierCategories||[]).join(", ")}:{name:"",company:"",role:"",email:"",phone:"",address:"",projectIds:[],notes:"",isSupplier:false, contactType:"client",supplierCategories:"",url:""});
+    setForm(c?{...c,supplierCategories:(c.supplierCategories||[]).join(", ")}:{name:"",company:"",role:"",email:"",phone:"",address:"",shippingAddress:"",billingAddress:"",projectIds:[],notes:"",isSupplier:false, contactType:"client",supplierCategories:"",url:""});
     setModal(true);
   };
   const save=()=>{
@@ -4436,7 +4436,7 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
                 <div style={{fontSize:12,fontFamily:"var(--mono)",color:"var(--muted)",lineHeight:1.9}}>
                   <div>✉ {c.email}</div>
                   <div>✆ {c.phone}</div>
-                  {c.address&&<div>📍 {c.address}</div>}
+                  {(c.address||c.shippingAddress)&&<div>📍 {c.address||c.shippingAddress}</div>}
                   {c.url&&<div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🔗 {c.url.replace(/^https?:\/\//,"")}</div>}
                 </div>
                 {(c.contactType==="supplier"||c.isSupplier)&&c.supplierCategories?.length>0&&(
@@ -4572,10 +4572,20 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
             </div>
 
             {/* Address */}
-            {c.address&&(
+            {(c.address||c.shippingAddress||c.billingAddress)&&(
               <div style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",marginBottom:14}}>
-                <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:3}}>ADDRESS</div>
-                <div style={{fontSize:13}}>{c.address}</div>
+                {c.address&&<div style={{marginBottom:c.shippingAddress||c.billingAddress?8:0}}>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:2}}>MAILING</div>
+                  <div style={{fontSize:13,whiteSpace:"pre-line"}}>{c.address}</div>
+                </div>}
+                {c.shippingAddress&&<div style={{marginBottom:c.billingAddress?8:0,borderTop:c.address?"1px solid var(--border)22":undefined,paddingTop:c.address?8:0}}>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:2}}>SHIPPING</div>
+                  <div style={{fontSize:13,whiteSpace:"pre-line"}}>{c.shippingAddress}</div>
+                </div>}
+                {c.billingAddress&&<div style={{borderTop:(c.address||c.shippingAddress)?"1px solid var(--border)22":undefined,paddingTop:(c.address||c.shippingAddress)?8:0}}>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:2}}>BILLING</div>
+                  <div style={{fontSize:13,whiteSpace:"pre-line"}}>{c.billingAddress}</div>
+                </div>}
               </div>
             )}
 
@@ -4717,7 +4727,22 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
             <Input label="Email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} type="email" />
             <Input label="Phone" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} />
           </div>
-          <Input label="Street Address" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} placeholder="123 Main St, City, State  ZIP" voice />
+          {/* Multiple addresses */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>ADDRESSES</div>
+            {[
+              {key:"address",     label:"Mailing / Primary"},
+              {key:"shippingAddress", label:"Shipping"},
+              {key:"billingAddress",  label:"Billing"},
+            ].map(({key,label})=>(
+              <div key={key} style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:"var(--muted)",marginBottom:3,fontFamily:"var(--mono)",letterSpacing:"0.04em",opacity:0.8}}>{label.toUpperCase()}</div>
+                <textarea value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))}
+                  placeholder={`${label} address…`} rows={2}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"var(--font)",boxSizing:"border-box"}} />
+              </div>
+            ))}
+          </div>
           {/* URL — shown for suppliers and partners */}
           {(form.contactType==="supplier"||form.contactType==="partner")&&(
             <Input label={form.contactType==="supplier"?"Ordering Website URL":"Website / URL"} value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} placeholder="https://…" />
@@ -6605,7 +6630,20 @@ Thank you`);
 function MediaLibrary({media,setMedia,projects,bp}) {
   const [modal,setModal]=useState(false);
   const [sel,setSel]=useState(null); // file being edited
-  const blankForm={name:"",type:"image",projectIds:[],productTags:"",size:"",date:"",desc:""};
+  const [mediaLightbox,setMediaLightbox]=useState(null);
+  const blankForm={name:"",type:"image",url:"",projectIds:[],productTags:"",size:"",date:"",desc:""};
+  const handleMediaFileUpload=(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const sizeKB=Math.round(file.size/1024);
+      const sizeStr=sizeKB>1024?`${(sizeKB/1024).toFixed(1)} MB`:`${sizeKB} KB`;
+      const baseName=file.name.replace(/\.[^.]+$/,"");
+      setForm(f=>({...f,url:ev.target.result,name:baseName||f.name,size:sizeStr,type:"image",date:f.date||new Date().toISOString().slice(0,10)}));
+      e.target.value="";
+    };
+    reader.readAsDataURL(file);
+  };
   const [form,setForm]=useState(blankForm);
   const [fp,setFp]=useState("all");const [ft,setFt]=useState("all");const [search,setSearch]=useState("");
 
@@ -6661,7 +6699,13 @@ function MediaLibrary({media,setMedia,projects,bp}) {
           return(
             <Card key={f.id}>
               <div style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:12}}>
-                <div style={{height:52,width:52,borderRadius:10,background:`linear-gradient(135deg,${tc(f.type)}22,${tc(f.type)}08)`,border:`1px solid ${tc(f.type)}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{ti(f.type)}</div>
+                <div style={{height:52,width:52,borderRadius:10,overflow:"hidden",border:`1px solid ${tc(f.type)}33`,flexShrink:0,position:"relative",cursor:f.type==="image"&&f.url?"zoom-in":"default"}}
+                  onClick={()=>f.type==="image"&&f.url&&setMediaLightbox({url:f.url,name:f.name})}>
+                  {f.type==="image"&&f.url?(
+                    <img src={f.url} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",pointerEvents:"none"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
+                  ):null}
+                  <div style={{width:"100%",height:"100%",background:`linear-gradient(135deg,${tc(f.type)}22,${tc(f.type)}08)`,display:f.type==="image"&&f.url?"none":"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{ti(f.type)}</div>
+                </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:600,fontSize:13,marginBottom:3,wordBreak:"break-word",lineHeight:1.3}}>{f.name}</div>
                   <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>{f.size}{f.size&&" · "}{f.date}</div>
@@ -6692,8 +6736,27 @@ function MediaLibrary({media,setMedia,projects,bp}) {
         {!filtered.length&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:50,color:"var(--muted)",fontSize:14}}>No files match.</div>}
       </Grid>
 
+      {mediaLightbox&&<SimpleImageLightbox url={mediaLightbox.url} caption={mediaLightbox.name} onClose={()=>setMediaLightbox(null)} />}
       {modal&&(
         <Modal title={sel?"Edit Media File":"Add Media File"} onClose={()=>{setModal(false);setSel(null);setForm(blankForm);}}>
+          {/* Image upload / camera for image type */}
+          {form.type==="image"&&(
+            <div style={{marginBottom:14}}>
+              {form.url&&<div style={{marginBottom:8,cursor:"zoom-in",display:"inline-block"}} onClick={()=>setMediaLightbox({url:form.url,name:form.name})}><img src={form.url} alt="" style={{maxHeight:100,maxWidth:"100%",borderRadius:8,objectFit:"cover",border:"1px solid var(--border)",pointerEvents:"none"}} onError={e=>e.target.style.display="none"} /></div>}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                  📁 Upload Image
+                  <input type="file" accept="image/*" onChange={handleMediaFileUpload} style={{display:"none"}} />
+                </label>
+                <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 13px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                  📷 Camera
+                  <input type="file" accept="image/*" capture="environment" onChange={handleMediaFileUpload} style={{display:"none"}} />
+                </label>
+                {form.url&&<button onClick={()=>setForm(f=>({...f,url:""}))} style={{padding:"8px 12px",borderRadius:8,background:"none",border:"1px solid var(--accent3)44",color:"var(--accent3)",fontSize:12,cursor:"pointer"}}>Remove</button>}
+              </div>
+              <input value={form.url||""} onChange={e=>setForm(f=>({...f,url:e.target.value}))} placeholder="Or paste image URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)",marginTop:8}} />
+            </div>
+          )}
           <Input label="File Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} voice placeholder="e.g. hartwell_kitchen_final.jpg" />
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="File Type" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} type="select"
@@ -7174,6 +7237,27 @@ function Lightbox({item, images, startIndex, onClose}) {
   );
 }
 
+// ─── Simple image lightbox (single image, no strip) ──────────────────────────
+function SimpleImageLightbox({url, caption, onClose}) {
+  useEffect(()=>{
+    const fn=(e)=>{ if(e.key==="Escape")onClose(); };
+    window.addEventListener("keydown",fn);
+    return ()=>window.removeEventListener("keydown",fn);
+  },[]);
+  return createPortal(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:3000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"zoom-out"}}
+      onClick={onClose}>
+      <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.12)",border:"none",color:"#fff",borderRadius:8,width:42,height:42,fontSize:24,cursor:"pointer",zIndex:1,lineHeight:1}}>×</button>
+      <div onClick={e=>e.stopPropagation()} style={{maxWidth:"min(92vw,1100px)",maxHeight:"85vh",borderRadius:12,overflow:"hidden",boxShadow:"0 32px 80px rgba(0,0,0,0.8)",cursor:"default",position:"relative"}}>
+        <img src={url} alt={caption||""} style={{display:"block",maxWidth:"min(92vw,1100px)",maxHeight:"85vh",objectFit:"contain",background:"#111"}} />
+        {caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.8))",padding:"20px 20px 14px",color:"#fff",fontSize:14,fontWeight:600}}>{caption}</div>}
+      </div>
+      <div style={{marginTop:14,color:"rgba(255,255,255,0.4)",fontSize:12,fontFamily:"var(--mono)"}}>Click anywhere or press Esc to close</div>
+    </div>,
+    document.body
+  );
+}
+
 function Gallery({gallery,setGallery,projects,contacts,bp}) {
   const [viewMode,setViewMode]=useState("grid");
   const [filterCat,setFilterCat]=useState("All");
@@ -7261,6 +7345,16 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
     const newImg={id:`i${Date.now()}`,url:newImgUrl.trim(),caption:newImgCap.trim()};
     setForm(f=>({...f,images:[...f.images,newImg]}));
     setNewImgUrl("");setNewImgCap("");
+  };
+  const addImageFromFile=(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const img={id:`i${Date.now()}`,url:ev.target.result,caption:newImgCap.trim()};
+      setForm(f=>({...f,images:[...(f.images||[]),img]}));setNewImgCap("");
+      e.target.value="";
+    };
+    reader.readAsDataURL(file);
   };
   const removeImage=(imgId)=>setForm(f=>({...f,images:f.images.filter(i=>i.id!==imgId)}));
   const updateImageCaption=(imgId,cap)=>setForm(f=>({...f,images:f.images.map(i=>i.id===imgId?{...i,caption:cap}:i)}));
@@ -7525,15 +7619,24 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
             {/* Add new image */}
             <div style={{background:"var(--surface2)",border:"1px dashed var(--border)",borderRadius:10,padding:"12px 14px"}}>
               <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:8}}>ADD PHOTO</div>
-              <input value={newImgUrl} onChange={e=>setNewImgUrl(e.target.value)} placeholder="Image URL (https://…) or leave blank for placeholder"
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                  📁 Upload
+                  <input type="file" accept="image/*" onChange={addImageFromFile} style={{display:"none"}} />
+                </label>
+                <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 13px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                  📷 Camera
+                  <input type="file" accept="image/*" capture="environment" onChange={addImageFromFile} style={{display:"none"}} />
+                </label>
+              </div>
+              <input value={newImgUrl} onChange={e=>setNewImgUrl(e.target.value)} placeholder="Or paste image URL…"
                 style={{width:"100%",padding:"8px 10px",borderRadius:8,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,outline:"none",marginBottom:8,fontFamily:"var(--font)"}} />
               <div style={{display:"flex",gap:8}}>
                 <input value={newImgCap} onChange={e=>setNewImgCap(e.target.value)} placeholder="Caption (optional)"
                   onKeyDown={e=>e.key==="Enter"&&addImage()}
                   style={{flex:1,padding:"8px 10px",borderRadius:8,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,outline:"none",fontFamily:"var(--font)"}} />
-                <button onClick={addImage} style={{padding:"8px 16px",borderRadius:8,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer",flexShrink:0,fontFamily:"var(--font)"}}>+ Add</button>
+                <button onClick={addImage} style={{padding:"8px 16px",borderRadius:8,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer",flexShrink:0,fontFamily:"var(--font)"}}>+ Add URL</button>
               </div>
-              <div style={{fontSize:11,color:"var(--muted)",marginTop:6,fontFamily:"var(--mono)"}}>Tip: leave URL blank to use a colour placeholder until you have the final photo.</div>
             </div>
           </div>
 
@@ -7690,6 +7793,16 @@ function SamplesLibrary({samples,setSamples,bp}) {
     const img={id:`si${Date.now()}`,url:newImgUrl.trim(),caption:newImgCap.trim()};
     setForm(f=>({...f,images:[...f.images,img]}));
     setNewImgUrl("");setNewImgCap("");
+  };
+  const addImageFromFile=(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const img={id:`si${Date.now()}`,url:ev.target.result,caption:newImgCap.trim()};
+      setForm(f=>({...f,images:[...(f.images||[]),img]}));setNewImgCap("");
+      e.target.value="";
+    };
+    reader.readAsDataURL(file);
   };
   const removeImage=id=>setForm(f=>({...f,images:f.images.filter(i=>i.id!==id)}));
   const updateCaption=(id,cap)=>setForm(f=>({...f,images:f.images.map(i=>i.id===id?{...i,caption:cap}:i)}));
@@ -7961,15 +8074,25 @@ function SamplesLibrary({samples,setSamples,bp}) {
               <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:7}}>
                 {form.images.length===0?"ADD VENEER SWATCH PHOTO":"ADD PROJECT EXAMPLE"}
               </div>
+              <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:8}}>
+                <label style={{display:"inline-flex",alignItems:"center",gap:5,padding:"7px 11px",borderRadius:7,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                  📁 Upload
+                  <input type="file" accept="image/*" onChange={addImageFromFile} style={{display:"none"}} />
+                </label>
+                <label style={{display:"inline-flex",alignItems:"center",gap:5,padding:"7px 11px",borderRadius:7,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                  📷 Camera
+                  <input type="file" accept="image/*" capture="environment" onChange={addImageFromFile} style={{display:"none"}} />
+                </label>
+              </div>
               <input value={newImgUrl} onChange={e=>setNewImgUrl(e.target.value)}
-                placeholder={form.images.length===0?"Swatch image URL (https://…) or blank for colour placeholder":"Project photo URL (https://…) or blank for placeholder"}
+                placeholder="Or paste image URL…"
                 style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,outline:"none",marginBottom:7,fontFamily:"var(--font)"}} />
               <div style={{display:"flex",gap:8}}>
                 <input value={newImgCap} onChange={e=>setNewImgCap(e.target.value)}
                   placeholder={form.images.length===0?"Caption (optional)":"e.g. Walnut Burl kitchen island — Hartwell Residence"}
                   onKeyDown={e=>e.key==="Enter"&&addImage()}
                   style={{flex:1,padding:"8px 10px",borderRadius:7,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,outline:"none",fontFamily:"var(--font)"}} />
-                <button onClick={addImage} style={{padding:"8px 14px",borderRadius:7,background:form.images.length===0?"var(--accent5)":"var(--accent2)",border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>+ Add</button>
+                <button onClick={addImage} style={{padding:"8px 14px",borderRadius:7,background:form.images.length===0?"var(--accent5)":"var(--accent2)",border:"none",color:"#000",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>+ Add URL</button>
               </div>
             </div>
           </div>
@@ -8055,6 +8178,8 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
   // ── Item Library modal state ──
   const [libModal,setLibModal]=useState(false);
+  const [libLightbox,setLibLightbox]=useState(null);
+  const [quoteLightbox,setQuoteLightbox]=useState(null);
   const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:""};
   const [libForm,setLibForm]=useState(blankLibForm);
   const [libSel,setLibSel]=useState(null);
@@ -8803,8 +8928,29 @@ Est. 2005`
           </div>
 
           <Input label="Description" value={libForm.desc} onChange={e=>setLibForm(f=>({...f,desc:e.target.value}))} type="textarea" voice />
-          <Input label="Image URL (optional)" value={libForm.imageUrl} onChange={e=>setLibForm(f=>({...f,imageUrl:e.target.value}))} placeholder="https://…" />
-          {libForm.imageUrl&&<div style={{marginBottom:14}}><img src={libForm.imageUrl} alt="" style={{height:80,borderRadius:8,objectFit:"cover",border:"1px solid var(--border)"}} onError={e=>e.target.style.display="none"} /></div>}
+          {/* Photo — upload, camera, or URL */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>ITEM PHOTO (OPTIONAL)</div>
+            {libForm.imageUrl&&(
+              <div style={{marginBottom:8,position:"relative",display:"inline-block",cursor:"zoom-in"}} onClick={()=>setLibLightbox(libForm.imageUrl)}>
+                <img src={libForm.imageUrl} alt="" style={{height:80,borderRadius:8,objectFit:"cover",border:"1px solid var(--border)",pointerEvents:"none"}} onError={e=>e.target.style.display="none"} />
+                <button onClick={e=>{e.stopPropagation();setLibForm(f=>({...f,imageUrl:""}));}} style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",borderRadius:4,width:18,height:18,cursor:"pointer",fontSize:11,lineHeight:1}}>×</button>
+              </div>
+            )}
+            {libLightbox&&<SimpleImageLightbox url={libLightbox} onClose={()=>setLibLightbox(null)} />}
+            {quoteLightbox&&<SimpleImageLightbox url={quoteLightbox} onClose={()=>setQuoteLightbox(null)} />}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📁 Upload
+                <input type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{  setLibForm(frm=>({...frm,imageUrl:ev.target.result}));e.target.value="";  };r.readAsDataURL(f);}} style={{display:"none"}} />
+              </label>
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📷 Camera
+                <input type="file" accept="image/*" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{  setLibForm(frm=>({...frm,imageUrl:ev.target.result}));e.target.value="";  };r.readAsDataURL(f);}} style={{display:"none"}} />
+              </label>
+            </div>
+            <input value={libForm.imageUrl||""} onChange={e=>setLibForm(f=>({...f,imageUrl:e.target.value}))} placeholder="Or paste image URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}} />
+          </div>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
             {libSel&&<Btn variant="danger" small onClick={()=>{deleteLibItem(libSel.id);setLibModal(false);setLibSel(null);setLibForm(blankLibForm);}}>Delete</Btn>}
             <Btn variant="secondary" onClick={()=>{setLibModal(false);setLibSel(null);setLibForm(blankLibForm);}}>Cancel</Btn>
@@ -9028,9 +9174,21 @@ Est. 2005`
                   </div>
                 </div>
 
-                {/* Image URL input */}
-                <input value={line.imageUrl||""} onChange={e=>updateLine(line.id,"imageUrl",e.target.value)} placeholder="Image URL (optional) — paste link for photo on quote…"
-                  style={{...inp,fontSize:11,marginBottom:8,color:"var(--muted)"}} />
+                {/* Image — upload or URL */}
+                <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,flexWrap:"wrap"}}>
+                  {line.imageUrl&&<img src={line.imageUrl} alt="" style={{height:36,width:48,objectFit:"cover",borderRadius:5,border:"1px solid var(--border)",flexShrink:0,cursor:"zoom-in"}} onError={e=>e.target.style.display="none"} onClick={()=>setQuoteLightbox(line.imageUrl)} />}
+                  <label style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:7,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)"}}>
+                    📁 Photo
+                    <input type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{  updateLine(line.id,"imageUrl",ev.target.result);e.target.value="";  };r.readAsDataURL(f);}} style={{display:"none"}} />
+                  </label>
+                  <label style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:7,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)"}}>
+                    📷 Cam
+                    <input type="file" accept="image/*" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{  updateLine(line.id,"imageUrl",ev.target.result);e.target.value="";  };r.readAsDataURL(f);}} style={{display:"none"}} />
+                  </label>
+                  <input value={line.imageUrl||""} onChange={e=>updateLine(line.id,"imageUrl",e.target.value)} placeholder="Or paste image URL…"
+                    style={{...inp,fontSize:11,flex:1,minWidth:120,color:"var(--muted)"}} />
+                  {line.imageUrl&&<button onClick={()=>updateLine(line.id,"imageUrl","")} style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:13,padding:"2px 4px"}}>×</button>}
+                </div>
 
                 {/* ── Internal-only pricing fields ── */}
                 <div style={{background:"var(--surface3)",borderRadius:9,padding:"10px 12px",border:"1px dashed var(--border)"}}>
@@ -9384,6 +9542,7 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
   const [libSearch,setLibSearch]=useState("");
   const [libCat,setLibCat]=useState("All");
   const [libSubView,setLibSubView]=useState("list");
+  const [libLightbox,setLibLightbox]=useState(null);
 
   // Add to inventory modal
   const [invModal,setInvModal]=useState(null); // the quoteItem being added
@@ -9418,6 +9577,69 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
   };
 
   const deleteLibItem=(id)=>setQuoteItems(prev=>prev.filter(i=>i.id!==id));
+
+  // ── CSV import / export ──
+  const CSV_COLS=["name","category","desc","unit","basePrice","defaultMarkupPct","defaultMarginPct","imageUrl"];
+  const exportItemsCSV=()=>{
+    const EXPORT_COLS=["name","category","desc","unit","basePrice","defaultMarkupPct","defaultMarginPct","imageUrl"];
+    const header=EXPORT_COLS.join(",");
+    const rows=quoteItems.map(item=>{
+      return EXPORT_COLS.map(col=>{
+        let val=item[col]??"";
+        // Skip base64 data URIs in CSV (they break spreadsheets)
+        if(col==="imageUrl"&&String(val).startsWith("data:"))val="(uploaded image)";
+        return `"${String(val).replace(/"/g,'""')}"`;
+      }).join(",");
+    });
+    const csv=[header,...rows].join("\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=`ItemLibrary_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  const importItemsCSV=(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const lines=ev.target.result.split(/\r?\n/).filter(Boolean);
+      if(!lines.length)return;
+      const headers=lines[0].split(",").map(h=>h.replace(/^"|"$/g,"").trim().toLowerCase());
+      const imported=[];
+      for(let i=1;i<lines.length;i++){
+        const vals=[];
+        let inQ=false,cur="";
+        for(const ch of lines[i]){
+          if(ch==='"'){inQ=!inQ;}
+          else if(ch===","&&!inQ){vals.push(cur.replace(/^"|"$/g,""));cur="";}
+          else{cur+=ch;}
+        }
+        vals.push(cur.replace(/^"|"$/g,""));
+        if(!vals[0]?.trim())continue;
+        const item={id:`qi${Date.now()}${Math.random().toString(36).slice(2,5)}`};
+        headers.forEach((h,idx)=>{
+          const col=CSV_COLS.find(c=>c.toLowerCase()===h)||h;
+          item[col]=vals[idx]??""  ;
+        });
+        item.basePrice=+item.basePrice||0;
+        item.defaultMarkupPct=+item.defaultMarkupPct||0;
+        item.defaultMarginPct=+item.defaultMarginPct||0;
+        if(!item.category)item.category="Custom";
+        if(!item.unit)item.unit="ea";
+        imported.push(item);
+      }
+      if(imported.length){
+        setQuoteItems(prev=>[...prev,...imported]);
+        alert(`Imported ${imported.length} item${imported.length!==1?"s":""}  successfully.`);
+      }else{alert("No valid items found in CSV. Check format and try again.");}
+    };
+    reader.readAsText(file);e.target.value="";
+  };
+  const csvImportRef=useRef(null);
 
   // Map item library category → inventory category
   const mapCat=(c)=>({Labor:"Other",Cabinetry:"Sheet Goods",Hardware:"Hardware",Doors:"Doors",Surfaces:"Other",Custom:"Other"})[c]||"Other";
@@ -9463,10 +9685,21 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
   return(
     <div className="fadein">
       <PageHeader bp={bp} title="Material & Item Library" sub="Pre-load items with cost, markup & photos — pull into any quote instantly"
-        action={<div style={{display:"flex",gap:8}}>
+        action={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <Btn variant="secondary" onClick={()=>setLibSubView(v=>v==="bulk"?"list":"bulk")}>{libSubView==="bulk"?"≡ List View":"⊞ Bulk Entry"}</Btn>
+          <button onClick={exportItemsCSV}
+            style={{padding:"8px 13px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>⬇ Export CSV</button>
+          <label style={{display:"inline-flex",alignItems:"center",padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
+            ⬆ Import CSV
+            <input ref={csvImportRef} type="file" accept=".csv,.txt" onChange={importItemsCSV} style={{display:"none"}} />
+          </label>
           <Btn onClick={()=>{setLibSel(null);setLibForm(blankLibForm);setLibModal(true);}}>+ New Item</Btn>
         </div>} />
+
+      {/* ── CSV format hint ── */}
+      <div style={{fontSize:11,color:"var(--muted)",marginBottom:12,padding:"8px 12px",background:"var(--surface2)",borderRadius:8,fontFamily:"var(--mono)",lineHeight:1.6}}>
+        CSV columns: <strong style={{color:"var(--text)"}}>name, category, desc, unit, basePrice, defaultMarkupPct, defaultMarginPct, imageUrl</strong> — first row must be the header. Download existing items first to see the format.
+      </div>
 
       {/* ── BULK ENTRY ── */}
       {libSubView==="bulk"&&(
@@ -9669,8 +9902,28 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
             })()}
           </div>
           <Input label="Description" value={libForm.desc} onChange={e=>setLibForm(f=>({...f,desc:e.target.value}))} type="textarea" voice />
-          <Input label="Image URL (optional)" value={libForm.imageUrl} onChange={e=>setLibForm(f=>({...f,imageUrl:e.target.value}))} placeholder="https://…" />
-          {libForm.imageUrl&&<div style={{marginBottom:14}}><img src={libForm.imageUrl} alt="" style={{height:80,borderRadius:8,objectFit:"cover",border:"1px solid var(--border)"}} onError={e=>e.target.style.display="none"} /></div>}
+          {/* Photo — upload, camera, or URL */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>ITEM PHOTO (OPTIONAL)</div>
+            {libForm.imageUrl&&(
+              <div style={{marginBottom:8,position:"relative",display:"inline-block",cursor:"zoom-in"}} onClick={()=>setLibLightbox(libForm.imageUrl)}>
+                <img src={libForm.imageUrl} alt="" style={{height:80,borderRadius:8,objectFit:"cover",border:"1px solid var(--border)",pointerEvents:"none"}} onError={e=>e.target.style.display="none"} />
+                <button onClick={e=>{e.stopPropagation();setLibForm(f=>({...f,imageUrl:""}));}} style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",borderRadius:4,width:18,height:18,cursor:"pointer",fontSize:11,lineHeight:1}}>×</button>
+              </div>
+            )}
+            {libLightbox&&<SimpleImageLightbox url={libLightbox} onClose={()=>setLibLightbox(null)} />}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📁 Upload
+                <input type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{  setLibForm(frm=>({...frm,imageUrl:ev.target.result}));e.target.value="";  };r.readAsDataURL(f);}} style={{display:"none"}} />
+              </label>
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📷 Camera
+                <input type="file" accept="image/*" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{  setLibForm(frm=>({...frm,imageUrl:ev.target.result}));e.target.value="";  };r.readAsDataURL(f);}} style={{display:"none"}} />
+              </label>
+            </div>
+            <input value={libForm.imageUrl||""} onChange={e=>setLibForm(f=>({...f,imageUrl:e.target.value}))} placeholder="Or paste image URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}} />
+          </div>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
             {libSel&&<Btn variant="danger" small onClick={()=>{deleteLibItem(libSel.id);setLibModal(false);setLibSel(null);setLibForm(blankLibForm);}}>Delete</Btn>}
             <Btn variant="secondary" onClick={()=>{setLibModal(false);setLibSel(null);setLibForm(blankLibForm);}}>Cancel</Btn>
@@ -9693,6 +9946,8 @@ var defaultAdminSettings={
   // Company
   companyName:"Gotham Woodworks, LLC",
   companyAddress:"123 Shop Lane, Charlotte, NC 28201",
+  billingAddress:"",
+  poPrefix:"PO",
   companyPhone:"(704) 555-0100",
   companyEmail:"hello@gothamwoodworks.com",
   companyWebsite:"https://www.gothamwoodworks.com",
@@ -10301,10 +10556,12 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
         <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1fr 1fr",gap:16}}>
           <div>
             <Input label="Company Name" value={settings.companyName} onChange={e=>upd("companyName",e.target.value)} />
-            <Input label="Address" value={settings.companyAddress} onChange={e=>upd("companyAddress",e.target.value)} type="textarea" />
+            <Input label="Shop Address" value={settings.companyAddress} onChange={e=>upd("companyAddress",e.target.value)} type="textarea" placeholder="Physical shop / studio location" />
+            <Input label="Billing Address" value={settings.billingAddress||""} onChange={e=>upd("billingAddress",e.target.value)} type="textarea" placeholder="Leave blank if same as shop address" />
             <Input label="Phone" value={settings.companyPhone} onChange={e=>upd("companyPhone",e.target.value)} />
             <Input label="Email" value={settings.companyEmail} onChange={e=>upd("companyEmail",e.target.value)} />
             <Input label="Website" value={settings.companyWebsite} onChange={e=>upd("companyWebsite",e.target.value)} />
+            <Input label="PO Number Prefix" value={settings.poPrefix||""} onChange={e=>upd("poPrefix",e.target.value)} placeholder="PO" />
           </div>
           <div>
             <div style={{marginBottom:14}}>
@@ -11027,6 +11284,18 @@ function ToolsEquipment({tools,setTools,contacts,bp}) {
   };
   const [form,setForm]=useState(blank);
   const [newPhotoUrl,setNewPhotoUrl]=useState("");
+  const [toolLightbox,setToolLightbox]=useState(null); // {url, caption}
+  const toolPhotoInputRef=useRef(null);
+  const handleToolPhotoFile=(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      upd({photos:[...(form.photos||[]),ev.target.result]});
+      e.target.value="";
+    };
+    reader.readAsDataURL(file);
+  };
   const [newDocName,setNewDocName]=useState("");
   const [newDocUrl,setNewDocUrl]=useState("");
 
@@ -11430,20 +11699,34 @@ function ToolsEquipment({tools,setTools,contacts,bp}) {
 
           {/* Photos */}
           <div style={{marginBottom:14}}>
-            <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>PHOTOS (URLs)</div>
-            {(form.photos||[]).map((url,i)=>(
-              <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:5}}>
-                <div style={{width:40,height:30,borderRadius:5,overflow:"hidden",background:"var(--surface2)",flexShrink:0}}>
-                  <img src={url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"} />
-                </div>
-                <div style={{fontSize:11,color:"var(--muted)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{url}</div>
-                <button onClick={()=>upd({photos:form.photos.filter((_,j)=>j!==i)})} style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14}}>×</button>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>PHOTOS</div>
+            {(form.photos||[]).length>0&&(
+              <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:10}}>
+                {(form.photos||[]).map((url,i)=>(
+                  <div key={i} style={{position:"relative",width:72,height:72,borderRadius:8,overflow:"hidden",background:"var(--surface2)",border:"1px solid var(--border)",cursor:"zoom-in"}}
+                    onClick={()=>setToolLightbox({url,caption:""})}>
+                    <img src={url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} onError={e=>e.target.style.display="none"} />
+                    <button onClick={e=>{e.stopPropagation();upd({photos:form.photos.filter((_,j)=>j!==i)});}}
+                      style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.65)",border:"none",color:"#fff",borderRadius:4,width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:12,lineHeight:1}}>×</button>
+                  </div>
+                ))}
               </div>
-            ))}
-            <div style={{display:"flex",gap:8}}>
-              <input value={newPhotoUrl} onChange={e=>setNewPhotoUrl(e.target.value)} placeholder="Photo URL…" style={{...inp,flex:1}} />
-              <button onClick={()=>{if(newPhotoUrl.trim()){upd({photos:[...(form.photos||[]),newPhotoUrl.trim()]});setNewPhotoUrl("");}}}
-                style={{padding:"8px 14px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add</button>
+            )}
+            {toolLightbox&&<SimpleImageLightbox url={toolLightbox.url} caption={toolLightbox.caption} onClose={()=>setToolLightbox(null)} />}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📁 Upload Photo
+                <input ref={toolPhotoInputRef} type="file" accept="image/*" onChange={handleToolPhotoFile} style={{display:"none"}} />
+              </label>
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 13px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📷 Camera
+                <input type="file" accept="image/*" capture="environment" onChange={handleToolPhotoFile} style={{display:"none"}} />
+              </label>
+              <div style={{display:"flex",gap:6,flex:1,minWidth:160}}>
+                <input value={newPhotoUrl} onChange={e=>setNewPhotoUrl(e.target.value)} placeholder="Or paste image URL…" style={{...inp,flex:1,fontSize:12}} />
+                <button onClick={()=>{if(newPhotoUrl.trim()){upd({photos:[...(form.photos||[]),newPhotoUrl.trim()]});setNewPhotoUrl("");}}}
+                  style={{padding:"8px 10px",borderRadius:8,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>+ Add URL</button>
+              </div>
             </div>
           </div>
 
@@ -12128,7 +12411,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "subscription": return <SubscriptionPage bp={bp}/>;
       case "superadmin":   return <SuperAdminPage bp={bp}/>;
       case "samples":    return <SamplesLibrary samples={samples} setSamples={p.setSamples} bp={bp}/>;
-      case "purchaseorders": return <PurchaseOrders projects={projects} contacts={contacts} bp={bp}/>;
+      case "purchaseorders": return <PurchaseOrders projects={projects} contacts={contacts} bp={bp} adminSettings={adminSettings}/>;
       default: return null;
     }
   };
@@ -14087,27 +14370,95 @@ function ChangeOrders({project, setProjects, contacts}) {
 
 // ─── Profitability Dashboard ──────────────────────────────────────────────────
 // ─── Purchase Orders ──────────────────────────────────────────────────────────
-function PurchaseOrders({projects, contacts, bp}) {
+function PurchaseOrders({projects, contacts, bp, adminSettings}) {
   const [pos, setPOs] = useState(() => {
     try { return JSON.parse(localStorage.getItem("csp_pos") || "[]"); } catch { return []; }
   });
   const savePOs = (updated) => { setPOs(updated); try { localStorage.setItem("csp_pos", JSON.stringify(updated)); } catch {} };
 
-  const blank = { vendorName:"", vendorContactId:"", projectId:"", expectedDate:"", notes:"", items:[{desc:"",qty:1,unitCost:0}], status:"draft" };
+  // Auto PO number: prefix-YYYY-NNNN
+  const nextPoNumber = () => {
+    const year = new Date().getFullYear();
+    const key = `csp_po_seq_${year}`;
+    const seq = (parseInt(localStorage.getItem(key)||"0",10)+1);
+    try { localStorage.setItem(key, String(seq)); } catch {}
+    const prefix = adminSettings?.poPrefix || "PO";
+    return `${prefix}-${year}-${String(seq).padStart(4,"0")}`;
+  };
+
+  // CRM vendors (contacts flagged as vendor/supplier)
+  const crmVendors = (contacts||[]).filter(c=>c.isVendor||c.isSupplier||c.type==="vendor"||(c.tags||[]).some(t=>/vendor|supplier/i.test(t)));
+
+  const blank = { poNumber:"", vendorName:"", vendorContactId:"", projectId:"", expectedDate:"", notes:"", items:[{desc:"",qty:1,unitCost:0}], status:"draft" };
   const [modal, setModal] = useState(false);
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(blank);
   const [filter, setFilter] = useState("all");
 
-  const openNew = () => { setForm(blank); setSel(null); setModal(true); };
+  const openNew = () => { setForm({...blank, poNumber:nextPoNumber()}); setSel(null); setModal(true); };
   const openEdit = (po) => { setForm({...po}); setSel(po); setModal(true); };
-  const savePO = () => {
+
+  // Print PO as a formatted window
+  const printPO = (po) => {
+    const proj = projects.find(p=>String(p.id)===String(po.projectId));
+    const vendor = po.vendorContactId ? contacts?.find(c=>String(c.id)===String(po.vendorContactId)) : null;
+    const total = (po.items||[]).reduce((s,it)=>s+(it.qty||0)*(it.unitCost||0),0);
+    const shopName = adminSettings?.companyName || "CabShop Pro";
+    const shopAddr = adminSettings?.companyAddress || "";
+    const shopEmail = adminSettings?.companyEmail || "";
+    const html = `<!DOCTYPE html><html><head><title>PO ${po.poNumber||po.id}</title>
+<style>body{font-family:sans-serif;max-width:700px;margin:40px auto;color:#111}
+h1{font-size:22px;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}
+th{background:#f3f3f3;text-align:left;padding:8px 10px;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid #eee;font-size:13px}
+.total{font-weight:700;font-size:16px;text-align:right;margin-top:12px}
+.meta{font-size:12px;color:#555;margin-bottom:4px}
+.shop{margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
+@media print{button{display:none}}</style></head><body>
+<div class="shop"><strong style="font-size:18px">${shopName}</strong>${shopAddr?`<br/><span class="meta">${shopAddr}</span>`:""}${shopEmail?`<br/><span class="meta">${shopEmail}</span>`:""}</div>
+<h1>Purchase Order</h1>
+<div class="meta"><strong>PO #:</strong> ${po.poNumber||po.id}</div>
+<div class="meta"><strong>Vendor:</strong> ${vendor?`${vendor.name}${vendor.company?` — ${vendor.company}`:""}`:po.vendorName}</div>
+${vendor?.email?`<div class="meta"><strong>Vendor Email:</strong> ${vendor.email}</div>`:""}
+${proj?`<div class="meta"><strong>Project:</strong> ${proj.name}</div>`:""}
+${po.expectedDate?`<div class="meta"><strong>Expected:</strong> ${new Date(po.expectedDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>`:""}
+<div class="meta"><strong>Status:</strong> ${po.status}</div>
+${po.notes?`<div class="meta" style="margin-top:8px"><strong>Notes:</strong> ${po.notes}</div>`:""}
+<table><thead><tr><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead><tbody>
+${(po.items||[]).map(it=>`<tr><td>${it.desc||"—"}</td><td>${it.qty}</td><td>$${(it.unitCost||0).toFixed(2)}</td><td>$${((it.qty||0)*(it.unitCost||0)).toFixed(2)}</td></tr>`).join("")}
+</tbody></table>
+<div class="total">Total: $${total.toFixed(2)}</div>
+<button onclick="window.print()" style="margin-top:24px;padding:10px 22px;background:#111;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save PDF</button>
+</body></html>`;
+    const w = window.open("","_blank","width=780,height=900");
+    if(w) { w.document.write(html); w.document.close(); }
+  };
+
+  // Email PO via mailto (opens mail client)
+  const emailPO = (po) => {
+    const vendor = po.vendorContactId ? contacts?.find(c=>String(c.id)===String(po.vendorContactId)) : null;
+    const toEmail = vendor?.email || "";
+    const shopName = adminSettings?.companyName || "CabShop Pro";
+    const total = (po.items||[]).reduce((s,it)=>s+(it.qty||0)*(it.unitCost||0),0);
+    const lines = (po.items||[]).map(it=>`  ${it.desc||"Item"} — Qty: ${it.qty}, Unit: $${(it.unitCost||0).toFixed(2)}`).join("\n");
+    const subject = encodeURIComponent(`Purchase Order ${po.poNumber||po.id} — ${shopName}`);
+    const greeting = vendor?.name ? ` ${vendor.name.split(" ")[0]}` : "";
+    const notes = po.notes ? `Notes: ${po.notes}\n\n` : "";
+    const bodyText = `Hello${greeting},\n\nPlease process the following Purchase Order:\n\nPO #: ${po.poNumber||po.id}\nDate: ${new Date().toLocaleDateString()}\n\nItems:\n${lines}\n\nTotal: $${total.toFixed(2)}\n\n${notes}Thank you,\n${shopName}`;
+    const body = encodeURIComponent(bodyText);
+    window.location.href = `mailto:${toEmail}?subject=${subject}&body=${body}`;
+  };
+
+    const savePO = () => {
     if (!form.vendorName.trim()) return;
     const now = new Date().toISOString();
+    // If CRM vendor selected, sync vendorName from contact
+    const vendorContact = form.vendorContactId ? contacts?.find(c=>String(c.id)===String(form.vendorContactId)) : null;
+    const vendorName = vendorContact ? (vendorContact.company||vendorContact.name||form.vendorName) : form.vendorName;
     if (sel) {
-      savePOs(pos.map(p => p.id === sel.id ? {...form, id:sel.id, updatedAt:now} : p));
+      savePOs(pos.map(p => p.id === sel.id ? {...form, vendorName, id:sel.id, updatedAt:now} : p));
     } else {
-      savePOs([...pos, {...form, id:`po${Date.now()}`, createdAt:now, updatedAt:now}]);
+      savePOs([...pos, {...form, vendorName, id:`po${Date.now()}`, createdAt:now, updatedAt:now}]);
     }
     setModal(false);
   };
@@ -14150,7 +14501,8 @@ function PurchaseOrders({projects, contacts, bp}) {
               <div key={po.id} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,padding:"14px 16px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
                   <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+                      {po.poNumber&&<span style={{fontSize:11,fontFamily:"var(--mono)",color:"var(--muted)",fontWeight:700}}>{po.poNumber}</span>}
                       <span style={{fontWeight:700,fontSize:14}}>{po.vendorName||"Unnamed Vendor"}</span>
                       <span style={{padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:700,
                         background:STATUS_COLORS[po.status]+"22",color:STATUS_COLORS[po.status]}}>
@@ -14166,9 +14518,13 @@ function PurchaseOrders({projects, contacts, bp}) {
                     <div style={{fontSize:11,color:"var(--muted)"}}>{(po.items||[]).length} line item{(po.items||[]).length!==1?"s":""}</div>
                   </div>
                 </div>
-                <div style={{display:"flex",gap:8,marginTop:12}}>
+                <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
                   <button onClick={()=>openEdit(po)}
                     style={{padding:"5px 14px",borderRadius:7,fontSize:12,border:"1px solid var(--border)",background:"var(--surface2)",color:"var(--muted)",cursor:"pointer"}}>Edit</button>
+                  <button onClick={()=>printPO(po)}
+                    style={{padding:"5px 14px",borderRadius:7,fontSize:12,border:"1px solid var(--border)",background:"var(--surface2)",color:"var(--muted)",cursor:"pointer"}}>🖨 Print</button>
+                  <button onClick={()=>emailPO(po)}
+                    style={{padding:"5px 14px",borderRadius:7,fontSize:12,border:"none",background:"var(--accent4)22",color:"var(--accent4)",cursor:"pointer",fontWeight:600}}>✉ Email</button>
                   {po.status==="draft"&&<button onClick={()=>savePOs(pos.map(p=>p.id===po.id?{...p,status:"sent"}:p))}
                     style={{padding:"5px 14px",borderRadius:7,fontSize:12,border:"none",background:"var(--accent2)22",color:"var(--accent2)",cursor:"pointer",fontWeight:600}}>Mark Sent</button>}
                   {po.status==="sent"&&<button onClick={()=>savePOs(pos.map(p=>p.id===po.id?{...p,status:"received"}:p))}
@@ -14184,8 +14540,9 @@ function PurchaseOrders({projects, contacts, bp}) {
 
       {modal && (
         <Modal title={sel?"Edit Purchase Order":"New Purchase Order"} onClose={()=>setModal(false)} wide>
+          {/* PO Number row */}
           <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1fr 1fr",gap:10,marginBottom:10}}>
-            <Input label="Vendor Name" value={form.vendorName} onChange={e=>setForm(f=>({...f,vendorName:e.target.value}))} />
+            <Input label="PO Number" value={form.poNumber} onChange={e=>setForm(f=>({...f,poNumber:e.target.value}))} placeholder="Auto-generated" />
             <div>
               <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:5}}>PROJECT (OPTIONAL)</div>
               <select value={form.projectId} onChange={e=>setForm(f=>({...f,projectId:e.target.value}))}
@@ -14194,6 +14551,20 @@ function PurchaseOrders({projects, contacts, bp}) {
                 {projects.filter(p=>p.status!=="archived").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
+          </div>
+          {/* Vendor row */}
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:5}}>VENDOR</div>
+            {crmVendors.length>0&&(
+              <select value={form.vendorContactId||""} onChange={e=>{
+                const c=contacts.find(x=>String(x.id)===e.target.value);
+                setForm(f=>({...f,vendorContactId:e.target.value,vendorName:c?(c.company||c.name):f.vendorName}));
+              }} style={{width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,marginBottom:6}}>
+                <option value="">— Select from CRM (optional) —</option>
+                {crmVendors.map(c=><option key={c.id} value={c.id}>{c.name}{c.company?` — ${c.company}`:""}{c.email?` <${c.email}>`:""}</option>)}
+              </select>
+            )}
+            <Input label={crmVendors.length>0?"Vendor Name (override or type if not in CRM)":"Vendor Name"} value={form.vendorName} onChange={e=>setForm(f=>({...f,vendorName:e.target.value,vendorContactId:e.target.value?f.vendorContactId:""}))} placeholder="Acme Lumber, Home Depot…" />
           </div>
           <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1fr 1fr",gap:10,marginBottom:10}}>
             <div>
