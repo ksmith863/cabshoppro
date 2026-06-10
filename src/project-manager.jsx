@@ -1380,15 +1380,13 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
       setProjects(prev=>prev.map(proj=>proj.id===p.id?updated:proj));
     } catch(err) {
       console.error("Photo upload error:", err);
-      // Fallback: use blob URL for immediate display
-      const blobUrl=URL.createObjectURL(file);
-      const photoEntry={
-        id:Date.now(),
-        url:blobUrl,
-        stageId:stageId,
-        date:new Date().toISOString().slice(0,10),
+      // Fallback: use base64 for persistence
+      const _r=new FileReader();
+      _r.onload=function(ev){
+        const photoEntry={id:Date.now(),url:ev.target.result,stageId:stageId,date:new Date().toISOString().slice(0,10)};
+        setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:[...(proj.photos||[]),photoEntry]}:proj));
       };
-      setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:[...(proj.photos||[]),photoEntry]}:proj));
+      _r.readAsDataURL(file);
     }
   };
 
@@ -6652,9 +6650,13 @@ function MediaLibrary({media,setMedia,projects,bp}) {
     const sizeKB=Math.round(file.size/1024);
     const sizeStr=sizeKB>1024?`${(sizeKB/1024).toFixed(1)} MB`:`${sizeKB} KB`;
     const baseName=file.name.replace(/\.[^.]+$/,"");
-    const blobUrl=URL.createObjectURL(file);
-    setForm(f=>({...f,url:blobUrl,name:baseName||f.name,size:sizeStr,type:"image",date:f.date||new Date().toISOString().slice(0,10)}));
-    e.target.value="";
+    const input=e.target;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      setForm(f=>({...f,url:ev.target.result,name:baseName||f.name,size:sizeStr,type:"image",date:f.date||new Date().toISOString().slice(0,10)}));
+      try{input.value="";}catch(_){}
+    };
+    reader.readAsDataURL(file);
   };
   const [form,setForm]=useState(blankForm);
   const [fp,setFp]=useState("all");const [ft,setFt]=useState("all");const [search,setSearch]=useState("");
@@ -7442,15 +7444,16 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
   const addImageFromFile=(e)=>{
     const file=e.target.files?.[0];if(!file)return;
     if(rejectHeic(file,e))return;
-    const blobUrl=URL.createObjectURL(file);
-    const img={id:`i${Date.now()}`,url:blobUrl,caption:newImgCap.trim()};
-    setForm(f=>({...f,images:[...(f.images||[]),img]}));
-    setNewImgCap("");
-    e.target.value="";
+    const caption=newImgCap.trim();const input=e.target;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const img={id:`i${Date.now()}`,url:ev.target.result,caption};
+      setForm(f=>({...f,images:[...(f.images||[]),img]}));
+      setNewImgCap("");try{input.value="";}catch(_){}
+    };
+    reader.readAsDataURL(file);
   };
   const removeImage=(imgId)=>{
-    const img=form.images?.find(i=>i.id===imgId);
-    if(img?.url?.startsWith("blob:"))try{URL.revokeObjectURL(img.url);}catch(_){}
     setForm(f=>({...f,images:(f.images||[]).filter(i=>i.id!==imgId)}));
   };
   const updateImageCaption=(imgId,cap)=>setForm(f=>({...f,images:(f.images||[]).map(i=>i.id===imgId?{...i,caption:cap}:i)}));
@@ -7893,15 +7896,16 @@ function SamplesLibrary({samples,setSamples,bp}) {
   const addImageFromFile=(e)=>{
     const file=e.target.files?.[0];if(!file)return;
     if(rejectHeic(file,e))return;
-    const blobUrl=URL.createObjectURL(file);
-    const img={id:`si${Date.now()}`,url:blobUrl,caption:newImgCap.trim()};
-    setForm(f=>({...f,images:[...(f.images||[]),img]}));
-    setNewImgCap("");
-    e.target.value="";
+    const caption=newImgCap.trim();const input=e.target;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const img={id:`si${Date.now()}`,url:ev.target.result,caption};
+      setForm(f=>({...f,images:[...(f.images||[]),img]}));
+      setNewImgCap("");try{input.value="";}catch(_){}
+    };
+    reader.readAsDataURL(file);
   };
   const removeImage=id=>{
-    const img=form.images?.find(i=>i.id===id);
-    if(img?.url?.startsWith("blob:"))try{URL.revokeObjectURL(img.url);}catch(_){}
     setForm(f=>({...f,images:(f.images||[]).filter(i=>i.id!==id)}));
   };
   const updateCaption=(id,cap)=>setForm(f=>({...f,images:(f.images||[]).map(i=>i.id===id?{...i,caption:cap}:i)}));
@@ -9130,11 +9134,11 @@ ${shopName}`;
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
               <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
                 📁 Upload
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const blobUrl=URL.createObjectURL(f);setLibForm(frm=>({...frm,imageUrl:blobUrl}));e.target.value="";}} style={{display:"none"}} />
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const _inp=e.target;const _r=new FileReader();_r.onload=function(ev){const blobUrl=ev.target.result;setLibForm(frm=>({...frm,imageUrl:blobUrl}));try{_inp.value="";}catch(_){}};_r.readAsDataURL(f);}} style={{display:"none"}} />
               </label>
               <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
                 📷 Camera
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const blobUrl=URL.createObjectURL(f);setLibForm(frm=>({...frm,imageUrl:blobUrl}));e.target.value="";}} style={{display:"none"}} />
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const _inp=e.target;const _r=new FileReader();_r.onload=function(ev){const blobUrl=ev.target.result;setLibForm(frm=>({...frm,imageUrl:blobUrl}));try{_inp.value="";}catch(_){}};_r.readAsDataURL(f);}} style={{display:"none"}} />
               </label>
             </div>
             <input value={libForm.imageUrl||""} onChange={e=>setLibForm(f=>({...f,imageUrl:e.target.value}))} placeholder="Or paste image URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}} />
@@ -9367,11 +9371,11 @@ ${shopName}`;
                   {line.imageUrl&&<img src={line.imageUrl} alt="" style={{height:36,width:48,objectFit:"cover",borderRadius:5,border:"1px solid var(--border)",flexShrink:0,cursor:"zoom-in"}} onError={e=>e.target.style.display="none"} onClick={()=>setQuoteLightbox(line.imageUrl)} />}
                   <label style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:7,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)"}}>
                     📁 Photo
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const blobUrl=URL.createObjectURL(f);updateLine(line.id,"imageUrl",blobUrl);e.target.value="";}} style={{display:"none"}} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const _inp=e.target;const _r=new FileReader();_r.onload=function(ev){const blobUrl=ev.target.result;updateLine(line.id,"imageUrl",blobUrl);try{_inp.value="";}catch(_){}};_r.readAsDataURL(f);}} style={{display:"none"}} />
                   </label>
                   <label style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:7,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)"}}>
                     📷 Cam
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const blobUrl=URL.createObjectURL(f);updateLine(line.id,"imageUrl",blobUrl);e.target.value="";}} style={{display:"none"}} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const _inp=e.target;const _r=new FileReader();_r.onload=function(ev){const blobUrl=ev.target.result;updateLine(line.id,"imageUrl",blobUrl);try{_inp.value="";}catch(_){}};_r.readAsDataURL(f);}} style={{display:"none"}} />
                   </label>
                   <input value={line.imageUrl||""} onChange={e=>updateLine(line.id,"imageUrl",e.target.value)} placeholder="Or paste image URL…"
                     style={{...inp,fontSize:11,flex:1,minWidth:120,color:"var(--muted)"}} />
@@ -10105,11 +10109,11 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
               <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
                 📁 Upload
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const blobUrl=URL.createObjectURL(f);setLibForm(frm=>({...frm,imageUrl:blobUrl}));e.target.value="";}} style={{display:"none"}} />
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const _inp=e.target;const _r=new FileReader();_r.onload=function(ev){const blobUrl=ev.target.result;setLibForm(frm=>({...frm,imageUrl:blobUrl}));try{_inp.value="";}catch(_){}};_r.readAsDataURL(f);}} style={{display:"none"}} />
               </label>
               <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
                 📷 Camera
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const blobUrl=URL.createObjectURL(f);setLibForm(frm=>({...frm,imageUrl:blobUrl}));e.target.value="";}} style={{display:"none"}} />
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(rejectHeic(f,e))return;const _inp=e.target;const _r=new FileReader();_r.onload=function(ev){const blobUrl=ev.target.result;setLibForm(frm=>({...frm,imageUrl:blobUrl}));try{_inp.value="";}catch(_){}};_r.readAsDataURL(f);}} style={{display:"none"}} />
               </label>
             </div>
             <input value={libForm.imageUrl||""} onChange={e=>setLibForm(f=>({...f,imageUrl:e.target.value}))} placeholder="Or paste image URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}} />
@@ -11506,9 +11510,13 @@ function ToolsEquipment({tools,setTools,contacts,bp}) {
     const file=e.target.files?.[0];
     if(!file)return;
     if(rejectHeic(file,e))return;
-    const blobUrl=URL.createObjectURL(file);
-    setForm(prev=>({...prev,photos:[...(prev.photos||[]),blobUrl]}));
-    e.target.value="";
+    const input=e.target;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      setForm(prev=>({...prev,photos:[...(prev.photos||[]),ev.target.result]}));
+      try{input.value="";}catch(_){}
+    };
+    reader.readAsDataURL(file);
   };
   const [newDocName,setNewDocName]=useState("");
   const [newDocUrl,setNewDocUrl]=useState("");
@@ -12385,7 +12393,13 @@ function HelpPage({bp}) {
 // ─── App Root ─────────────────────────────────────────────────────────────────
 export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const bp = useBreakpoint();
-  const [page,setPage]=useState(initialPage);
+  const [page,_setPage]=useState(()=>{
+    try{const saved=localStorage.getItem("csp_page");return saved||initialPage;}catch{return initialPage;}
+  });
+  const setPage=(p)=>{
+    _setPage(p);
+    try{localStorage.setItem("csp_page",p);}catch{}
+  };
   const [tourActive,setTourActive]=useState(false);
   const [currentUserEmail,setCurrentUserEmail]=useState("");
   const { plan, subStatus, hasFeature, canAccessPage } = useSubscription();
