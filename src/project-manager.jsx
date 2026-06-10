@@ -7272,7 +7272,7 @@ function SimpleImageLightbox({url, caption, onClose}) {
 // ─── Email Composer Modal ────────────────────────────────────────────────────
 // Replaces all mailto: links with a proper in-app email composer
 // that sends via the /.netlify/functions/send-email Netlify function.
-function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, onClose }) {
+function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, onClose }) {
   const [to_, setTo]     = useState(to||"");
   const [subject, setSub] = useState(initSubject||"");
   const [body, setBody]   = useState(initBody||"");
@@ -7289,7 +7289,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
       const res = await fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"" }),
+        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null }),
       });
       const data = await res.json();
       if (data.success) { setSent(true); }
@@ -7333,6 +7333,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
               <textarea value={body} onChange={e=>setBody(e.target.value)} rows={10}
                 style={{...inp,resize:"vertical",lineHeight:1.5}} />
             </div>
+            {attachmentHtml&&<div style={{fontSize:11,color:"var(--accent2)",marginBottom:10,padding:"7px 10px",background:"var(--accent2)11",borderRadius:7,display:"flex",alignItems:"center",gap:6}}>📎 {attachmentName||"attachment.html"} will be attached</div>}
             {error&&<div style={{color:"var(--accent3)",fontSize:12,marginBottom:10,padding:"8px 10px",background:"var(--accent3)11",borderRadius:7}}>{error}</div>}
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button onClick={onClose} style={{padding:"9px 18px",borderRadius:9,background:"none",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,cursor:"pointer"}}>Cancel</button>
@@ -8434,6 +8435,78 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   };
 
   // ── PDF generation via print ──
+  // ── Shared HTML generators (used by both print and email) ──
+  const quoteHtml=(q)=>{
+    const contact=contacts.find(c=>c.id===q.contactId);
+    const project=projects.find(p=>p.id===+q.projectId);
+    const subtotal=quoteSubtotal(q);
+    const tax=quoteTax(q);
+    const total=quoteTotal(q);
+    const lineRows=q.lines.map(l=>{
+      const ext=lineExtPrice(l);
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:`<div style="width:60px;height:44px;background:#f5f4f0;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aaa">no img</div>`;
+      return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top"><div style="display:flex;gap:10px;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div></td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
+    }).join("");
+    const shopName=adminSettings?.companyName||"Gotham Woodworks";
+    const shopAddr=adminSettings?.companyAddress||"";
+    const shopEmail=adminSettings?.companyEmail||"";
+    const shopPhone=adminSettings?.companyPhone||"";
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${q.number}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Georgia',serif;background:#fff;color:#1a1a1a;padding:0}@media print{body{padding:0}@page{margin:20mm 18mm}}</style></head><body>
+<div style="max-width:820px;margin:0 auto;padding:36px 40px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
+    <div><div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
+    <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">QUOTE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div><div style="font-size:12px;color:#888;margin-top:6px">Date: ${q.date}</div>${q.validUntil?`<div style="font-size:12px;color:#888">Valid until: ${q.validUntil}</div>`:""}<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:${q.status==="approved"?"#d4f5e2":q.status==="sent"?"#e8e4ff":q.status==="declined"?"#fde8e8":"#f0f0f0"};color:${q.status==="approved"?"#1a7a40":q.status==="sent"?"#4a3aaa":q.status==="declined"?"#c0392b":"#666"}">${q.status.toUpperCase()}</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PREPARED FOR</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?contact.phone:""}</div></div>
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PROJECT</div><div style="font-weight:700;font-size:15px">${q.title}</div>${project?`<div style="color:#555;font-size:13px;margin-top:2px">${project.name}</div>`:""}</div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><thead><tr style="background:#1a1a12;color:#fff"><th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:110px">PRICE</th></tr></thead><tbody>${lineRows}</tbody></table>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:28px"><div style="width:260px"><div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Subtotal</span><span style="font-weight:600">${fmt(subtotal)}</span></div>${q.taxRate?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Sales Tax (${q.taxRate}%)</span><span style="font-weight:600">${fmt(tax)}</span></div>`:""}<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:900"><span>TOTAL</span><span>${fmt(total)}</span></div></div></div>
+  ${q.notes?`<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">${q.notes}</div></div>`:""}
+  ${q.attachedTandC?`<div style="margin-top:40px;padding-top:28px;border-top:2px solid #1a1a12"><div style="font-size:13px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:16px">${q.attachedTandC.name.toUpperCase()}</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">${q.attachedTandC.text}</div></div>`:""}
+  <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${shopName}</div></div><div style="font-size:11px;color:#aaa;font-style:italic">Thank you for the opportunity to serve you.</div></div>
+</div></body></html>`;
+  };
+
+  const invoiceHtml=(q)=>{
+    const contact=contacts.find(c=>c.id===q.contactId);
+    const project=projects.find(p=>p.id===+q.projectId);
+    const subtotal=quoteSubtotal(q);
+    const tax=quoteTax(q);
+    const total=quoteTotal(q);
+    const isPaid=q.status==="paid";
+    const isOverdue=!isPaid&&q.dueDate&&new Date(q.dueDate)<new Date();
+    const lineRows=q.lines.map(l=>{
+      const ext=lineExtPrice(l);
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:`<div style="width:52px;height:40px;"></div>`;
+      return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top"><div style="display:flex;gap:10px;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div></td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px">${fmt(l.costPer||0)}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
+    }).join("");
+    const shopName=adminSettings?.companyName||"Gotham Woodworks";
+    const shopAddr=adminSettings?.companyAddress||"";
+    const shopEmail=adminSettings?.companyEmail||"";
+    const shopPhone=adminSettings?.companyPhone||"";
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${q.number}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Georgia',serif;background:#fff;color:#1a1a1a;padding:0}@media print{body{padding:0}@page{margin:20mm 18mm}}</style></head><body>
+<div style="max-width:820px;margin:0 auto;padding:36px 40px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
+    <div><div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
+    <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">INVOICE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div>${q.sourceQuoteNumber?`<div style="font-size:11px;color:#aaa;margin-top:2px">from Quote ${q.sourceQuoteNumber}</div>`:""}<div style="font-size:12px;color:#888;margin-top:6px">Invoice Date: ${q.invoiceDate||q.date}</div>${q.dueDate?`<div style="font-size:12px;color:${isOverdue?"#c0392b":"#888"}">Due: ${q.dueDate}${isOverdue?" — OVERDUE":""}</div>`:""}<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:${isPaid?"#d4f5e2":isOverdue?"#fde8e8":"#fff3e0"};color:${isPaid?"#1a7a40":isOverdue?"#c0392b":"#b45309"}">${q.status.toUpperCase()}</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">BILL TO</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?contact.phone:""}</div></div>
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PAYMENT DETAILS</div><div style="font-weight:700;font-size:15px">${q.title}</div>${project?`<div style="color:#555;font-size:13px;margin-top:2px">${project.name}</div>`:""}<div style="font-size:12px;color:#555;margin-top:6px">Terms: ${q.paymentTerms||"Net 30"}</div>${q.paidDate?`<div style="font-size:12px;color:#1a7a40;margin-top:4px;font-weight:700">Paid: ${q.paidDate}</div>`:""}</div>
+  </div>
+  ${!isPaid?`<div style="background:${isOverdue?"#fde8e8":"#f5f4f0"};border:2px solid ${isOverdue?"#c0392b":"#1a1a12"};border-radius:10px;padding:14px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:700;color:${isOverdue?"#c0392b":"#1a1a12"}">${isOverdue?"OVERDUE — PAYMENT REQUIRED":"AMOUNT DUE"}</span><span style="font-size:22px;font-weight:900;color:${isOverdue?"#c0392b":"#1a1a12"}">${fmt(total)}</span></div>`:""}
+  <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><thead><tr style="background:#1a1a12;color:#fff"><th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:90px">UNIT PRICE</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:100px">AMOUNT</th></tr></thead><tbody>${lineRows}</tbody></table>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:28px"><div style="width:260px"><div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Subtotal</span><span style="font-weight:600">${fmt(subtotal)}</span></div>${q.taxRate?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Sales Tax (${q.taxRate}%)</span><span style="font-weight:600">${fmt(tax)}</span></div>`:""}<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:900"><span>${isPaid?"TOTAL PAID":"AMOUNT DUE"}</span><span>${fmt(total)}</span></div></div></div>
+  ${q.notes?`<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES</div><div style="font-size:13px;color:#444;line-height:1.7">${q.notes}</div></div>`:""}
+  ${q.attachedTandC?`<div style="margin-top:40px;padding-top:28px;border-top:2px solid #1a1a12"><div style="font-size:13px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:16px">${q.attachedTandC.name.toUpperCase()}</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">${q.attachedTandC.text}</div></div>`:""}
+  <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${shopName}</div></div><div style="font-size:11px;color:#aaa;font-style:italic">Thank you for your business.</div></div>
+</div></body></html>`;
+  };
+
   const printQuote=(q)=>{
     const contact=contacts.find(c=>c.id===q.contactId);
     const project=projects.find(p=>p.id===+q.projectId);
@@ -8556,7 +8629,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const bodyText=
 `Dear ${contact?contact.name:""},
 
-Please find your quote from ${shopName}.
+Please find your quote from ${shopName} attached to this email.
 
 Quote: ${q.number}
 Project: ${q.title}
@@ -8576,6 +8649,8 @@ ${shopName}`;
       body: bodyText,
       fromName: shopName,
       fromEmail: shopEmail,
+      attachmentHtml: quoteHtml(q),
+      attachmentName: `Quote-${q.number}.html`,
     });
   };
 
@@ -8808,7 +8883,7 @@ ${shopName}`;
     const bodyText=
 `Dear ${contact?contact.name:""},
 
-${isOverdue?"This invoice is now past due. Please arrange payment at your earliest convenience.\n\n":""}Please find your invoice from ${shopName}.
+${isOverdue?"This invoice is now past due. Please arrange payment at your earliest convenience.\n\n":""}Please find your invoice from ${shopName} attached to this email.
 
 Invoice: ${q.number}
 Project: ${q.title}
@@ -8824,6 +8899,8 @@ ${shopName}`;
     setEmailComposer({
       to: contact?.email||"",
       toName: contact?.name||"",
+      attachmentHtml: invoiceHtml(q),
+      attachmentName: `Invoice-${q.number}.html`,
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
       fromName: shopName,
