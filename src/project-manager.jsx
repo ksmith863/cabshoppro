@@ -1420,7 +1420,7 @@ Keep the tone practical and grounded. If data is missing or insufficient, note i
 // Sub-component for the detail modal — hooks are valid here
 
 
-function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,setQuotes,onOpenQuote,onScheduleEvent,onClose,onEdit,onArchive,onUnarchive}) {
+function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,setQuotes,onOpenQuote,onScheduleEvent,onClose,onEdit,onArchive,onUnarchive,bp}) {
   const [newTaskTitle,setNewTaskTitle]=useState("");
   const [activeTab,setActiveTab]=useState("financials"); // "financials" | "stages" | "tasks" | "documents" | "notes"
   const [timeModal,setTimeModal]=useState(null);
@@ -4157,6 +4157,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
           onEdit={()=>{const p=projects.find(x=>x.id===detail.id)||detail;setDetail(null);open(p);}}
           onArchive={(proj)=>{setDetail(null);setArchiveConfirm(proj);}}
           onUnarchive={(projId)=>{unarchiveProject(projId);setDetail(null);}}
+          bp={bp}
         />
       )}
 
