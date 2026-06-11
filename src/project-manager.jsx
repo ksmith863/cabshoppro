@@ -9849,7 +9849,15 @@ ${shopName}`;
         const docs=sel.supportingDocs||[];
         const toggleResource=(res)=>{
           const exists=docs.find(d=>d.id===res.id);
-          setSel(s=>({...s,supportingDocs:exists?docs.filter(d=>d.id!==res.id):[...docs,{id:res.id,name:res.name,type:"resource",text:res.fullText||res.desc}]}));
+          if(exists){
+            setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));
+            return;
+          }
+          // Convert text doc to a data: URL so it renders correctly in any browser
+          const text=res.fullText||res.desc||"";
+          const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${res.name}</title><style>body{font-family:Georgia,serif;font-size:12px;line-height:1.8;color:#333;max-width:720px;margin:0 auto;padding:40px;}h1{font-size:15px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;border-bottom:2px solid #1a1a12;padding-bottom:10px;margin-bottom:24px;}p,div{margin-bottom:8px;}</style></head><body><h1>${res.name}</h1><div style="white-space:pre-line;">${text}</div></body></html>`;
+          const dataUrl="data:text/html;charset=utf-8,"+encodeURIComponent(html);
+          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",url:dataUrl}]}));
         };
         return(
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginBottom:16}}>
