@@ -1,6 +1,5 @@
 // netlify/functions/send-email/send-email.js
-// Uses fetch to call SendGrid API directly — no node_modules needed
-// All supporting docs (T&C, uploads) have URLs — shown as links in HTML body
+// Attaches all supporting docs (T&C HTML + uploaded files) to the email
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -20,7 +19,7 @@ exports.handler = async (event) => {
 
     const apiKey = userApiKey || process.env.SENDGRID_API_KEY;
     if (!apiKey) {
-      return { statusCode: 500, body: JSON.stringify({ error: "No email API key configured. Please add your SendGrid API key in Admin Settings → Email." }) };
+      return { statusCode: 500, body: JSON.stringify({ error: "No email API key configured." }) };
     }
 
     const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
@@ -29,11 +28,7 @@ exports.handler = async (event) => {
     const attachmentInstructions = attachmentHtml ? `
       <div style="margin-top:40px;padding:16px 20px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:8px;font-family:Arial,sans-serif;font-size:12px;color:#666;line-height:1.7;">
         <strong style="color:#333;">📎 About the attached document</strong><br/>
-        To save or print a PDF copy:<br/>
-        1. Click the attachment to open it in your browser<br/>
-        2. Press <strong>Ctrl+P</strong> (Windows) or <strong>⌘+P</strong> (Mac)<br/>
-        3. Choose <strong>"Save as PDF"</strong> as the destination<br/>
-        4. Click Save
+        To save or print a PDF copy: open the attachment in your browser → Ctrl+P / ⌘+P → Save as PDF.
       </div>` : "";
 
     const emailHtml = htmlBody
@@ -55,26 +50,59 @@ exports.handler = async (event) => {
       ]
     };
 
-    // Main quote/invoice HTML attachment
+    const attachments = [];
+
+    // Main quote/invoice HTML
     if (attachmentHtml) {
-      const base64 = Buffer.from(attachmentHtml, "utf-8").toString("base64");
-      payload.attachments = [{
-        content: base64,
+      attachments.push({
+        content: Buffer.from(attachmentHtml, "utf-8").toString("base64"),
         filename: attachmentName || "document.html",
         type: "text/html",
         disposition: "attachment"
-      }];
+      });
     }
 
-    // All supporting docs now have URLs — they appear as links inside the HTML body
-    // No separate attachments needed
+    // Supporting documents — attach each one
+    if (Array.isArray(supportingDocs) && supportingDocs.length > 0) {
+      for (const doc of supportingDocs) {
+        try {
+          if (doc.htmlContent) {
+            // T&C or resource doc — attach as HTML file
+            attachments.push({
+              content: Buffer.from(doc.htmlContent, "utf-8").toString("base64"),
+              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".html",
+              type: "text/html",
+              disposition: "attachment"
+            });
+          } else if (doc.url && !doc.url.startsWith("data:")) {
+            // Uploaded file — fetch and attach
+            const res = await fetch(doc.url);
+            if (res.ok) {
+              const buffer = await res.arrayBuffer();
+              const base64 = Buffer.from(buffer).toString("base64");
+              // Detect MIME type from URL extension
+              const ext = doc.url.split(".").pop().toLowerCase().split("?")[0];
+              const mimeMap = { pdf:"application/pdf", jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", gif:"image/gif", webp:"image/webp", doc:"application/msword", docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", xls:"application/vnd.ms-excel", xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", txt:"text/plain", csv:"text/csv" };
+              const mimeType = mimeMap[ext] || "application/octet-stream";
+              attachments.push({
+                content: base64,
+                filename: doc.name,
+                type: mimeType,
+                disposition: "attachment"
+              });
+            }
+          }
+        } catch (docErr) {
+          console.warn("Could not attach doc:", doc.name, docErr.message);
+        }
+      }
+    }
+
+    if (attachments.length) payload.attachments = attachments;
 
     const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 

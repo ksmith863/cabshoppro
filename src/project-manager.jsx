@@ -8986,7 +8986,7 @@ ${shopName}`;
       userApiKey: adminSettings?.sendgridApiKey||null,
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
-      supportingDocs: q.supportingDocs||[],
+      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,htmlContent:d.htmlContent||null,type:d.type||"upload"})),
     });
   };
 
@@ -9238,7 +9238,7 @@ ${shopName}`;
       toName: contact?.name||"",
       attachmentHtml: invoiceHtml(q),
       attachmentName: `Invoice-${q.number}.html`,
-      supportingDocs: q.supportingDocs||[],
+      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,htmlContent:d.htmlContent||null,type:d.type||"upload"})),
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
       fromName: adminSettings?.sendgridFromName||shopName,
@@ -9847,17 +9847,29 @@ ${shopName}`;
       {(()=>{
         const tandcDocs=(resources||[]).filter(r=>r.type==="document"||r.category==="Terms & Conditions");
         const docs=sel.supportingDocs||[];
-        const toggleResource=(res)=>{
+        const toggleResource=async(res)=>{
           const exists=docs.find(d=>d.id===res.id);
           if(exists){
             setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));
             return;
           }
-          // Convert text doc to a data: URL so it renders correctly in any browser
+          // Upload T&C as HTML to Supabase with correct content type
           const text=res.fullText||res.desc||"";
-          const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${res.name}</title><style>body{font-family:Georgia,serif;font-size:12px;line-height:1.8;color:#333;max-width:720px;margin:0 auto;padding:40px;}h1{font-size:15px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;border-bottom:2px solid #1a1a12;padding-bottom:10px;margin-bottom:24px;}p,div{margin-bottom:8px;}</style></head><body><h1>${res.name}</h1><div style="white-space:pre-line;">${text}</div></body></html>`;
-          const dataUrl="data:text/html;charset=utf-8,"+encodeURIComponent(html);
-          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",url:dataUrl}]}));
+          const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${res.name}</title><style>body{font-family:Georgia,serif;font-size:12px;line-height:1.8;color:#333;max-width:720px;margin:0 auto;padding:40px;}h1{font-size:15px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;border-bottom:2px solid #1a1a12;padding-bottom:10px;margin-bottom:24px;}</style></head><body><h1>${res.name}</h1><div style="white-space:pre-line;">${text}</div></body></html>`;
+          try{
+            const {data:{user}}=await supabase.auth.getUser();
+            if(user){
+              const path=`${user.id}/quote-docs/${Date.now()}-${res.name.replace(/[^a-zA-Z0-9]/g,"-")}.html`;
+              await supabase.storage.from("cabshoppro-files").upload(path,
+                new Blob([html],{type:"text/html;charset=utf-8"}),
+                {contentType:"text/html;charset=utf-8",upsert:false});
+              const {data:{publicUrl}}=supabase.storage.from("cabshoppro-files").getPublicUrl(path);
+              setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",url:publicUrl,storagePath:path,htmlContent:html}]}));
+              return;
+            }
+          }catch(err){console.warn("T&C upload failed:",err);}
+          // Fallback: store html content for email attachment
+          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",htmlContent:html}]}));
         };
         return(
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginBottom:16}}>
