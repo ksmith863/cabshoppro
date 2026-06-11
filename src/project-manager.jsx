@@ -3282,6 +3282,10 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                 {user_id:user.id,data:{...(existing?.data||{}),_templates:updated},updated_at:new Date().toISOString()},
                 {onConflict:"user_id"}
               );
+              // Update local adminSettings state so template picker refreshes immediately
+              if(setAdminSettings){
+                setAdminSettings(prev=>({...prev,_templates:updated}));
+              }
               alert(`✅ "${tpl.name}" saved as a template! Find it in Admin → Templates and in the New Project modal.`);
             } catch(e) { alert("Could not save template: "+e.message); }
           }}>⭐ Save as Template</Btn>}
@@ -3393,7 +3397,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
 }
 
 
-function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,setQuotes,onOpenQuote,onScheduleEvent,pendingProject,onClearPending,bp,plan,hasFeature,adminSettings}) {
+function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,setQuotes,onOpenQuote,onScheduleEvent,pendingProject,onClearPending,bp,plan,hasFeature,adminSettings,setAdminSettings}) {
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(null);
@@ -6905,6 +6909,32 @@ function MediaLibrary({media,setMedia,projects,bp}) {
               <input value={form.url||""} onChange={e=>setForm(f=>({...f,url:e.target.value}))} placeholder="Or paste image URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)",marginTop:8}} />
             </div>
           )}
+          {form.type==="document"&&(
+            <div style={{marginBottom:14}}>
+              {form.url&&(
+                <div style={{marginBottom:8,padding:"10px 12px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:22}}>📄</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{form.name||"Document"}</div>
+                    <a href={form.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)"}}>Open / Download ↗</a>
+                  </div>
+                </div>
+              )}
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📄 Upload Document
+                <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" onChange={async e=>{
+                  const file=e.target.files?.[0];if(!file)return;
+                  e.target.value="";
+                  const sizeKB=Math.round(file.size/1024);
+                  const sizeStr=sizeKB>1024?`${(sizeKB/1024).toFixed(1)} MB`:`${sizeKB} KB`;
+                  const baseName=file.name.replace(/\\.[^.]+$/,"");
+                  const {url,storagePath}=await uploadImageToStorage(file,"documents");
+                  setForm(f=>({...f,url,storagePath,name:baseName||f.name,size:sizeStr,date:f.date||new Date().toISOString().slice(0,10)}));
+                }} style={{display:"none"}} />
+              </label>
+              <input value={form.url||""} onChange={e=>setForm(f=>({...f,url:e.target.value}))} placeholder="Or paste document URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)",marginTop:8}} />
+            </div>
+          )}
           <Input label="File Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} voice placeholder="e.g. hartwell_kitchen_final.jpg" />
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="File Type" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} type="select"
@@ -7472,7 +7502,10 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
               <textarea value={body} onChange={e=>setBody(e.target.value)} rows={10}
                 style={{...inp,resize:"vertical",lineHeight:1.5}} />
             </div>
-            {attachmentHtml&&<div style={{fontSize:11,color:"var(--accent2)",marginBottom:10,padding:"7px 10px",background:"var(--accent2)11",borderRadius:7,display:"flex",alignItems:"center",gap:6}}>📎 {attachmentName||"attachment.html"} will be attached</div>}
+            {attachmentHtml&&<div style={{fontSize:11,color:"var(--accent2)",marginBottom:10,padding:"9px 12px",background:"var(--accent2)11",borderRadius:7,lineHeight:1.5}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>📎 <strong>{attachmentName||"attachment.html"}</strong> will be attached</div>
+              <div style={{color:"var(--muted)",fontSize:10}}>Recipient: click the attachment to open in browser → File → Print → Save as PDF to keep a copy.</div>
+            </div>}
             {error&&<div style={{color:"var(--accent3)",fontSize:12,marginBottom:10,padding:"8px 10px",background:"var(--accent3)11",borderRadius:7}}>{error}</div>}
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button onClick={onClose} style={{padding:"9px 18px",borderRadius:9,background:"none",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,cursor:"pointer"}}>Cancel</button>
@@ -8399,8 +8432,20 @@ var statusColor = s => ({
 
 function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,resources,bp,pendingQuote,onClearPendingQuote,adminSettings}) {
   // ── Views: list | edit | itemLib ──
-  const [view,setView]=useState("list"); // "list" | "edit" | "itemLib"
-  const [sel,setSel]=useState(null);     // quote being edited/viewed
+  const [view,setView]=useState(()=>{try{return localStorage.getItem("csp_quotes_view")||"list";}catch{return "list";}});
+  const [sel,setSel]=useState(null);     // quote being edited/viewed — restored below
+
+  // Restore quote edit state from localStorage on mount
+  useEffect(()=>{
+    const savedView=localStorage.getItem("csp_quotes_view");
+    const savedSelId=localStorage.getItem("csp_quotes_sel");
+    if(savedView==="edit"&&savedSelId&&quotes.length>0){
+      const q=quotes.find(q=>String(q.id)===savedSelId);
+      if(q){setSel({...q,lines:(q.lines||[]).map(l=>({...l}))});setView("edit");}
+      else{setView("list");try{localStorage.removeItem("csp_quotes_sel");}catch{}}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[quotes.length]);
 
   // Open a specific quote when navigated here from Dashboard
   useEffect(()=>{
@@ -8504,13 +8549,18 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   });
 
   const openNew=()=>{setSel(blankQuote());setView("edit");};
-  const openEdit=(q)=>{setSel({...q,lines:q.lines.map(l=>({...l}))});setView("edit");};
+  const openEdit=(q)=>{
+    setSel({...q,lines:q.lines.map(l=>({...l}))});
+    setView("edit");
+    try{localStorage.setItem("csp_quotes_view","edit");localStorage.setItem("csp_quotes_sel",String(q.id));}catch{}
+  };
+  const clearEditState=()=>{setView("list");setSel(null);try{localStorage.setItem("csp_quotes_view","list");localStorage.removeItem("csp_quotes_sel");}catch{}};
   const saveQuote=()=>{
     if(!sel)return;
     setQuotes(prev=>{const ex=prev.find(q=>q.id===sel.id);return ex?prev.map(q=>q.id===sel.id?sel:q):[...prev,sel];});
-    setView("list");setSel(null);
+    clearEditState();
   };
-  const deleteQuote=(id)=>{setQuotes(prev=>prev.filter(q=>q.id!==id));setView("list");setSel(null);};
+  const deleteQuote=(id)=>{setQuotes(prev=>prev.filter(q=>q.id!==id));clearEditState();};
 
   // ── Line item helpers ──
   const updateLine=(id,field,val)=>setSel(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,[field]:val}:l)}));
@@ -9323,7 +9373,7 @@ ${shopName}`;
           {isOverdue&&<Badge color="var(--accent3)" style={{fontSize:10}}>OVERDUE</Badge>}
         </span>}
         action={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <Btn variant="secondary" onClick={()=>{setView("list");setSel(null);}}>Cancel</Btn>
+          <Btn variant="secondary" onClick={()=>clearEditState()}>Cancel</Btn>
           {isInv
             ?<><Btn variant="secondary" onClick={()=>emailInvoice(sel)}>✉ Email</Btn><Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ PDF</Btn></>
             :<><Btn variant="secondary" onClick={()=>emailQuote(sel)}>✉ Email</Btn><Btn variant="secondary" onClick={()=>printQuote(sel)}>⎙ PDF</Btn></>
@@ -12884,7 +12934,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     }
     switch(page){
       case "dashboard":  return <Dashboard  {...p} contacts={contacts} onNavigate={setPage} onOpenProject={openProjectDetail} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onStartTour={startTour}/>;
-      case "projects":   return <Projects   {...p} contacts={contacts} setContacts={p.setContacts} tasks={tasks} setTasks={p.setTasks} inventory={inventory} resources={resources} setResources={p.setResources} quotes={quotes} setQuotes={p.setQuotes} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingProject={pendingProject} onClearPending={()=>setPendingProject(null)} adminSettings={adminSettings}/>;
+      case "projects":   return <Projects   {...p} contacts={contacts} setContacts={p.setContacts} tasks={tasks} setTasks={p.setTasks} inventory={inventory} resources={resources} setResources={p.setResources} quotes={quotes} setQuotes={p.setQuotes} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingProject={pendingProject} onClearPending={()=>setPendingProject(null)} adminSettings={adminSettings} setAdminSettings={setAdminSettings}/>;
       case "crm":        return <CRM        {...p} inventory={inventory} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
       case "tasks":      return <Tasks      {...p} onOpenProject={openProjectDetail} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
       case "finance":    return null; // group header — collapses to financetracker
