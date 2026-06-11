@@ -8986,7 +8986,7 @@ ${shopName}`;
       userApiKey: adminSettings?.sendgridApiKey||null,
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null,type:d.type||"upload"})),
+      supportingDocs: (q.supportingDocs||[]).filter(d=>d.url).map(d=>({name:d.name,url:d.url})),
     });
   };
 
@@ -9238,7 +9238,7 @@ ${shopName}`;
       toName: contact?.name||"",
       attachmentHtml: invoiceHtml(q),
       attachmentName: `Invoice-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null,type:d.type||"upload"})),
+      supportingDocs: (q.supportingDocs||[]).filter(d=>d.url).map(d=>({name:d.name,url:d.url})),
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
       fromName: adminSettings?.sendgridFromName||shopName,
@@ -9845,71 +9845,27 @@ ${shopName}`;
 
       {/* Supporting Documents */}
       {(()=>{
-        const tandcDocs=(resources||[]).filter(r=>r.type==="document"||r.category==="Terms & Conditions");
         const docs=sel.supportingDocs||[];
-        const toggleResource=(res)=>{
-          const exists=docs.find(d=>d.id===res.id);
-          if(exists){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
-          // Store text content so it persists and can be used for preview + email attachment
-          const text=res.fullText||res.desc||"";
-          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",docText:text}]}));
-        };
         return(
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginBottom:16}}>
             <div style={{fontWeight:700,fontSize:13,marginBottom:4,color:"var(--accent2)",display:"flex",alignItems:"center",gap:8}}>
               SUPPORTING DOCUMENTS
               {docs.length>0&&<Badge color="var(--accent)" style={{fontSize:10}}>{docs.length} attached</Badge>}
             </div>
-            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>Attach T&C, renderings, spec sheets, or any file. All attached documents are included in the quote email and PDF.</div>
-
-            {/* Attached docs list */}
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>Upload T&Cs, renderings, spec sheets, or any file. All documents are attached to the quote email.</div>
             {docs.length>0&&(
               <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
                 {docs.map((doc,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--accent2)33"}}>
-                    <span style={{fontSize:14}}>{doc.type==="resource"?"📋":"📎"}</span>
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--accent2)33"}}>
+                    <span style={{fontSize:14}}>📎</span>
                     <span style={{flex:1,fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
-                    {doc.url
-                      ?<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)"}}>View ↗</a>
-                      :doc.docText
-                        ?<button onClick={()=>{
-                            const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${doc.name}</title><style>body{font-family:Georgia,serif;font-size:13px;line-height:1.9;color:#222;max-width:720px;margin:0 auto;padding:48px;}h1{font-size:16px;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border-bottom:2px solid #222;padding-bottom:10px;margin-bottom:24px;}</style></head><body><h1>${doc.name}</h1><div style="white-space:pre-line;">${doc.docText}</div></body></html>`;
-                            const b=new Blob([html],{type:"text/html"});
-                            const u=URL.createObjectURL(b);
-                            window.open(u,"_blank");
-                            setTimeout(()=>URL.revokeObjectURL(u),30000);
-                          }} style={{background:"none",border:"none",color:"var(--accent2)",fontSize:11,cursor:"pointer",padding:0,fontFamily:"var(--font)"}}>View ↗</button>
-                        :null}
+                    {doc.url&&<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)",whiteSpace:"nowrap"}}>View ↗</a>}
                     <button onClick={()=>setSel(s=>({...s,supportingDocs:docs.filter((_,j)=>j!==i)}))}
                       style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>×</button>
                   </div>
                 ))}
               </div>
             )}
-
-            {/* Add from Resources Library */}
-            {tandcDocs.length>0&&(
-              <div style={{marginBottom:10}}>
-                <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:6}}>FROM RESOURCES LIBRARY</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                  {tandcDocs.map(res=>{
-                    const isAttached=docs.some(d=>d.id===res.id);
-                    return(
-                      <button key={res.id} onClick={()=>toggleResource(res)}
-                        style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,
-                          background:isAttached?"var(--accent2)22":"var(--surface2)",
-                          border:`1px solid ${isAttached?"var(--accent2)66":"var(--border)"}`,
-                          color:isAttached?"var(--accent2)":"var(--muted)",
-                          fontSize:11,fontWeight:isAttached?700:500,cursor:"pointer",fontFamily:"var(--font)"}}>
-                        📋 {res.name}{isAttached&&" ✓"}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Upload ad-hoc file */}
             <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
               📎 Upload Document or Image
               <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.dwg,.dxf,image/jpeg,image/png,image/webp" onChange={async e=>{
