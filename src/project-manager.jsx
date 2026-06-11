@@ -2842,7 +2842,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                 validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",
                 notes:"",taxRate:0,
                 lines:[{id:`l${Date.now()}`,itemId:"",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000"}],
-                attachedTandC:null,
+                attachedTandC:null,supportingDocs:[],
               };
               // Add to quotes list then open
               if(setQuotes) setQuotes(prev=>[newQ,...prev]);
@@ -2876,7 +2876,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                   validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",
                   notes:"",taxRate:0,
                   lines:[{id:`l${Date.now()}`,itemId:"",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000"}],
-                  attachedTandC:null,
+                  attachedTandC:null,supportingDocs:[],
                 };
                 if(setQuotes) setQuotes(prev=>[newQ,...prev]);
                 setTimeout(()=>onOpenQuote(newQ), 50);
@@ -8586,7 +8586,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
   const blankLine=(groupId="")=>({id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,itemId:"",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000",groupId});
   const blankGroup=()=>({id:`g${Date.now()}`,type:"group",name:"New Section",clientDisplay:"summary",clientDesc:"",collapsed:false});
-  const blankQuote=()=>({id:`q${Date.now()}`,number:`GW-${new Date().getFullYear()}-${String(quotes.length+1).padStart(3,"0")}`,isInvoice:false,status:"draft",projectId:"",contactId:"",title:"",date:new Date().toISOString().slice(0,10),validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",notes:"",taxRate:0,lines:[blankLine()],attachedTandC:null});
+  const blankQuote=()=>({id:`q${Date.now()}`,number:`GW-${new Date().getFullYear()}-${String(quotes.length+1).padStart(3,"0")}`,isInvoice:false,status:"draft",projectId:"",contactId:"",title:"",date:new Date().toISOString().slice(0,10),validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",notes:"",taxRate:0,lines:[blankLine()],attachedTandC:null,supportingDocs:[]});
 
   // ── Helpers ──
   // profitMargin drives price from cost: price = cost / (1 - margin%)
@@ -8798,7 +8798,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><thead><tr style="background:#1a1a12;color:#fff"><th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:110px">PRICE</th></tr></thead><tbody>${lineRows}</tbody></table>
   <div style="display:flex;justify-content:flex-end;margin-bottom:28px"><div style="width:260px"><div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Subtotal</span><span style="font-weight:600">${fmt(subtotal)}</span></div>${q.taxRate?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Sales Tax (${q.taxRate}%)</span><span style="font-weight:600">${fmt(tax)}</span></div>`:""}<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:900"><span>TOTAL</span><span>${fmt(total)}</span></div></div></div>
   ${q.notes?`<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">${q.notes}</div></div>`:""}
-  ${q.attachedTandC?`<div style="margin-top:40px;padding-top:28px;border-top:2px solid #1a1a12"><div style="font-size:13px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:16px">${q.attachedTandC.name.toUpperCase()}</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">${q.attachedTandC.text}</div></div>`:""}
+  ${(q.supportingDocs||q.attachedTandC)?((docs=>(docs.filter(d=>d.text).map(d=>`<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:12px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:12px">${d.name.toUpperCase()}</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">${d.text}</div></div>`).join("")+(docs.filter(d=>d.url&&!d.text).length>0?`<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;color:#1a1a12;margin-bottom:8px">SUPPORTING DOCUMENTS</div>${docs.filter(d=>d.url&&!d.text).map(d=>`<div style="margin-bottom:4px"><a href="${d.url}" style="font-size:12px;color:#635bff;">📎 ${d.name}</a></div>`).join("")}</div>`:"")))([(q.attachedTandC?{...q.attachedTandC,type:"resource"}:null),...(q.supportingDocs||[])].filter(Boolean))):""}
   <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${shopName}</div></div><div style="font-size:11px;color:#aaa;font-style:italic">Thank you for the opportunity to serve you.</div></div>
 </div></body></html>`;
   };
@@ -8933,7 +8933,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
   ${q.notes?('<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">'+q.notes+'</div></div>'):""}
 
-  ${q.attachedTandC?('<div style="margin-top:40px;padding-top:28px;border-top:2px solid #1a1a12"><div style="font-size:13px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:16px">'+q.attachedTandC.name.toUpperCase()+'</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">'+q.attachedTandC.text+'</div></div>'):""}
+  ${(q.supportingDocs||q.attachedTandC)?((docs=>(docs.filter(d=>d.text).map(d=>'<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:12px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:12px">'+d.name.toUpperCase()+'</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">'+d.text+'</div></div>').join('')+(docs.filter(d=>d.url&&!d.text).length>0?'<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;color:#1a1a12;margin-bottom:8px">SUPPORTING DOCUMENTS</div>'+docs.filter(d=>d.url&&!d.text).map(d=>'<div style="margin-bottom:4px"><a href="'+d.url+'" style="font-size:12px;color:#635bff;">📎 '+d.name+'</a></div>').join('')+'</div>':'')))([(q.attachedTandC?{...q.attachedTandC,type:'resource'}:null),...(q.supportingDocs||[])].filter(Boolean))):""}
 
   <!-- Footer -->
   <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center">
@@ -9841,43 +9841,69 @@ ${shopName}`;
         </div>
       </div>
 
-      {/* T&C Attachment */}
+      {/* Supporting Documents */}
       {(()=>{
-        const tandcDocs=(resources||[]).filter(r=>r.category==="Terms & Conditions");
+        const tandcDocs=(resources||[]).filter(r=>r.type==="document"||r.category==="Terms & Conditions");
+        const docs=sel.supportingDocs||[];
+        const toggleResource=(res)=>{
+          const exists=docs.find(d=>d.id===res.id);
+          setSel(s=>({...s,supportingDocs:exists?docs.filter(d=>d.id!==res.id):[...docs,{id:res.id,name:res.name,type:"resource",text:res.fullText||res.desc}]}));
+        };
         return(
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginBottom:16}}>
-            <div style={{fontWeight:700,fontSize:13,marginBottom:12,color:"var(--accent2)",display:"flex",alignItems:"center",gap:8}}>
-              TERMS & CONDITIONS
-              {sel.attachedTandC&&<Badge color="var(--accent)" style={{fontSize:10}}>Attached</Badge>}
+            <div style={{fontWeight:700,fontSize:13,marginBottom:4,color:"var(--accent2)",display:"flex",alignItems:"center",gap:8}}>
+              SUPPORTING DOCUMENTS
+              {docs.length>0&&<Badge color="var(--accent)" style={{fontSize:10}}>{docs.length} attached</Badge>}
             </div>
-            {tandcDocs.length===0?(
-              <div style={{fontSize:12,color:"var(--muted)"}}>No T&C documents found in Resources Library. Add them under Resources → Terms & Conditions.</div>
-            ):(
-              <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
-                {tandcDocs.map(doc=>{
-                  const isAttached=sel.attachedTandC?.id===doc.id;
-                  return(
-                    <button key={doc.id}
-                      onClick={()=>setSel(s=>({...s,attachedTandC:isAttached?null:{id:doc.id,name:doc.name,text:doc.fullText||doc.desc}}))}
-                      style={{display:"flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:10,
-                        background:isAttached?"var(--accent2)22":"var(--surface2)",
-                        border:`1px solid ${isAttached?"var(--accent2)88":"var(--border)"}`,
-                        color:isAttached?"var(--accent2)":"var(--muted)",
-                        fontSize:12,fontWeight:isAttached?700:500,cursor:"pointer",fontFamily:"var(--font)",transition:"all 0.15s"}}>
-                      <span style={{fontSize:14}}>📋</span>
-                      {doc.name}
-                      {isAttached&&<span style={{fontSize:10}}>✓</span>}
-                    </button>
-                  );
-                })}
-                {sel.attachedTandC&&(
-                  <div style={{fontSize:11,color:"var(--muted)",marginLeft:4}}>
-                    Will be appended to the PDF and email.
-                    <button onClick={()=>setSel(s=>({...s,attachedTandC:null}))} style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",marginLeft:8,fontSize:11}}>Remove</button>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>Attach T&C, renderings, spec sheets, or any file. All attached documents are included in the quote email and PDF.</div>
+
+            {/* Attached docs list */}
+            {docs.length>0&&(
+              <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
+                {docs.map((doc,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--accent2)33"}}>
+                    <span style={{fontSize:14}}>{doc.type==="resource"?"📋":"📎"}</span>
+                    <span style={{flex:1,fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
+                    {doc.url&&<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)"}}>View ↗</a>}
+                    <button onClick={()=>setSel(s=>({...s,supportingDocs:docs.filter((_,j)=>j!==i)}))}
+                      style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>×</button>
                   </div>
-                )}
+                ))}
               </div>
             )}
+
+            {/* Add from Resources Library */}
+            {tandcDocs.length>0&&(
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:6}}>FROM RESOURCES LIBRARY</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {tandcDocs.map(res=>{
+                    const isAttached=docs.some(d=>d.id===res.id);
+                    return(
+                      <button key={res.id} onClick={()=>toggleResource(res)}
+                        style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,
+                          background:isAttached?"var(--accent2)22":"var(--surface2)",
+                          border:`1px solid ${isAttached?"var(--accent2)66":"var(--border)"}`,
+                          color:isAttached?"var(--accent2)":"var(--muted)",
+                          fontSize:11,fontWeight:isAttached?700:500,cursor:"pointer",fontFamily:"var(--font)"}}>
+                        📋 {res.name}{isAttached&&" ✓"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Upload ad-hoc file */}
+            <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
+              📎 Upload Document or Image
+              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.dwg,.dxf,image/jpeg,image/png,image/webp" onChange={async e=>{
+                const file=e.target.files?.[0];if(!file)return;
+                e.target.value="";
+                const {url,storagePath}=await uploadImageToStorage(file,"quote-docs");
+                setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{name:file.name,url,storagePath,type:"upload"}]}));
+              }} style={{display:"none"}} />
+            </label>
           </div>
         );
       })()}
