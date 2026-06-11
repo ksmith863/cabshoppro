@@ -10724,8 +10724,7 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
               lines.push(`DTSTART${ev.allDay?";VALUE=DATE":""}:${fmtDT(ev.date,ev.startTime,ev.allDay)}`);
               lines.push(`DTEND${ev.allDay?";VALUE=DATE":""}:${fmtDT(ev.date,ev.endTime||ev.startTime,ev.allDay)}`);
               lines.push(`SUMMARY:${ev.title||""}`);
-              if(ev.desc)lines.push(`DESCRIPTION:${ev.desc.replace(/
-/g,"\n")}`);
+              if(ev.desc)lines.push("DESCRIPTION:"+ev.desc.replace(/\n/g,"\\n"));
               lines.push("END:VEVENT");
             });
             lines.push("END:VCALENDAR");
