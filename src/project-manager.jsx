@@ -8798,7 +8798,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><thead><tr style="background:#1a1a12;color:#fff"><th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:110px">PRICE</th></tr></thead><tbody>${lineRows}</tbody></table>
   <div style="display:flex;justify-content:flex-end;margin-bottom:28px"><div style="width:260px"><div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Subtotal</span><span style="font-weight:600">${fmt(subtotal)}</span></div>${q.taxRate?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Sales Tax (${q.taxRate}%)</span><span style="font-weight:600">${fmt(tax)}</span></div>`:""}<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:900"><span>TOTAL</span><span>${fmt(total)}</span></div></div></div>
   ${q.notes?`<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">${q.notes}</div></div>`:""}
-  ${(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return`<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>${allDocs.map(d=>d.url?`<div style="margin-bottom:6px"><a href="${d.url}" style="font-size:12px;color:#635bff;text-decoration:none;">📎 ${d.name} ↗</a></div>`:`<div style="margin-bottom:6px;font-size:12px;color:#555;">📋 ${d.name}</div>`).join("")}</div>`;})()}
+  ${(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return`<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>${allDocs.map(d=>d.url?`<div style="margin-bottom:6px"><a href="${d.url}" style="font-size:12px;color:#635bff;text-decoration:none;">📎 ${d.name} ↗</a></div>`:`<div style="margin-bottom:6px;font-size:12px;color:#555;font-style:italic;">📋 ${d.name} — see attached file</div>`).join("")}</div>`;})()}
   <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${shopName}</div></div><div style="font-size:11px;color:#aaa;font-style:italic">Thank you for the opportunity to serve you.</div></div>
 </div></body></html>`;
   };
@@ -8933,7 +8933,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
   ${q.notes?('<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">'+q.notes+'</div></div>'):""}
 
-  ${(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return'<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>'+allDocs.map(d=>d.url?'<div style="margin-bottom:6px"><a href="'+d.url+'" style="font-size:12px;color:#635bff;text-decoration:none;">📎 '+d.name+' ↗</a></div>':'<div style="margin-bottom:6px;font-size:12px;color:#555;">📋 '+d.name+'</div>').join('')+'</div>';})()}
+  ${(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return'<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>'+allDocs.map(d=>d.url?'<div style="margin-bottom:6px"><a href="'+d.url+'" style="font-size:12px;color:#635bff;text-decoration:none;">📎 '+d.name+' ↗</a></div>':'<div style="margin-bottom:6px;font-size:12px;color:#555;font-style:italic;">📋 '+d.name+' — see attached file</div>').join('')+'</div>';})()}
 
   <!-- Footer -->
   <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center">
@@ -9847,28 +9847,13 @@ ${shopName}`;
       {(()=>{
         const tandcDocs=(resources||[]).filter(r=>r.type==="document"||r.category==="Terms & Conditions");
         const docs=sel.supportingDocs||[];
-        const toggleResource=async(res)=>{
+        const toggleResource=(res)=>{
           const exists=docs.find(d=>d.id===res.id);
-          if(exists){
-            setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));
-            return;
-          }
-          // Upload T&C as HTML to Supabase with correct content type
+          if(exists){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
+          // Store T&C as HTML content — attached to email by Netlify function
+          // Opens in browser via blob URL on click
           const text=res.fullText||res.desc||"";
           const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${res.name}</title><style>body{font-family:Georgia,serif;font-size:12px;line-height:1.8;color:#333;max-width:720px;margin:0 auto;padding:40px;}h1{font-size:15px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;border-bottom:2px solid #1a1a12;padding-bottom:10px;margin-bottom:24px;}</style></head><body><h1>${res.name}</h1><div style="white-space:pre-line;">${text}</div></body></html>`;
-          try{
-            const {data:{user}}=await supabase.auth.getUser();
-            if(user){
-              const path=`${user.id}/quote-docs/${Date.now()}-${res.name.replace(/[^a-zA-Z0-9]/g,"-")}.html`;
-              await supabase.storage.from("cabshoppro-files").upload(path,
-                new Blob([html],{type:"text/html;charset=utf-8"}),
-                {contentType:"text/html;charset=utf-8",upsert:false});
-              const {data:{publicUrl}}=supabase.storage.from("cabshoppro-files").getPublicUrl(path);
-              setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",url:publicUrl,storagePath:path,htmlContent:html}]}));
-              return;
-            }
-          }catch(err){console.warn("T&C upload failed:",err);}
-          // Fallback: store html content for email attachment
           setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",htmlContent:html}]}));
         };
         return(
@@ -9886,7 +9871,11 @@ ${shopName}`;
                   <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--accent2)33"}}>
                     <span style={{fontSize:14}}>{doc.type==="resource"?"📋":"📎"}</span>
                     <span style={{flex:1,fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
-                    {doc.url&&<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)"}}>View ↗</a>}
+                    {doc.url
+                      ?<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)"}}>View ↗</a>
+                      :doc.htmlContent
+                        ?<button onClick={()=>{const b=new Blob([doc.htmlContent],{type:"text/html"});const u=URL.createObjectURL(b);window.open(u,"_blank");setTimeout(()=>URL.revokeObjectURL(u),10000);}} style={{background:"none",border:"none",color:"var(--accent2)",fontSize:11,cursor:"pointer",padding:0,fontFamily:"var(--font)"}}>View ↗</button>
+                        :null}
                     <button onClick={()=>setSel(s=>({...s,supportingDocs:docs.filter((_,j)=>j!==i)}))}
                       style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>×</button>
                   </div>
