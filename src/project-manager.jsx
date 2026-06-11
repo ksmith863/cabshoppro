@@ -10147,22 +10147,47 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
   return(
     <div className="fadein">
       <PageHeader bp={bp} title="Material & Item Library" sub="Pre-load items with cost, markup & photos — pull into any quote instantly"
-        action={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <Btn variant="secondary" onClick={()=>setLibSubView(v=>v==="bulk"?"list":"bulk")}>{libSubView==="bulk"?"≡ List View":"⊞ Bulk Entry"}</Btn>
-          <button onClick={exportItemsCSV}
-            style={{padding:"8px 13px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>⬇ Export CSV</button>
-          <label style={{display:"inline-flex",alignItems:"center",padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}} title="Import CabShop Pro CSV or supplier price list — columns auto-detected">
-            ⬆ Import / Price List
-            <input ref={csvImportRef} type="file" accept=".csv,.txt" onChange={importItemsCSV} style={{display:"none"}} />
-          </label>
+        action={<div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {/* Actions dropdown */}
+          {(()=>{
+            const [menuOpen,setMenuOpen]=React.useState(false);
+            return(
+              <div style={{position:"relative"}}>
+                <button onClick={()=>setMenuOpen(o=>!o)}
+                  style={{padding:"8px 13px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:6}}>
+                  ⋯ Actions <span style={{fontSize:10}}>▾</span>
+                </button>
+                {menuOpen&&(
+                  <div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:998}} />
+                )}
+                {menuOpen&&(
+                  <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:999,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 8px 24px #00000044",minWidth:200,overflow:"hidden"}}>
+                    <button onClick={()=>{setMenuOpen(false);setLibSubView(v=>v==="bulk"?"list":"bulk");}}
+                      style={{width:"100%",padding:"10px 14px",background:"none",border:"none",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",textAlign:"left",display:"flex",alignItems:"center",gap:8}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      ⊞ {libSubView==="bulk"?"Exit Bulk Entry":"Bulk Entry"}
+                    </button>
+                    <button onClick={()=>{setMenuOpen(false);exportItemsCSV();}}
+                      style={{width:"100%",padding:"10px 14px",background:"none",border:"none",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",textAlign:"left",display:"flex",alignItems:"center",gap:8}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      ⬇ Export Items (CSV)
+                    </button>
+                    <label
+                      style={{width:"100%",padding:"10px 14px",background:"none",border:"none",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",textAlign:"left",display:"flex",alignItems:"center",gap:8,boxSizing:"border-box"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      ⬆ Import Items or Price List
+                      <input ref={csvImportRef} type="file" accept=".csv,.txt" onChange={e=>{setMenuOpen(false);importItemsCSV(e);}} style={{display:"none"}} />
+                    </label>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <Btn onClick={()=>{setLibSel(null);setLibForm(blankLibForm);setLibModal(true);}}>+ New Item</Btn>
         </div>} />
-
-      {/* ── CSV format hint ── */}
-      <div style={{fontSize:11,color:"var(--muted)",marginBottom:12,padding:"8px 12px",background:"var(--surface2)",borderRadius:8,fontFamily:"var(--mono)",lineHeight:1.6}}>
-        <strong style={{color:"var(--text)"}}>Native format:</strong> name, category, desc, unit, basePrice, defaultMarkupPct, defaultMarginPct, imageUrl — export existing items to see the format.<br/>
-        <strong style={{color:"var(--text)"}}>Supplier price lists:</strong> auto-detected — common columns like Item, Description, Part#, Price/Cost, UOM, Category are mapped automatically. Prices import as base cost; add markup after import.
-      </div>
 
       {/* ── BULK ENTRY ── */}
       {libSubView==="bulk"&&(
