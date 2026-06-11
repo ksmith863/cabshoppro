@@ -9974,6 +9974,38 @@ ${shopName}`;
 }
 
 // ─── Item Library Page (standalone) ──────────────────────────────────────────
+function LibActionsMenu({libSubView,setLibSubView,exportItemsCSV,csvImportRef,importItemsCSV}) {
+  const [open,setOpen]=useState(false);
+  const menuStyle={width:"100%",padding:"10px 14px",background:"none",border:"none",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",textAlign:"left",display:"flex",alignItems:"center",gap:8};
+  const hover=(e,on)=>e.currentTarget.style.background=on?"var(--surface2)":"none";
+  return(
+    <div style={{position:"relative"}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{padding:"8px 13px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:6}}>
+        ⋯ Actions <span style={{fontSize:10}}>▾</span>
+      </button>
+      {open&&<div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,zIndex:998}}/>}
+      {open&&(
+        <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:999,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 8px 24px #00000044",minWidth:210,overflow:"hidden"}}>
+          <button onClick={()=>{setOpen(false);setLibSubView(v=>v==="bulk"?"list":"bulk");}} style={menuStyle}
+            onMouseEnter={e=>hover(e,true)} onMouseLeave={e=>hover(e,false)}>
+            ⊞ {libSubView==="bulk"?"Exit Bulk Entry":"Bulk Entry"}
+          </button>
+          <button onClick={()=>{setOpen(false);exportItemsCSV();}} style={menuStyle}
+            onMouseEnter={e=>hover(e,true)} onMouseLeave={e=>hover(e,false)}>
+            ⬇ Export Items (CSV)
+          </button>
+          <label style={{...menuStyle,boxSizing:"border-box"}}
+            onMouseEnter={e=>hover(e,true)} onMouseLeave={e=>hover(e,false)}>
+            ⬆ Import Items or Price List
+            <input ref={csvImportRef} type="file" accept=".csv,.txt" onChange={e=>{setOpen(false);importItemsCSV(e);}} style={{display:"none"}}/>
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,bp}) {
   const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:""};
   const [libModal,setLibModal]=useState(false);
@@ -10149,43 +10181,13 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
       <PageHeader bp={bp} title="Material & Item Library" sub="Pre-load items with cost, markup & photos — pull into any quote instantly"
         action={<div style={{display:"flex",gap:8,alignItems:"center"}}>
           {/* Actions dropdown */}
-          {(()=>{
-            const [menuOpen,setMenuOpen]=React.useState(false);
-            return(
-              <div style={{position:"relative"}}>
-                <button onClick={()=>setMenuOpen(o=>!o)}
-                  style={{padding:"8px 13px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:6}}>
-                  ⋯ Actions <span style={{fontSize:10}}>▾</span>
-                </button>
-                {menuOpen&&(
-                  <div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:998}} />
-                )}
-                {menuOpen&&(
-                  <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:999,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 8px 24px #00000044",minWidth:200,overflow:"hidden"}}>
-                    <button onClick={()=>{setMenuOpen(false);setLibSubView(v=>v==="bulk"?"list":"bulk");}}
-                      style={{width:"100%",padding:"10px 14px",background:"none",border:"none",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",textAlign:"left",display:"flex",alignItems:"center",gap:8}}
-                      onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
-                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
-                      ⊞ {libSubView==="bulk"?"Exit Bulk Entry":"Bulk Entry"}
-                    </button>
-                    <button onClick={()=>{setMenuOpen(false);exportItemsCSV();}}
-                      style={{width:"100%",padding:"10px 14px",background:"none",border:"none",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",textAlign:"left",display:"flex",alignItems:"center",gap:8}}
-                      onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
-                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
-                      ⬇ Export Items (CSV)
-                    </button>
-                    <label
-                      style={{width:"100%",padding:"10px 14px",background:"none",border:"none",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",textAlign:"left",display:"flex",alignItems:"center",gap:8,boxSizing:"border-box"}}
-                      onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
-                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
-                      ⬆ Import Items or Price List
-                      <input ref={csvImportRef} type="file" accept=".csv,.txt" onChange={e=>{setMenuOpen(false);importItemsCSV(e);}} style={{display:"none"}} />
-                    </label>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          <LibActionsMenu
+            libSubView={libSubView}
+            setLibSubView={setLibSubView}
+            exportItemsCSV={exportItemsCSV}
+            csvImportRef={csvImportRef}
+            importItemsCSV={importItemsCSV}
+          />
           <Btn onClick={()=>{setLibSel(null);setLibForm(blankLibForm);setLibModal(true);}}>+ New Item</Btn>
         </div>} />
 
