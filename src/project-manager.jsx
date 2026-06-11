@@ -4466,7 +4466,7 @@ function GroupReviewFilters({grType,setGrType,grStatus,setGrStatus,grFrom,setGrF
   );
 }
 
-function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
+function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pendingContact,onClearPendingContact}) {
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
   const [sel,setSel]=useState(null);
@@ -4476,6 +4476,15 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
   const [viewMode,setViewMode]=useState("card");   // "card" | "list"
   const [sortBy,setSortBy]=useState("name");       // "name" | "company" | "type"
   const [selectedContacts,setSelectedContacts]=useState(new Set());
+
+  // Deep link: open a specific contact from global search
+  useEffect(()=>{
+    if(pendingContact){
+      setDetail(pendingContact);
+      onClearPendingContact&&onClearPendingContact();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[pendingContact]);
   const COLORS=["#4fffb0","#7b6fff","#ffc46b","#ff6b6b","#6bf7ff"];
 
   // ── Bulk contact operations ──
@@ -5001,10 +5010,21 @@ var COLS=[{id:"todo",label:"To Do",color:"var(--muted)"},{id:"in-progress",label
 var priorityColor=p=>p==="high"?"var(--accent3)":p==="medium"?"var(--accent4)":"var(--muted)";
 var priorityOrder={high:0,medium:1,low:2};
 
-function Tasks({tasks,setTasks,projects,onOpenProject,onScheduleEvent,bp}) {
+function Tasks({tasks,setTasks,projects,onOpenProject,onScheduleEvent,bp,pendingTask,onClearPendingTask}) {
   const [viewMode,setViewMode]=useState("board"); // "board" | "list"
   const [addModal,setAddModal]=useState(false);
   const [editModal,setEditModal]=useState(null);  // task being edited
+
+  // Deep link: open a specific task from global search
+  useEffect(()=>{
+    if(pendingTask){
+      setViewMode("list");
+      setEditModal(pendingTask);
+      setForm({...pendingTask,tags:(pendingTask.tags||[]).join(", ")});
+      onClearPendingTask&&onClearPendingTask();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[pendingTask]);
   const [subtaskModal,setSubtaskModal]=useState(null); // task to add subtask to
   const [newSubtask,setNewSubtask]=useState("");
   const [fp,setFp]=useState("all");
@@ -13119,6 +13139,8 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   // Lifted state: when another page wants to open a project detail, set this
   const [pendingProject,setPendingProject]=useState(null);
   const [pendingQuote,setPendingQuote]=useState(null);
+  const [pendingContact,setPendingContact]=useState(null);
+  const [pendingTask,setPendingTask]=useState(null);
 
   const openProjectDetail=(proj)=>{
     setPendingProject(proj);
@@ -13156,8 +13178,8 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
     switch(page){
       case "dashboard":  return <Dashboard  {...p} contacts={contacts} onNavigate={setPage} onOpenProject={openProjectDetail} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onStartTour={startTour}/>;
       case "projects":   return <Projects   {...p} contacts={contacts} setContacts={p.setContacts} tasks={tasks} setTasks={p.setTasks} inventory={inventory} resources={resources} setResources={p.setResources} quotes={quotes} setQuotes={p.setQuotes} onOpenQuote={(q)=>{setPage("quotes");setPendingQuote(q);}} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingProject={pendingProject} onClearPending={()=>setPendingProject(null)} adminSettings={adminSettings} setAdminSettings={setAdminSettings}/>;
-      case "crm":        return <CRM        {...p} inventory={inventory} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
-      case "tasks":      return <Tasks      {...p} onOpenProject={openProjectDetail} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}}/>;
+      case "crm":        return <CRM        {...p} inventory={inventory} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingContact={pendingContact} onClearPendingContact={()=>setPendingContact(null)}/>;
+      case "tasks":      return <Tasks      {...p} onOpenProject={openProjectDetail} onScheduleEvent={(ev)=>{setPendingEvent(ev);setPage("calendar");}} pendingTask={pendingTask} onClearPendingTask={()=>setPendingTask(null)}/>;
       case "finance":    return null; // group header — collapses to financetracker
       case "library":    return null; // group header
       case "account":    return null; // group header
@@ -13203,7 +13225,9 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
         onNavigate={(page,id,type)=>{
           setPage(page);
           if(page==="quotes"&&id){const q=quotes.find(q=>q.id===id);if(q)setPendingQuote(q);}
-          if(page==="projects"&&id)setPendingProject({id,_openDetail:true});
+          if(page==="projects"&&id){const p=projects.find(p=>p.id===id);if(p)setPendingProject(p);}
+          if(page==="crm"&&id){const c=contacts.find(c=>c.id===id);if(c)setPendingContact(c);}
+          if(page==="tasks"&&id){const t=tasks.find(t=>t.id===id);if(t)setPendingTask(t);}
         }}
         onClose={()=>setShowSearch(false)}
       />}
