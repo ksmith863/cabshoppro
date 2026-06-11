@@ -7531,7 +7531,7 @@ function SimpleImageLightbox({url, caption, onClose}) {
 // ─── Email Composer Modal ────────────────────────────────────────────────────
 // Replaces all mailto: links with a proper in-app email composer
 // that sends via the /.netlify/functions/send-email Netlify function.
-function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, userApiKey, onClose }) {
+function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, supportingDocs, userApiKey, onClose }) {
   const [to_, setTo]     = useState(to||"");
   const [subject, setSub] = useState(initSubject||"");
   const [body, setBody]   = useState(initBody||"");
@@ -7550,7 +7550,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
       const res = await fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, htmlBody, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null, userApiKey: userApiKey||null }),
+        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, htmlBody, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null, supportingDocs: supportingDocs||[], userApiKey: userApiKey||null }),
       });
       const data = await res.json();
       if (data.success) { setSent(true); }
@@ -8798,7 +8798,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><thead><tr style="background:#1a1a12;color:#fff"><th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:110px">PRICE</th></tr></thead><tbody>${lineRows}</tbody></table>
   <div style="display:flex;justify-content:flex-end;margin-bottom:28px"><div style="width:260px"><div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Subtotal</span><span style="font-weight:600">${fmt(subtotal)}</span></div>${q.taxRate?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Sales Tax (${q.taxRate}%)</span><span style="font-weight:600">${fmt(tax)}</span></div>`:""}<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:900"><span>TOTAL</span><span>${fmt(total)}</span></div></div></div>
   ${q.notes?`<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">${q.notes}</div></div>`:""}
-  ${(q.supportingDocs||q.attachedTandC)?((docs=>(docs.filter(d=>d.text).map(d=>`<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:12px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:12px">${d.name.toUpperCase()}</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">${d.text}</div></div>`).join("")+(docs.filter(d=>d.url&&!d.text).length>0?`<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;color:#1a1a12;margin-bottom:8px">SUPPORTING DOCUMENTS</div>${docs.filter(d=>d.url&&!d.text).map(d=>`<div style="margin-bottom:4px"><a href="${d.url}" style="font-size:12px;color:#635bff;">📎 ${d.name}</a></div>`).join("")}</div>`:"")))([(q.attachedTandC?{...q.attachedTandC,type:"resource"}:null),...(q.supportingDocs||[])].filter(Boolean))):""}
+  ${(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return`<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>${allDocs.map(d=>d.url?`<div style="margin-bottom:6px"><a href="${d.url}" style="font-size:12px;color:#635bff;text-decoration:none;">📎 ${d.name} ↗</a></div>`:`<div style="margin-bottom:6px;font-size:12px;color:#555;">📋 ${d.name}</div>`).join("")}</div>`;})()}
   <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${shopName}</div></div><div style="font-size:11px;color:#aaa;font-style:italic">Thank you for the opportunity to serve you.</div></div>
 </div></body></html>`;
   };
@@ -8933,7 +8933,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
   ${q.notes?('<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">'+q.notes+'</div></div>'):""}
 
-  ${(q.supportingDocs||q.attachedTandC)?((docs=>(docs.filter(d=>d.text).map(d=>'<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:12px;font-weight:900;letter-spacing:0.08em;color:#1a1a12;margin-bottom:12px">'+d.name.toUpperCase()+'</div><div style="font-size:10.5px;color:#333;line-height:1.8;white-space:pre-line">'+d.text+'</div></div>').join('')+(docs.filter(d=>d.url&&!d.text).length>0?'<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;color:#1a1a12;margin-bottom:8px">SUPPORTING DOCUMENTS</div>'+docs.filter(d=>d.url&&!d.text).map(d=>'<div style="margin-bottom:4px"><a href="'+d.url+'" style="font-size:12px;color:#635bff;">📎 '+d.name+'</a></div>').join('')+'</div>':'')))([(q.attachedTandC?{...q.attachedTandC,type:'resource'}:null),...(q.supportingDocs||[])].filter(Boolean))):""}
+  ${(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return'<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>'+allDocs.map(d=>d.url?'<div style="margin-bottom:6px"><a href="'+d.url+'" style="font-size:12px;color:#635bff;text-decoration:none;">📎 '+d.name+' ↗</a></div>':'<div style="margin-bottom:6px;font-size:12px;color:#555;">📋 '+d.name+'</div>').join('')+'</div>';})()}
 
   <!-- Footer -->
   <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center">
@@ -8986,6 +8986,7 @@ ${shopName}`;
       userApiKey: adminSettings?.sendgridApiKey||null,
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
+      supportingDocs: q.supportingDocs||[],
     });
   };
 
@@ -9237,6 +9238,7 @@ ${shopName}`;
       toName: contact?.name||"",
       attachmentHtml: invoiceHtml(q),
       attachmentName: `Invoice-${q.number}.html`,
+      supportingDocs: q.supportingDocs||[],
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
       fromName: adminSettings?.sendgridFromName||shopName,

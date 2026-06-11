@@ -1,7 +1,6 @@
 // netlify/functions/send-email/send-email.js
 // Uses fetch to call SendGrid API directly — no node_modules needed
-// Supports per-user API keys (Option A multi-tenant)
-// Sends full HTML quote/invoice as email body when available
+// All supporting docs (T&C, uploads) have URLs — shown as links in HTML body
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -11,7 +10,8 @@ exports.handler = async (event) => {
   try {
     const {
       toEmail, toName, subject, body, htmlBody,
-      fromName, fromEmail, attachmentHtml, attachmentName, userApiKey
+      fromName, fromEmail, attachmentHtml, attachmentName,
+      supportingDocs, userApiKey
     } = JSON.parse(event.body || "{}");
 
     if (!toEmail || !subject || !body) {
@@ -26,11 +26,9 @@ exports.handler = async (event) => {
     const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
     const senderName  = fromName  || process.env.SENDGRID_FROM_NAME  || "CabShop Pro";
 
-    // Attachment instructions appended to the HTML document
     const attachmentInstructions = attachmentHtml ? `
       <div style="margin-top:40px;padding:16px 20px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:8px;font-family:Arial,sans-serif;font-size:12px;color:#666;line-height:1.7;">
         <strong style="color:#333;">📎 About the attached document</strong><br/>
-        This email includes an attached HTML file of your ${attachmentName?.includes("Invoice") ? "invoice" : "quote"}.
         To save or print a PDF copy:<br/>
         1. Click the attachment to open it in your browser<br/>
         2. Press <strong>Ctrl+P</strong> (Windows) or <strong>⌘+P</strong> (Mac)<br/>
@@ -38,7 +36,6 @@ exports.handler = async (event) => {
         4. Click Save
       </div>` : "";
 
-    // Build HTML body — use full quote/invoice HTML if provided, with instructions appended
     const emailHtml = htmlBody
       ? htmlBody.replace("</body>", attachmentInstructions + "</body>")
       : `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
@@ -58,7 +55,7 @@ exports.handler = async (event) => {
       ]
     };
 
-    // Also attach the HTML document so clients can download/print it
+    // Main quote/invoice HTML attachment
     if (attachmentHtml) {
       const base64 = Buffer.from(attachmentHtml, "utf-8").toString("base64");
       payload.attachments = [{
@@ -68,6 +65,9 @@ exports.handler = async (event) => {
         disposition: "attachment"
       }];
     }
+
+    // All supporting docs now have URLs — they appear as links inside the HTML body
+    // No separate attachments needed
 
     const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
