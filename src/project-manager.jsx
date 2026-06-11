@@ -1851,6 +1851,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
           ["quotes",`Quotes (${(quotes||[]).filter(q=>String(q.projectId)===String(p.id)).length})`],
           ["notes",`Notes${projNotes.length>0?` (${projNotes.length})`:""}`],
           ["changeorders",`Changes${(p.changeOrders||[]).length>0?` (${(p.changeOrders||[]).length})`:""}`],
+          ["photos",`📷 Photos${(p.photos||[]).length>0?` (${(p.photos||[]).length})`:""}`],
           ["review","📊 Review"],
         ].map(([v,l])=>(
           <button key={v} onClick={()=>setActiveTab(v)} style={{padding:"7px 13px",borderRadius:8,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:activeTab===v?p.color:"transparent",color:activeTab===v?"#000":"var(--muted)",border:"none",cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>{l}</button>
@@ -3039,6 +3040,82 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
       {/* ══ REVIEW TAB ══ */}
       {activeTab==="changeorders"&&(
         <ChangeOrders project={p} setProjects={setProjects} contacts={contacts} />
+      )}
+
+      {/* ══ PHOTOS TAB ══ */}
+      {activeTab==="photos"&&(
+        <div>
+          {(p.photos||[]).length===0?(
+            <div style={{textAlign:"center",padding:"48px 20px",color:"var(--muted)",fontSize:14,background:"var(--surface2)",borderRadius:14,border:"1px dashed var(--border)"}}>
+              <div style={{fontSize:32,marginBottom:8}}>📷</div>
+              <div>No photos yet. Use the camera button to capture site photos.</div>
+            </div>
+          ):(
+            <div>
+              {/* Group by stage */}
+              {(()=>{
+                const allPhotos=p.photos||[];
+                const byStage={};
+                allPhotos.forEach(ph=>{
+                  const key=ph.stageId||"general";
+                  if(!byStage[key])byStage[key]=[];
+                  byStage[key].push(ph);
+                });
+                return Object.entries(byStage).map(([stageId,photos])=>{
+                  const stageLabel=stageId==="gallery"||stageId==="general"?"📷 Field Captures":
+                    (PROJECT_STAGES.find(s=>s.id===stageId)?.label||stageId);
+                  return(
+                    <div key={stageId} style={{marginBottom:20}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:8}}>{stageLabel.toUpperCase()} ({photos.length})</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8}}>
+                        {photos.map(ph=>(
+                          <div key={ph.id} style={{position:"relative",aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid var(--border)",cursor:"pointer"}}
+                            onClick={()=>setPhotoLightbox&&setPhotoLightbox({url:ph.url,caption:ph.caption})}>
+                            <img src={ph.url} alt={ph.caption||""} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                            <button onClick={e=>{e.stopPropagation();setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:(proj.photos||[]).filter(x=>x.id!==ph.id)}:proj));}}
+                              style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",borderRadius:"50%",width:20,height:20,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                            {ph.caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.5)",color:"#fff",fontSize:9,padding:"3px 5px",lineHeight:1.3}}>{ph.caption}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+          {/* Upload from file on desktop */}
+          <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap"}}>
+            <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
+              📁 Upload Photo
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={async e=>{
+                const file=e.target.files?.[0];if(!file)return;
+                if(rejectHeic(file,e))return;
+                e.target.value="";
+                const {url,storagePath}=await uploadImageToStorage(file,"projects");
+                const photoEntry={id:Date.now(),url,storagePath,
+                  caption:`Uploaded — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
+                  stageId:"gallery",date:new Date().toISOString().slice(0,10)};
+                setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:[...(proj.photos||[]),photoEntry]}:proj));
+              }} style={{display:"none"}} />
+            </label>
+            {(bp==="phone"||bp==="tablet")&&(
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📷 Take Photo
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={async e=>{
+                  const file=e.target.files?.[0];if(!file)return;
+                  if(rejectHeic(file,e))return;
+                  e.target.value="";
+                  const {url,storagePath}=await uploadImageToStorage(file,"projects");
+                  const photoEntry={id:Date.now(),url,storagePath,
+                    caption:`Site photo — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
+                    stageId:"gallery",date:new Date().toISOString().slice(0,10)};
+                  setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:[...(proj.photos||[]),photoEntry]}:proj));
+                }} style={{display:"none"}} />
+              </label>
+            )}
+          </div>
+        </div>
       )}
 
       {activeTab==="review"&&(()=>{
