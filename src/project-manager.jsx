@@ -924,7 +924,7 @@ function TabletSidebar({active,setActive,collapsed,setCollapsed}) {
 }
 
 // Desktop: full sidebar
-function DesktopSidebar({active,setActive,adminEmail,plan,badges={},theme,toggleTheme,notificationBell}) {
+function DesktopSidebar({active,setActive,adminEmail,plan,badges={},theme,toggleTheme,notificationBell,onSearch}) {
   const initGroups=()=>{
     const g={};
     NAV.forEach(n=>{if(n.children?.some(c=>c.id===active))g[n.id]=true;});
@@ -948,7 +948,7 @@ function DesktopSidebar({active,setActive,adminEmail,plan,badges={},theme,toggle
       </div>
       {/* Search button in nav */}
       <div style={{padding:"0 12px",marginBottom:4,marginTop:4}}>
-        <button onClick={()=>document.dispatchEvent(new CustomEvent("cabshop-search"))}
+        <button onClick={()=>onSearch&&onSearch()}
           style={{width:"100%",padding:"8px 12px",borderRadius:9,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:8,transition:"all 0.15s"}}
           onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.color="var(--text)";}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";}}>
@@ -13211,6 +13211,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
         {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} adminEmail={currentUserEmail} plan={plan}
           badges={{quotes: quotes.filter(q=>q.status==="approved"&&!q.seenApproval).length}}
           theme={theme} toggleTheme={toggleTheme}
+          onSearch={()=>setShowSearch(true)}
           notificationBell={<NotificationBell notifications={notifications} onNavigate={setPage} />} />}
         {bp==="tablet"  && <TabletSidebar  active={page} setActive={setPage} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
         <main style={{flex:1,padding:mainPad,paddingBottom:mainPB,overflowY:"auto",WebkitOverflowScrolling:"touch",minHeight:0}}>
@@ -14031,10 +14032,8 @@ export function Root() {
       if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();setShowSearch(s=>!s);}
       if(e.key==="Escape")setShowSearch(false);
     };
-    const searchEvt=()=>setShowSearch(true);
     window.addEventListener("keydown",handler);
-    document.addEventListener("cabshop-search",searchEvt);
-    return()=>{window.removeEventListener("keydown",handler);document.removeEventListener("cabshop-search",searchEvt);};
+    return()=>window.removeEventListener("keydown",handler);
   },[]);
 
   useEffect(() => {
