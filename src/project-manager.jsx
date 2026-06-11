@@ -10162,7 +10162,7 @@ function LibActionsMenu({libSubView,setLibSubView,exportItemsCSV,csvImportRef,im
 }
 
 function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,bp}) {
-  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};"",imageUrl:""};
+  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};
   const [libModal,setLibModal]=useState(false);
   const [libForm,setLibForm]=useState(blankLibForm);
   const [libSel,setLibSel]=useState(null);
