@@ -10728,8 +10728,7 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
               lines.push("END:VEVENT");
             });
             lines.push("END:VCALENDAR");
-            const blob=new Blob([lines.join("
-")],{type:"text/calendar"});
+            const blob=new Blob([lines.join("\r\n")],{type:"text/calendar"});
             const url=URL.createObjectURL(blob);
             const a=document.createElement("a");a.href=url;a.download="cabshoppro-calendar.ics";a.click();URL.revokeObjectURL(url);
           }} style={{padding:"5px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
