@@ -10797,13 +10797,14 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
           </div>
           <Input label="Notes" value={form.desc||""} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} type="textarea" voice />
 
-          {/* Export to external calendars — shown when event has title and date */}
-          {form.title&&form.date&&(
+          {/* Export to external calendars */}
+          {(
             <div style={{background:"var(--surface2)",borderRadius:10,padding:"12px 14px",marginBottom:4,border:"1px solid var(--border)"}}>
               <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>EXPORT TO CALENDAR</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 {/* Google Calendar */}
-                <button onClick={()=>{
+                <button disabled={!form.title||!form.date} onClick={()=>{
+                  if(!form.title||!form.date)return;
                   const fmt=(s)=>s.replace(/-/g,"").replace(/:/g,"");
                   const start=form.allDay?fmt(form.date).slice(0,8):(fmt(form.date)+"T"+fmt(form.startTime||"09:00")+"00");
                   const end=form.allDay?fmt(form.date).slice(0,8):(fmt(form.date)+"T"+fmt(form.endTime||form.startTime||"10:00")+"00");
@@ -10883,7 +10884,7 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
                 </button>
               </div>
               <div style={{fontSize:10,color:"var(--muted)",marginTop:8,lineHeight:1.5}}>
-                Google Calendar opens in a new tab. Apple Calendar and Outlook download an .ics file — open it to add the event.
+                {(!form.title||!form.date)?"Add a title and date first to export.":"Google Calendar opens in a new tab. Apple Calendar and Outlook download an .ics file — open it to add the event."}
               </div>
             </div>
           )}
