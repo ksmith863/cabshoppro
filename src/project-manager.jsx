@@ -946,6 +946,17 @@ function DesktopSidebar({active,setActive,adminEmail,plan,badges={},theme,toggle
         </div>
         <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginTop:2}}>Your Shop. Managed.</div>
       </div>
+      {/* Search button in nav */}
+      <div style={{padding:"0 12px",marginBottom:4,marginTop:4}}>
+        <button onClick={()=>document.dispatchEvent(new CustomEvent("cabshop-search"))}
+          style={{width:"100%",padding:"8px 12px",borderRadius:9,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:8,transition:"all 0.15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.color="var(--text)";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";}}>
+          <span style={{fontSize:14}}>🔍</span>
+          <span style={{flex:1,textAlign:"left"}}>Search…</span>
+          <kbd style={{padding:"1px 5px",borderRadius:4,background:"var(--surface)",border:"1px solid var(--border)",fontSize:10}}>⌘K</kbd>
+        </button>
+      </div>
       <NavItems active={active} setActive={setActive} collapsed={false} openGroups={openGroups} setOpenGroups={setOpenGroups} adminEmail={adminEmail} badges={badges} />
       <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
         {/* Theme toggle */}
@@ -10244,7 +10255,7 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
       {/* ── LIST VIEW ── */}
       {libSubView==="list"&&(<>
         <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
-          <SearchBar value={libSearch} onChange={e=>setLibSearch(e.target.value)} placeholder="Search items…" />
+          <div style={{maxWidth:280}}><SearchBar value={libSearch} onChange={e=>setLibSearch(e.target.value)} placeholder="Search items…" /></div>
           <span style={{fontSize:12,color:"var(--muted)",fontFamily:"var(--mono)"}}>{quoteItems.length} items</span>
         </div>
         <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
@@ -13149,13 +13160,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
         {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} adminEmail={currentUserEmail} plan={plan}
           badges={{quotes: quotes.filter(q=>q.status==="approved"&&!q.seenApproval).length}}
           theme={theme} toggleTheme={toggleTheme}
-          notificationBell={<div style={{display:"flex",alignItems:"center",gap:4}}>
-            <button onClick={()=>setShowSearch(true)} title="Search (Ctrl+K)"
-              style={{background:"none",border:"none",cursor:"pointer",padding:"5px 7px",borderRadius:7,color:"var(--muted)",fontSize:15,display:"flex",alignItems:"center"}}>
-              🔍
-            </button>
-            <NotificationBell notifications={notifications} onNavigate={setPage} />
-          </div>} />}
+          notificationBell={<NotificationBell notifications={notifications} onNavigate={setPage} />} />}
         {bp==="tablet"  && <TabletSidebar  active={page} setActive={setPage} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
         <main style={{flex:1,padding:mainPad,paddingBottom:mainPB,overflowY:"auto",WebkitOverflowScrolling:"touch",minHeight:0}}>
           {renderPage()}
@@ -13973,8 +13978,10 @@ export function Root() {
       if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();setShowSearch(s=>!s);}
       if(e.key==="Escape")setShowSearch(false);
     };
+    const searchEvt=()=>setShowSearch(true);
     window.addEventListener("keydown",handler);
-    return()=>window.removeEventListener("keydown",handler);
+    document.addEventListener("cabshop-search",searchEvt);
+    return()=>{window.removeEventListener("keydown",handler);document.removeEventListener("cabshop-search",searchEvt);};
   },[]);
 
   useEffect(() => {
