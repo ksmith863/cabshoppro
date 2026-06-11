@@ -7502,10 +7502,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
               <textarea value={body} onChange={e=>setBody(e.target.value)} rows={10}
                 style={{...inp,resize:"vertical",lineHeight:1.5}} />
             </div>
-            {attachmentHtml&&<div style={{fontSize:11,color:"var(--accent2)",marginBottom:10,padding:"9px 12px",background:"var(--accent2)11",borderRadius:7,lineHeight:1.5}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>📎 <strong>{attachmentName||"attachment.html"}</strong> will be attached</div>
-              <div style={{color:"var(--muted)",fontSize:10}}>Recipient: click the attachment to open in browser → File → Print → Save as PDF to keep a copy.</div>
-            </div>}
+            {attachmentHtml&&<div style={{fontSize:11,color:"var(--accent2)",marginBottom:10,padding:"7px 10px",background:"var(--accent2)11",borderRadius:7,display:"flex",alignItems:"center",gap:6}}>📎 {attachmentName||"attachment.html"} will be attached</div>}
             {error&&<div style={{color:"var(--accent3)",fontSize:12,marginBottom:10,padding:"8px 10px",background:"var(--accent3)11",borderRadius:7}}>{error}</div>}
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button onClick={onClose} style={{padding:"9px 18px",borderRadius:9,background:"none",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,cursor:"pointer"}}>Cancel</button>
@@ -10712,12 +10709,40 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
         {EVENT_TYPES.map(t=><div key={t.id} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)"}}><div style={{width:8,height:8,borderRadius:2,background:t.color}}/>{t.label}</div>)}
         <div style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)"}}><div style={{width:8,height:8,borderRadius:2,border:"1px dashed #7b6fff",background:"transparent"}}/> Task due</div>
         {/* Toggle */}
-        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>Show tasks</span>
-          <button onClick={()=>setShowTasks(v=>!v)}
-            style={{width:38,height:22,borderRadius:11,background:showTasks?"var(--accent)":"var(--surface3)",border:"none",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <div style={{position:"absolute",top:2,left:showTasks?18:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}} />
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:12}}>
+          <button onClick={()=>{
+            const pad2=(n)=>String(n).padStart(2,"0");
+            const fmtDT=(dateStr,timeStr,allDay)=>{
+              if(allDay)return dateStr.replace(/-/g,"");
+              const [y,mo,d]=dateStr.split("-");const [h,mi]=(timeStr||"09:00").split(":");
+              return `${y}${mo}${d}T${pad2(h)}${pad2(mi)}00`;
+            };
+            const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//CabShop Pro//EN"];
+            events.forEach(ev=>{
+              lines.push("BEGIN:VEVENT");
+              lines.push(`UID:${ev.id}@cabshoppro`);
+              lines.push(`DTSTART${ev.allDay?";VALUE=DATE":""}:${fmtDT(ev.date,ev.startTime,ev.allDay)}`);
+              lines.push(`DTEND${ev.allDay?";VALUE=DATE":""}:${fmtDT(ev.date,ev.endTime||ev.startTime,ev.allDay)}`);
+              lines.push(`SUMMARY:${ev.title||""}`);
+              if(ev.desc)lines.push(`DESCRIPTION:${ev.desc.replace(/
+/g,"\n")}`);
+              lines.push("END:VEVENT");
+            });
+            lines.push("END:VCALENDAR");
+            const blob=new Blob([lines.join("
+")],{type:"text/calendar"});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement("a");a.href=url;a.download="cabshoppro-calendar.ics";a.click();URL.revokeObjectURL(url);
+          }} style={{padding:"5px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
+            ⬇ Export .ics
           </button>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>Show tasks</span>
+            <button onClick={()=>setShowTasks(v=>!v)}
+              style={{width:38,height:22,borderRadius:11,background:showTasks?"var(--accent)":"var(--surface3)",border:"none",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+              <div style={{position:"absolute",top:2,left:showTasks?18:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -10774,10 +10799,10 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
           </div>
           <Input label="Notes" value={form.desc||""} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} type="textarea" voice />
 
-          {/* Export to external calendars — only shown when editing an existing event */}
-          {sel&&(
+          {/* Export to external calendars — shown when event has title and date */}
+          {form.title&&form.date&&(
             <div style={{background:"var(--surface2)",borderRadius:10,padding:"12px 14px",marginBottom:4,border:"1px solid var(--border)"}}>
-              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>ADD TO EXTERNAL CALENDAR</div>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>EXPORT TO CALENDAR</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 {/* Google Calendar */}
                 <button onClick={()=>{
