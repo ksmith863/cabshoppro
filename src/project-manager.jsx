@@ -8672,8 +8672,10 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       const data=await res.json();
       if(data.url){
         setPaymentLink(data.url);
-        // Save link on the invoice
-        setSel(s=>({...s,paymentLink:data.url}));
+        // Save link on the invoice immediately in both sel and quotes
+        const updated={...q,paymentLink:data.url};
+        setSel(updated);
+        setQuotes(prev=>prev.map(x=>x.id===q.id?updated:x));
       }else{
         alert("Could not generate payment link: "+(data.error||"Unknown error"));
       }
@@ -8829,6 +8831,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PAYMENT DETAILS</div><div style="font-weight:700;font-size:15px">${q.title}</div>${project?`<div style="color:#555;font-size:13px;margin-top:2px">${project.name}</div>`:""}<div style="font-size:12px;color:#555;margin-top:6px">Terms: ${q.paymentTerms||"Net 30"}</div>${q.paidDate?`<div style="font-size:12px;color:#1a7a40;margin-top:4px;font-weight:700">Paid: ${q.paidDate}</div>`:""}</div>
   </div>
   ${!isPaid?`<div style="background:${isOverdue?"#fde8e8":"#f5f4f0"};border:2px solid ${isOverdue?"#c0392b":"#1a1a12"};border-radius:10px;padding:14px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:700;color:${isOverdue?"#c0392b":"#1a1a12"}">${isOverdue?"OVERDUE — PAYMENT REQUIRED":"AMOUNT DUE"}</span><span style="font-size:22px;font-weight:900;color:${isOverdue?"#c0392b":"#1a1a12"}">${fmt(total)}</span></div>`:""}
+  ${q.paymentLink?`<div style="text-align:center;margin-bottom:24px"><a href="${q.paymentLink}" style="display:inline-block;padding:14px 32px;background:#635bff;color:#fff;text-decoration:none;border-radius:10px;font-family:Arial,sans-serif;font-size:15px;font-weight:700;letter-spacing:0.02em">💳 Pay Online Now</a><div style="margin-top:8px;font-size:11px;color:#aaa;font-family:Arial,sans-serif">Secure payment powered by Stripe</div></div>`:""}
   <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><thead><tr style="background:#1a1a12;color:#fff"><th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:90px">UNIT PRICE</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:100px">AMOUNT</th></tr></thead><tbody>${lineRows}</tbody></table>
   <div style="display:flex;justify-content:flex-end;margin-bottom:28px"><div style="width:260px"><div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Subtotal</span><span style="font-weight:600">${fmt(subtotal)}</span></div>${q.taxRate?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Sales Tax (${q.taxRate}%)</span><span style="font-weight:600">${fmt(tax)}</span></div>`:""}<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:900"><span>${isPaid?"TOTAL PAID":"AMOUNT DUE"}</span><span>${fmt(total)}</span></div></div></div>
   ${q.notes?`<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES</div><div style="font-size:13px;color:#444;line-height:1.7">${q.notes}</div></div>`:""}
@@ -9211,7 +9214,7 @@ ${shopName}`;
     const isOverdue=q.dueDate&&new Date(q.dueDate)<new Date()&&q.status!=="paid";
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
     const shopEmail=adminSettings?.companyEmail||"";
-    const payLink=q.paymentLink||null;
+    const payLink=q.paymentLink||paymentLink||null;
     const bodyText=
 `Dear ${contact?contact.name:""},
 
@@ -9883,7 +9886,7 @@ ${shopName}`;
         <div style={{display:"flex",gap:10}}>
           {isInv
             ?<>
-              <Btn variant="secondary" onClick={()=>emailInvoice(sel)}>✉ Send Invoice</Btn>
+              <Btn variant="secondary" onClick={()=>emailInvoice({...sel,paymentLink:sel.paymentLink||paymentLink||null})}>✉ Send Invoice</Btn>
               <Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ Save as PDF</Btn>
               {sel.status!=="paid"&&(
                 <Btn variant="secondary" onClick={()=>generatePaymentLink(sel)}
