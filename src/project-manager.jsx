@@ -8643,7 +8643,45 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     setView("edit");
     try{localStorage.setItem("csp_quotes_view","edit");localStorage.setItem("csp_quotes_sel",String(q.id));}catch{}
   };
-  const clearEditState=()=>{setView("list");setSel(null);try{localStorage.setItem("csp_quotes_view","list");localStorage.removeItem("csp_quotes_sel");}catch{}};
+  const clearEditState=()=>{setView("list");setSel(null);setPaymentLink(null);try{localStorage.setItem("csp_quotes_view","list");localStorage.removeItem("csp_quotes_sel");}catch{}};
+
+  // ── Stripe payment link ──
+  const [paymentLinkLoading,setPaymentLinkLoading]=useState(false);
+  const [paymentLink,setPaymentLink]=useState(null);
+
+  const generatePaymentLink=async(q)=>{
+    const total=quoteTotal(q);
+    if(!total||total<=0){alert("Invoice total must be greater than $0.");return;}
+    setPaymentLinkLoading(true);
+    setPaymentLink(null);
+    try{
+      const contact=contacts.find(c=>c.id===q.contactId);
+      const res=await fetch("/.netlify/functions/create-payment-link",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          amount:total,
+          currency:"usd",
+          description:`Invoice ${q.number} — ${q.title||""}`,
+          invoiceNumber:q.number,
+          customerEmail:contact?.email||"",
+          customerName:contact?.name||"",
+          successUrl:window.location.origin,
+        }),
+      });
+      const data=await res.json();
+      if(data.url){
+        setPaymentLink(data.url);
+        // Save link on the invoice
+        setSel(s=>({...s,paymentLink:data.url}));
+      }else{
+        alert("Could not generate payment link: "+(data.error||"Unknown error"));
+      }
+    }catch(e){
+      alert("Connection error: "+e.message);
+    }
+    setPaymentLinkLoading(false);
+  };
   const saveQuote=()=>{
     if(!sel)return;
     setQuotes(prev=>{const ex=prev.find(q=>q.id===sel.id);return ex?prev.map(q=>q.id===sel.id?sel:q):[...prev,sel];});
@@ -9173,10 +9211,11 @@ ${shopName}`;
     const isOverdue=q.dueDate&&new Date(q.dueDate)<new Date()&&q.status!=="paid";
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
     const shopEmail=adminSettings?.companyEmail||"";
+    const payLink=q.paymentLink||null;
     const bodyText=
 `Dear ${contact?contact.name:""},
 
-${isOverdue?"This invoice is now past due. Please arrange payment at your earliest convenience.\n\n":""}Please find your invoice from ${shopName} attached to this email.
+${isOverdue?"This invoice is now past due. Please arrange payment at your earliest convenience.\n\n":""}Please find your invoice from ${shopName} attached to this email.${payLink?"\n\n💳 PAY ONLINE: "+payLink:""}
 
 Invoice: ${q.number}
 Project: ${q.title}
@@ -9843,7 +9882,23 @@ ${shopName}`;
         </div>
         <div style={{display:"flex",gap:10}}>
           {isInv
-            ?<><Btn variant="secondary" onClick={()=>emailInvoice(sel)}>✉ Send Invoice</Btn><Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ Save as PDF</Btn></>
+            ?<>
+              <Btn variant="secondary" onClick={()=>emailInvoice(sel)}>✉ Send Invoice</Btn>
+              <Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ Save as PDF</Btn>
+              {sel.status!=="paid"&&(
+                <Btn variant="secondary" onClick={()=>generatePaymentLink(sel)}
+                  style={{background:"#635bff22",borderColor:"#635bff44",color:"#635bff"}}>
+                  {paymentLinkLoading?"Generating…":"💳 Payment Link"}
+                </Btn>
+              )}
+              {paymentLink&&(
+                <div style={{display:"flex",gap:6,alignItems:"center",padding:"8px 12px",background:"#635bff11",border:"1px solid #635bff33",borderRadius:9,fontSize:12}}>
+                  <span style={{color:"#635bff",fontWeight:700}}>Link ready:</span>
+                  <a href={paymentLink} target="_blank" rel="noreferrer" style={{color:"#635bff",fontFamily:"var(--mono)",fontSize:11,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{paymentLink}</a>
+                  <button onClick={()=>{navigator.clipboard.writeText(paymentLink);}} style={{background:"none",border:"1px solid #635bff44",borderRadius:5,color:"#635bff",fontSize:11,cursor:"pointer",padding:"2px 7px",fontFamily:"var(--font)",fontWeight:600}}>Copy</button>
+                </div>
+              )}
+            </>
             :<>
               <Btn variant="secondary" onClick={()=>emailQuote(sel)}>✉ Send via Email</Btn>
               <Btn variant="secondary" onClick={()=>printQuote(sel)}>⎙ Save as PDF</Btn>
