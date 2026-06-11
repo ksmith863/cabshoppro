@@ -4181,7 +4181,10 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
                         const col=COLORS[clientContacts.findIndex(x=>x.id===c.id)%COLORS.length];
                         return(
                           <button key={c.id} onMouseDown={()=>{
-                            setForm(f=>({...f,clientContactId:String(c.id)}));
+                            setForm(f=>{
+                              const addr=c.address||c.shippingAddress||"";
+                              return {...f,clientContactId:String(c.id),address:f.address||addr};
+                            });
                             setClientSearch(c.name+(c.company&&c.company!==c.name?` — ${c.company}`:""));
                             setClientOpen(false);
                           }} style={{display:"flex",gap:10,alignItems:"center",width:"100%",padding:"9px 12px",background:"transparent",border:"none",borderBottom:i<matches.length-1?"1px solid var(--border)22":"none",cursor:"pointer",textAlign:"left",fontFamily:"var(--font)",transition:"background 0.1s"}}
@@ -4303,7 +4306,33 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
             <Input label="Start Date" value={form.startDate} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} type="date" />
             <Input label="End Date"   value={form.endDate}   onChange={e=>setForm(f=>({...f,endDate:e.target.value}))}   type="date" />
           </div>
-          <Input label="Project Address" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} placeholder="123 Main St, City, State ZIP" voice />
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em",display:"flex",alignItems:"center",gap:8}}>
+              JOB SITE ADDRESS
+              {(()=>{
+                const client=contacts.find(c=>c.id===+form.clientContactId);
+                const clientAddr=client?.address||client?.shippingAddress||"";
+                if(!clientAddr||form.address===clientAddr)return null;
+                return(
+                  <button onClick={()=>setForm(f=>({...f,address:clientAddr}))}
+                    style={{background:"none",border:"none",color:"var(--accent2)",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",padding:"1px 6px",borderRadius:5,background:"var(--accent2)11",border:"1px solid var(--accent2)33"}}>
+                    Use {client.name}&apos;s address
+                  </button>
+                );
+              })()}
+            </div>
+            <input value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))}
+              placeholder="123 Main St, City, State ZIP"
+              style={{width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:14,outline:"none",fontFamily:"var(--font)",boxSizing:"border-box"}} />
+            {form.address&&form.address.length>5&&(
+              <div style={{marginTop:8,borderRadius:9,overflow:"hidden",border:"1px solid var(--border)",height:130}}>
+                <iframe title="Job site preview" width="100%" height="130" style={{border:"none",display:"block"}} loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(form.address)}&output=embed&z=15`}
+                />
+              </div>
+            )}
+          </div>
           <Input label="Description" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} type="textarea" voice />
           <div style={{marginBottom:16}}>
             <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>COLOR</div>
