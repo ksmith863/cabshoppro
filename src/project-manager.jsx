@@ -1676,15 +1676,27 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
         <div>
           <div style={{fontWeight:800,fontSize:20,marginBottom:6}}>{p.name}</div>
           {p.address&&(
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-              <span style={{fontSize:13,color:"var(--muted)"}}>📍</span>
-              <span style={{fontSize:13,color:"var(--muted)"}}>{p.address}</span>
-              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`}
-                target="_blank" rel="noreferrer"
-                style={{fontSize:11,color:"var(--accent)",textDecoration:"none",fontFamily:"var(--mono)",padding:"1px 6px",borderRadius:5,background:"var(--accent)18",border:"1px solid var(--accent)33"}}
-                onClick={e=>e.stopPropagation()}>
-                Map ↗
-              </a>
+            <div style={{marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                <span style={{fontSize:13,color:"var(--muted)"}}>📍</span>
+                <span style={{fontSize:13,color:"var(--muted)"}}>{p.address}</span>
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{fontSize:11,color:"var(--accent)",textDecoration:"none",fontFamily:"var(--mono)",padding:"1px 6px",borderRadius:5,background:"var(--accent)18",border:"1px solid var(--accent)33"}}
+                  onClick={e=>e.stopPropagation()}>
+                  Open in Maps ↗
+                </a>
+              </div>
+              <div style={{borderRadius:10,overflow:"hidden",border:"1px solid var(--border)",height:160}}>
+                <iframe
+                  title="Job site map"
+                  width="100%" height="160"
+                  style={{border:"none",display:"block"}}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(p.address)}&output=embed&z=15`}
+                />
+              </div>
             </div>
           )}
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
@@ -4706,6 +4718,26 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp}) {
                   <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:2}}>BILLING</div>
                   <div style={{fontSize:13,whiteSpace:"pre-line"}}>{c.billingAddress}</div>
                 </div>}
+              </div>
+            )}
+
+            {/* Map embed for primary address */}
+            {(c.address||c.shippingAddress)&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:6,display:"flex",alignItems:"center",gap:8}}>
+                  JOB SITE / LOCATION
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address||c.shippingAddress)}`}
+                    target="_blank" rel="noreferrer"
+                    style={{fontSize:10,color:"var(--accent)",textDecoration:"none",padding:"1px 6px",borderRadius:5,background:"var(--accent)18",border:"1px solid var(--accent)33",fontFamily:"var(--mono)"}}>
+                    Open in Maps ↗
+                  </a>
+                </div>
+                <div style={{borderRadius:9,overflow:"hidden",border:"1px solid var(--border)",height:140}}>
+                  <iframe title="Contact location" width="100%" height="140" style={{border:"none",display:"block"}} loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(c.address||c.shippingAddress)}&output=embed&z=15`}
+                  />
+                </div>
               </div>
             )}
 
@@ -10010,40 +10042,64 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
     document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
+  // Parse a CSV line respecting quoted fields
+  const parseCSVLine=(line)=>{
+    const vals=[];let inQ=false,cur="";
+    for(const ch of line){
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===","&&!inQ){vals.push(cur.replace(/^"|"$/g,"").trim());cur="";}
+      else{cur+=ch;}
+    }
+    vals.push(cur.replace(/^"|"$/g,"").trim());
+    return vals;
+  };
+
+  // Map common supplier column names to our internal fields
+  const mapSupplierHeader=(h)=>{
+    const s=h.toLowerCase().replace(/[^a-z0-9]/g," ").trim();
+    if(["name","item","item name","description","product","product name","part name","material"].includes(s))return "name";
+    if(["sku","part","part no","part number","item no","item number","part#","item#","code","product code","model","model number","mfg part"].includes(s))return "sku";
+    if(["price","cost","unit cost","unit price","list price","your price","net price","base price","sell price","selling price","msrp","rate"].includes(s))return "basePrice";
+    if(["unit","uom","u/m","each","measure","unit of measure","pack","per"].includes(s))return "unit";
+    if(["category","cat","type","group","product type","product group","class","dept","department"].includes(s))return "category";
+    if(["desc","description","notes","detail","details","product description","long description"].includes(s))return "desc";
+    if(["markup","markup%","markup pct","markup percent"].includes(s))return "defaultMarkupPct";
+    if(["margin","margin%","margin pct","margin percent"].includes(s))return "defaultMarginPct";
+    return null;
+  };
+
   const importItemsCSV=(e)=>{
     const file=e.target.files?.[0];if(!file)return;
     const reader=new FileReader();
     reader.onload=(ev)=>{
-      const lines=ev.target.result.split(/\r?\n/).filter(Boolean);
+      const lines=ev.target.result.split(/
+?
+/).filter(l=>l.trim());
       if(!lines.length)return;
-      const headers=lines[0].split(",").map(h=>h.replace(/^"|"$/g,"").trim().toLowerCase());
+      const rawHeaders=parseCSVLine(lines[0]);
+      const isNative=rawHeaders.some(h=>CSV_COLS.includes(h.toLowerCase().trim()));
+      const headers=rawHeaders.map(h=>isNative?(CSV_COLS.find(c=>c.toLowerCase()===h.toLowerCase().trim())||h.toLowerCase().trim()):mapSupplierHeader(h));
+      const nameIdx=headers.indexOf("name");
+      if(nameIdx===-1){alert("Could not find a name/item/description column. Please check the CSV.");return;}
       const imported=[];
       for(let i=1;i<lines.length;i++){
-        const vals=[];
-        let inQ=false,cur="";
-        for(const ch of lines[i]){
-          if(ch==='"'){inQ=!inQ;}
-          else if(ch===","&&!inQ){vals.push(cur.replace(/^"|"$/g,""));cur="";}
-          else{cur+=ch;}
-        }
-        vals.push(cur.replace(/^"|"$/g,""));
-        if(!vals[0]?.trim())continue;
-        const item={id:`qi${Date.now()}${Math.random().toString(36).slice(2,5)}`};
-        headers.forEach((h,idx)=>{
-          const col=CSV_COLS.find(c=>c.toLowerCase()===h)||h;
-          item[col]=vals[idx]??""  ;
-        });
-        item.basePrice=+item.basePrice||0;
+        const vals=parseCSVLine(lines[i]);
+        const nameVal=vals[nameIdx]?.trim();
+        if(!nameVal)continue;
+        const item={id:`qi${Date.now()}${i}${Math.random().toString(36).slice(2,5)}`};
+        headers.forEach((col,idx)=>{if(col)item[col]=vals[idx]??""});
+        item.basePrice=parseFloat(String(item.basePrice||"0").replace(/[$,]/g,""))||0;
         item.defaultMarkupPct=+item.defaultMarkupPct||0;
         item.defaultMarginPct=+item.defaultMarginPct||0;
-        if(!item.category)item.category="Custom";
+        if(!item.category)item.category="Supplier";
         if(!item.unit)item.unit="ea";
+        if(!item.name&&item.sku)item.name=item.sku;
         imported.push(item);
       }
       if(imported.length){
         setQuoteItems(prev=>[...prev,...imported]);
-        alert(`Imported ${imported.length} item${imported.length!==1?"s":""}  successfully.`);
-      }else{alert("No valid items found in CSV. Check format and try again.");}
+        alert(`Imported ${imported.length} item${imported.length!==1?"s":""} successfully.${!isNative?" Supplier format detected — prices imported, categories set to Supplier. Review items to add markup/margin.":""}`);
+      }else{alert("No valid items found. Make sure the file has a header row with a name, item, or description column.");}
     };
     reader.readAsText(file);e.target.value="";
   };
@@ -10097,8 +10153,8 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
           <Btn variant="secondary" onClick={()=>setLibSubView(v=>v==="bulk"?"list":"bulk")}>{libSubView==="bulk"?"≡ List View":"⊞ Bulk Entry"}</Btn>
           <button onClick={exportItemsCSV}
             style={{padding:"8px 13px",borderRadius:8,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>⬇ Export CSV</button>
-          <label style={{display:"inline-flex",alignItems:"center",padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
-            ⬆ Import CSV
+          <label style={{display:"inline-flex",alignItems:"center",padding:"8px 13px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}} title="Import CabShop Pro CSV or supplier price list — columns auto-detected">
+            ⬆ Import / Price List
             <input ref={csvImportRef} type="file" accept=".csv,.txt" onChange={importItemsCSV} style={{display:"none"}} />
           </label>
           <Btn onClick={()=>{setLibSel(null);setLibForm(blankLibForm);setLibModal(true);}}>+ New Item</Btn>
@@ -10106,7 +10162,8 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
 
       {/* ── CSV format hint ── */}
       <div style={{fontSize:11,color:"var(--muted)",marginBottom:12,padding:"8px 12px",background:"var(--surface2)",borderRadius:8,fontFamily:"var(--mono)",lineHeight:1.6}}>
-        CSV columns: <strong style={{color:"var(--text)"}}>name, category, desc, unit, basePrice, defaultMarkupPct, defaultMarginPct, imageUrl</strong> — first row must be the header. Download existing items first to see the format.
+        <strong style={{color:"var(--text)"}}>Native format:</strong> name, category, desc, unit, basePrice, defaultMarkupPct, defaultMarginPct, imageUrl — export existing items to see the format.<br/>
+        <strong style={{color:"var(--text)"}}>Supplier price lists:</strong> auto-detected — common columns like Item, Description, Part#, Price/Cost, UOM, Category are mapped automatically. Prices import as base cost; add markup after import.
       </div>
 
       {/* ── BULK ENTRY ── */}
@@ -12668,9 +12725,84 @@ function HelpPage({bp}) {
   );
 }
 
+// ─── Global Search Modal ──────────────────────────────────────────────────────
+function GlobalSearch({projects,contacts,quotes,tasks,onNavigate,onClose}) {
+  const [q,setQ]=useState("");
+  const inputRef=useRef(null);
+  useEffect(()=>{setTimeout(()=>inputRef.current?.focus(),50);},[]);
+
+  const results=q.trim().length<2?[]:(() => {
+    const s=q.toLowerCase();
+    const hits=[];
+    // Projects
+    projects.filter(p=>p.name?.toLowerCase().includes(s)||p.desc?.toLowerCase().includes(s)||p.address?.toLowerCase().includes(s))
+      .slice(0,5).forEach(p=>hits.push({type:"Project",icon:"🏗",label:p.name,sub:p.status,id:p.id,page:"projects",color:p.color||"var(--accent)"}));
+    // Contacts
+    contacts.filter(c=>c.name?.toLowerCase().includes(s)||c.company?.toLowerCase().includes(s)||c.email?.toLowerCase().includes(s)||c.phone?.toLowerCase().includes(s))
+      .slice(0,5).forEach(c=>hits.push({type:"Contact",icon:"👤",label:c.name,sub:c.company||c.email,id:c.id,page:"crm",color:"var(--accent2)"}));
+    // Quotes & Invoices
+    quotes.filter(q2=>q2.title?.toLowerCase().includes(s)||q2.number?.toLowerCase().includes(s))
+      .slice(0,5).forEach(q2=>hits.push({type:q2.isInvoice?"Invoice":"Quote",icon:q2.isInvoice?"🧾":"📄",label:q2.title||q2.number,sub:q2.number,id:q2.id,page:"quotes",color:"var(--accent4)"}));
+    // Tasks
+    tasks.filter(t=>t.title?.toLowerCase().includes(s)||t.desc?.toLowerCase().includes(s))
+      .slice(0,5).forEach(t=>hits.push({type:"Task",icon:"✓",label:t.title,sub:t.status,id:t.id,page:"tasks",color:"var(--accent3)"}));
+    return hits;
+  })();
+
+  return createPortal(
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"#00000088",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:"10vh"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"min(600px,90vw)",background:"var(--surface)",borderRadius:16,border:"1px solid var(--border)",boxShadow:"0 24px 64px #00000066",overflow:"hidden"}}>
+        {/* Search input */}
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 16px",borderBottom:"1px solid var(--border)"}}>
+          <span style={{fontSize:18,color:"var(--muted)"}}>🔍</span>
+          <input ref={inputRef} value={q} onChange={e=>setQ(e.target.value)}
+            placeholder="Search projects, contacts, quotes, tasks…"
+            style={{flex:1,background:"none",border:"none",outline:"none",fontSize:16,color:"var(--text)",fontFamily:"var(--font)"}}
+            onKeyDown={e=>{if(e.key==="Escape")onClose();}}
+          />
+          <kbd style={{padding:"2px 7px",borderRadius:5,background:"var(--surface2)",border:"1px solid var(--border)",fontSize:11,color:"var(--muted)"}}>Esc</kbd>
+        </div>
+        {/* Results */}
+        <div style={{maxHeight:"60vh",overflowY:"auto"}}>
+          {q.trim().length<2&&(
+            <div style={{padding:"32px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>
+              Type at least 2 characters to search
+            </div>
+          )}
+          {q.trim().length>=2&&results.length===0&&(
+            <div style={{padding:"32px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>
+              No results for <strong style={{color:"var(--text)"}}>{q}</strong>
+            </div>
+          )}
+          {results.map((r,i)=>(
+            <div key={i} onClick={()=>{onNavigate(r.page,r.id,r.type);onClose();}}
+              style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",cursor:"pointer",borderBottom:"1px solid var(--border)22",transition:"background 0.1s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{width:34,height:34,borderRadius:9,background:r.color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{r.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>{r.sub}</div>
+              </div>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.07em",color:r.color,background:r.color+"18",padding:"3px 8px",borderRadius:20,flexShrink:0,fontFamily:"var(--mono)"}}>{r.type.toUpperCase()}</div>
+            </div>
+          ))}
+        </div>
+        {results.length>0&&(
+          <div style={{padding:"8px 16px",borderTop:"1px solid var(--border)",fontSize:11,color:"var(--muted)",textAlign:"center"}}>
+            {results.length} result{results.length!==1?"s":""} — click to navigate
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ─── App Root ─────────────────────────────────────────────────────────────────
 export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const bp = useBreakpoint();
+  const [showSearch,setShowSearch]=useState(false);
   const [page,_setPage]=useState(()=>{
     try{
       const saved=localStorage.getItem("csp_page");
@@ -12992,7 +13124,13 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
         {bp==="desktop" && <DesktopSidebar active={page} setActive={setPage} adminEmail={currentUserEmail} plan={plan}
           badges={{quotes: quotes.filter(q=>q.status==="approved"&&!q.seenApproval).length}}
           theme={theme} toggleTheme={toggleTheme}
-          notificationBell={<NotificationBell notifications={notifications} onNavigate={setPage} />} />}
+          notificationBell={<div style={{display:"flex",alignItems:"center",gap:4}}>
+            <button onClick={()=>setShowSearch(true)} title="Search (Ctrl+K)"
+              style={{background:"none",border:"none",cursor:"pointer",padding:"5px 7px",borderRadius:7,color:"var(--muted)",fontSize:15,display:"flex",alignItems:"center"}}>
+              🔍
+            </button>
+            <NotificationBell notifications={notifications} onNavigate={setPage} />
+          </div>} />}
         {bp==="tablet"  && <TabletSidebar  active={page} setActive={setPage} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
         <main style={{flex:1,padding:mainPad,paddingBottom:mainPB,overflowY:"auto",WebkitOverflowScrolling:"touch",minHeight:0}}>
           {renderPage()}
@@ -13001,6 +13139,15 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       </div>
       <CabShopChatbot hasFeature={hasFeature} />
       {tourActive&&<ProductTour onClose={()=>setTourActive(false)} setPage={setPage} />}
+      {showSearch&&<GlobalSearch
+        projects={projects} contacts={contacts} quotes={quotes} tasks={tasks}
+        onNavigate={(page,id,type)=>{
+          setPage(page);
+          if(page==="quotes"&&id){const q=quotes.find(q=>q.id===id);if(q)setPendingQuote(q);}
+          if(page==="projects"&&id)setPendingProject({id,_openDetail:true});
+        }}
+        onClose={()=>setShowSearch(false)}
+      />}
       {subStatus==="past_due"&&(
         <div style={{position:"fixed",top:0,left:0,right:0,zIndex:9000,background:"var(--accent3)",color:"#fff",
           padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,fontWeight:600}}>
@@ -13794,6 +13941,16 @@ export function Root() {
   const isSuccess = params.get("success") === "1";
   const [showOnboarding, setShowOnboarding] = useState(isSuccess);
   const [onboardingPage, setOnboardingPage] = useState("dashboard");
+
+  // Global search keyboard shortcut Ctrl+K / Cmd+K
+  useEffect(()=>{
+    const handler=(e)=>{
+      if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();setShowSearch(s=>!s);}
+      if(e.key==="Escape")setShowSearch(false);
+    };
+    window.addEventListener("keydown",handler);
+    return()=>window.removeEventListener("keydown",handler);
+  },[]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
