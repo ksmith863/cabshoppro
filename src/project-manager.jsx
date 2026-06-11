@@ -10072,9 +10072,7 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
     const file=e.target.files?.[0];if(!file)return;
     const reader=new FileReader();
     reader.onload=(ev)=>{
-      const lines=ev.target.result.split(/
-?
-/).filter(l=>l.trim());
+      const lines=ev.target.result.split(/\r?\n/).filter(l=>l.trim());
       if(!lines.length)return;
       const rawHeaders=parseCSVLine(lines[0]);
       const isNative=rawHeaders.some(h=>CSV_COLS.includes(h.toLowerCase().trim()));
