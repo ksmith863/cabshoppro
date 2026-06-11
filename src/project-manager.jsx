@@ -8509,7 +8509,8 @@ function SamplesLibrary({samples,setSamples,bp}) {
 
 
 // ─── Quote Builder ────────────────────────────────────────────────────────────
-var QB_CATS = ["All","Labor","Cabinetry","Hardware","Doors","Surfaces","Custom"];
+var QB_CATS = ["All","Labor","Cabinetry","Cabinet Accessories","Drawers","Doors","Surfaces","Finishing","Hardware","Custom","Supplier"];
+var UNIT_OPTIONS = ["ea","hr","lf","sf","bf","lbs","gal","qt","pr","set","pkg","box","sheet","stick","roll"];
 var QUOTE_STATUSES = ["draft","sent","approved","declined","expired"];
 var INVOICE_STATUSES = ["unpaid","partial","paid","void"];
 var ALL_DOC_STATUSES = [...QUOTE_STATUSES,...INVOICE_STATUSES];
@@ -8550,7 +8551,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   const [libLightbox,setLibLightbox]=useState(null);
   const [quoteLightbox,setQuoteLightbox]=useState(null);
   const [emailComposer,setEmailComposer]=useState(null);
-  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:""};
+  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};
   const [libForm,setLibForm]=useState(blankLibForm);
   const [libSel,setLibSel]=useState(null);
   const [libSearch,setLibSearch]=useState("");
@@ -9419,7 +9420,16 @@ ${shopName}`;
                 {QB_CATS.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <Input label="Unit" value={libForm.unit} onChange={e=>setLibForm(f=>({...f,unit:e.target.value}))} placeholder="ea, hr, lf, sf, pr…" />
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>UNIT</div>
+              <select value={libForm.unit||"ea"} onChange={e=>setLibForm(f=>({...f,unit:e.target.value}))} style={inp}>
+                {UNIT_OPTIONS.map(u=><option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Input label="Product # / SKU" value={libForm.productNum||""} onChange={e=>setLibForm(f=>({...f,productNum:e.target.value}))} placeholder="e.g. BL-4210" />
+            <Input label="Product URL" value={libForm.productUrl||""} onChange={e=>setLibForm(f=>({...f,productUrl:e.target.value}))} placeholder="https://supplier.com/product" />
           </div>
 
           {/* Pricing section */}
@@ -9472,6 +9482,33 @@ ${shopName}`;
             </div>
             <input value={libForm.imageUrl||""} onChange={e=>setLibForm(f=>({...f,imageUrl:e.target.value}))} placeholder="Or paste image URL…" style={{width:"100%",padding:"8px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}} />
           </div>
+          {/* Related Documents */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>RELATED DOCUMENTS (SPEC SHEETS, INSTALL GUIDES, ETC.)</div>
+            {(libForm.documents||[]).length>0&&(
+              <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>
+                {(libForm.documents||[]).map((doc,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"var(--surface2)",borderRadius:7,border:"1px solid var(--border)"}}>
+                    <span style={{fontSize:16}}>📄</span>
+                    <a href={doc.url} target="_blank" rel="noreferrer" style={{flex:1,fontSize:12,color:"var(--accent2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</a>
+                    <button onClick={()=>setLibForm(f=>({...f,documents:(f.documents||[]).filter((_,j)=>j!==i)}))}
+                      style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+              📎 Attach Document
+              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.dwg,.dxf" onChange={async e=>{
+                const file=e.target.files?.[0];if(!file)return;
+                e.target.value="";
+                const {url,storagePath}=await uploadImageToStorage(file,"item-docs");
+                const docName=file.name;
+                setLibForm(f=>({...f,documents:[...(f.documents||[]),{name:docName,url,storagePath}]}));
+              }} style={{display:"none"}} />
+            </label>
+          </div>
+
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
             {libSel&&<Btn variant="danger" small onClick={()=>{deleteLibItem(libSel.id);setLibModal(false);setLibSel(null);setLibForm(blankLibForm);}}>Delete</Btn>}
             <Btn variant="secondary" onClick={()=>{setLibModal(false);setLibSel(null);setLibForm(blankLibForm);}}>Cancel</Btn>
@@ -10125,7 +10162,7 @@ function LibActionsMenu({libSubView,setLibSubView,exportItemsCSV,csvImportRef,im
 }
 
 function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,bp}) {
-  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:""};
+  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};"",imageUrl:""};
   const [libModal,setLibModal]=useState(false);
   const [libForm,setLibForm]=useState(blankLibForm);
   const [libSel,setLibSel]=useState(null);
@@ -10393,6 +10430,13 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                           {inInv&&<Badge color="var(--accent)" style={{fontSize:9}}>In Inventory</Badge>}
                         </div>
                         <div style={{fontSize:11,color:"var(--muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.desc}</div>
+                        {(item.productNum||item.productUrl||(item.documents||[]).length>0)&&(
+                          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:2}}>
+                            {item.productNum&&<span style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)"}}>#{item.productNum}</span>}
+                            {item.productUrl&&<a href={item.productUrl} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"var(--accent2)"}}>Product Page ↗</a>}
+                            {(item.documents||[]).length>0&&<span style={{fontSize:10,color:"var(--muted)"}}>📎 {item.documents.length} doc{item.documents.length!==1?"s":""}</span>}
+                          </div>
+                        )}
                       </div>
                       <div style={{textAlign:"right",flexShrink:0,minWidth:130}}>
                         <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"flex-end"}}>
@@ -10407,12 +10451,14 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                           </div>
                         )}
                       </div>
-                      {/* Add to inventory */}
-                      <button onClick={()=>openInvModal(item)}
-                        title={inInv?"Update inventory quantity":"Add to inventory"}
-                        style={{padding:"5px 9px",borderRadius:7,background:inInv?"var(--accent)18":"var(--surface2)",border:`1px solid ${inInv?"var(--accent)44":"var(--border)"}`,color:inInv?"var(--accent)":"var(--muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",flexShrink:0,whiteSpace:"nowrap"}}>
-                        {inInv?"+ Restock":"+ Inventory"}
-                      </button>
+                      {/* Add to inventory — hide for Labor */}
+                      {item.category!=="Labor"&&(
+                        <button onClick={()=>openInvModal(item)}
+                          title={inInv?"Update inventory quantity":"Add to inventory"}
+                          style={{padding:"5px 9px",borderRadius:7,background:inInv?"var(--accent)18":"var(--surface2)",border:`1px solid ${inInv?"var(--accent)44":"var(--border)"}`,color:inInv?"var(--accent)":"var(--muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",flexShrink:0,whiteSpace:"nowrap"}}>
+                          {inInv?"+ Restock":"+ Inventory"}
+                        </button>
+                      )}
                       <button onClick={()=>{setLibSel(item);setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||"")});setLibModal(true);}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
                       <button onClick={()=>deleteLibItem(item.id)} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:14,cursor:"pointer",padding:"2px 5px",opacity:0.6}}>×</button>
                     </div>
