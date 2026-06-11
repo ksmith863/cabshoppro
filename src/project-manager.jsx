@@ -11835,19 +11835,12 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
                 <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>QuickBooks Online</div>
                 {qbConnected
                   ?<div style={{fontSize:12,color:"var(--accent)"}}>✓ Connected — data sync available</div>
-                  :<div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>Not connected. Connect to enable live sync of invoices, expenses, and accounts between CabShop Pro and QuickBooks Online.</div>
+                  :<div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>Use the CSV export tools below to move data into QuickBooks now. Live OAuth sync is planned for a future update.</div>
                 }
               </div>
-              {qbConnected
-                ?<Btn variant="danger" small onClick={()=>setQbConnected(false)}>Disconnect</Btn>
-                :<button onClick={()=>{
-                    alert("OAuth connection requires a deployed backend.\n\nTo connect:\n1. Deploy CabShop Pro to Vercel (see Deployment Guide)\n2. Add your Intuit Developer client ID and secret to environment variables\n3. The Connect button will activate automatically.\n\nUntil then, use the CSV export tools below to transfer data manually.");
-                  }}
-                  style={{padding:"10px 20px",borderRadius:10,background:"#2CA01C",color:"#fff",fontWeight:700,fontSize:13,border:"none",cursor:"pointer",fontFamily:"var(--font)",display:"flex",alignItems:"center",gap:8}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-                  Connect to QuickBooks
-                </button>
-              }
+              <div style={{padding:"8px 16px",borderRadius:10,background:"var(--surface3)",border:"1px solid var(--border)",fontSize:12,color:"var(--muted)",fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+                🔜 Live sync — coming soon
+              </div>
             </div>
 
             {/* How it works */}
@@ -11857,7 +11850,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
                 {[
                   ["📤 Export from CabShop Pro","Download your Chart of Accounts, transactions, and invoices as QuickBooks-formatted CSV files. Import them into QBO under Settings → Import Data.","Available now"],
                   ["📥 Import to CabShop Pro","Export your Chart of Accounts from QBO and use it to set up matching account codes in CabShop Pro for consistent categorization.","Manual — use CSV guide"],
-                  ["🔄 Live Sync (future)","When CabShop Pro is deployed as a web app, connect directly to QuickBooks Online API for automatic two-way sync of invoices, payments, and expenses.","Requires deployed app"],
+                  ["🔄 Live Sync (planned)","Direct QuickBooks Online API integration for automatic two-way sync of invoices, payments, and expenses. Coming in a future update.","Coming soon"],
                 ].map(([title,desc,status])=>(
                   <div key={title} style={{background:"var(--surface)",borderRadius:10,padding:"14px"}}>
                     <div style={{fontWeight:700,fontSize:13,marginBottom:6}}>{title}</div>
