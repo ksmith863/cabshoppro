@@ -151,6 +151,14 @@ async function uploadImageToStorage(file, folder) {
   }
 }
 
+// ─── Phone number formatter ───────────────────────────────────────────────────
+function fmtPhone(val) {
+  const digits = val.replace(/\D/g, "").slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+}
+
 function useBreakpoint() {
   const [bp, setBp] = useState(() => {
     const w = window.innerWidth;
@@ -4357,7 +4365,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="Role" value={newClientForm.role} onChange={e=>setNewClientForm(f=>({...f,role:e.target.value}))} />
-            <Input label="Phone" value={newClientForm.phone} onChange={e=>setNewClientForm(f=>({...f,phone:e.target.value}))} />
+            <Input label="Phone" value={newClientForm.phone} onChange={e=>setNewClientForm(f=>({...f,phone:fmtPhone(e.target.value)}))} placeholder="(xxx) xxx-xxxx" />
           </div>
           <Input label="Email" value={newClientForm.email} onChange={e=>setNewClientForm(f=>({...f,email:e.target.value}))} type="email" />
           <Input label="Notes" value={newClientForm.notes} onChange={e=>setNewClientForm(f=>({...f,notes:e.target.value}))} type="textarea" voice />
@@ -4926,7 +4934,7 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
           <Input label="Role / Title" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} voice />
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="Email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} type="email" />
-            <Input label="Phone" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} />
+            <Input label="Phone" value={form.phone} onChange={e=>setForm(f=>({...f,phone:fmtPhone(e.target.value)}))} placeholder="(xxx) xxx-xxxx" />
           </div>
           {/* Multiple addresses */}
           <div style={{marginBottom:14}}>
