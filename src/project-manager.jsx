@@ -3324,7 +3324,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
         </div>
       </div>
 
-      {/* Hidden file input for camera/photo capture */}
+      {/* Hidden file input for camera/photo capture — stage-specific */}
       <input
         ref={photoInputRef}
         type="file"
@@ -3333,6 +3333,29 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
         onChange={handlePhotoFile}
         style={{display:"none"}}
       />
+
+      {/* Floating capture button for phone/tablet — captures to project gallery */}
+      {(bp==="phone"||bp==="tablet")&&(
+        <div style={{position:"fixed",bottom:"calc(var(--bottom-nav-h, 70px) + env(safe-area-inset-bottom, 12px) + 12px)",right:18,zIndex:900}}>
+          <label title="Capture site photo"
+            style={{width:56,height:56,borderRadius:"50%",background:p.color||"var(--accent)",border:"none",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:24,cursor:"pointer",boxShadow:"0 4px 16px #00000044",flexShrink:0}}>
+            📷
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment"
+              onChange={async e=>{
+                const file=e.target.files?.[0];if(!file)return;
+                if(rejectHeic(file,e))return;
+                e.target.value="";
+                const {url,storagePath}=await uploadImageToStorage(file,"projects");
+                const photoEntry={id:Date.now(),url,storagePath,
+                  caption:`Site photo — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
+                  stageId:"gallery",date:new Date().toISOString().slice(0,10)};
+                setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:[...(proj.photos||[]),photoEntry]}:proj));
+              }} style={{display:"none"}} />
+          </label>
+        </div>
+      )}
 
       {/* ── Log Time modal ── */}
       {timeModal&&(()=>{
@@ -6928,6 +6951,30 @@ function MediaLibrary({media,setMedia,projects,bp}) {
 
   return(
     <div className="fadein">
+      {/* Floating capture button for phone/tablet */}
+      {(bp==="phone"||bp==="tablet")&&(
+        <div style={{position:"fixed",bottom:"calc(var(--bottom-nav-h, 70px) + env(safe-area-inset-bottom, 12px) + 12px)",right:18,zIndex:900}}>
+          <label title="Capture photo to media library"
+            style={{width:56,height:56,borderRadius:"50%",background:"var(--accent2)",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:24,cursor:"pointer",boxShadow:"0 4px 16px #00000044"}}>
+            📷
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment"
+              onChange={async e=>{
+                const file=e.target.files?.[0];if(!file)return;
+                if(rejectHeic(file,e))return;
+                const sizeKB=Math.round(file.size/1024);
+                const sizeStr=sizeKB>1024?`${(sizeKB/1024).toFixed(1)} MB`:`${sizeKB} KB`;
+                const baseName=file.name.replace(/[.][^.]+$/,"");
+                e.target.value="";
+                const {url,storagePath}=await uploadImageToStorage(file,"media");
+                const newItem={id:`m${Date.now()}`,name:baseName||"Field capture",url,storagePath,
+                  type:"image",size:sizeStr,date:new Date().toISOString().slice(0,10),tags:["field"],projectId:""};
+                setMedia(prev=>[newItem,...prev]);
+              }} style={{display:"none"}} />
+          </label>
+        </div>
+      )}
       <PageHeader bp={bp} title="Media Library" action={<Btn onClick={()=>open()}>+ Add File</Btn>} />
       <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
         <SearchBar value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search files & tags…" />
