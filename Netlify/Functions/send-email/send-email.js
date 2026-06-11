@@ -26,9 +26,21 @@ exports.handler = async (event) => {
     const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
     const senderName  = fromName  || process.env.SENDGRID_FROM_NAME  || "CabShop Pro";
 
-    // Build HTML body — use full quote/invoice HTML if provided, otherwise simple formatted body
+    // Attachment instructions appended to the HTML document
+    const attachmentInstructions = attachmentHtml ? `
+      <div style="margin-top:40px;padding:16px 20px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:8px;font-family:Arial,sans-serif;font-size:12px;color:#666;line-height:1.7;">
+        <strong style="color:#333;">📎 About the attached document</strong><br/>
+        This email includes an attached HTML file of your ${attachmentName?.includes("Invoice") ? "invoice" : "quote"}.
+        To save or print a PDF copy:<br/>
+        1. Click the attachment to open it in your browser<br/>
+        2. Press <strong>Ctrl+P</strong> (Windows) or <strong>⌘+P</strong> (Mac)<br/>
+        3. Choose <strong>"Save as PDF"</strong> as the destination<br/>
+        4. Click Save
+      </div>` : "";
+
+    // Build HTML body — use full quote/invoice HTML if provided, with instructions appended
     const emailHtml = htmlBody
-      ? htmlBody  // Full rendered quote or invoice HTML
+      ? htmlBody.replace("</body>", attachmentInstructions + "</body>")
       : `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
           ${body.replace(/\n/g, "<br/>")}
           <hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/>
