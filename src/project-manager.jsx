@@ -8986,7 +8986,7 @@ ${shopName}`;
       userApiKey: adminSettings?.sendgridApiKey||null,
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,htmlContent:d.htmlContent||null,type:d.type||"upload"})),
+      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null,type:d.type||"upload"})),
     });
   };
 
@@ -9238,7 +9238,7 @@ ${shopName}`;
       toName: contact?.name||"",
       attachmentHtml: invoiceHtml(q),
       attachmentName: `Invoice-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,htmlContent:d.htmlContent||null,type:d.type||"upload"})),
+      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null,type:d.type||"upload"})),
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
       fromName: adminSettings?.sendgridFromName||shopName,
@@ -9850,11 +9850,9 @@ ${shopName}`;
         const toggleResource=(res)=>{
           const exists=docs.find(d=>d.id===res.id);
           if(exists){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
-          // Store T&C as HTML content — attached to email by Netlify function
-          // Opens in browser via blob URL on click
+          // Store text content so it persists and can be used for preview + email attachment
           const text=res.fullText||res.desc||"";
-          const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${res.name}</title><style>body{font-family:Georgia,serif;font-size:12px;line-height:1.8;color:#333;max-width:720px;margin:0 auto;padding:40px;}h1{font-size:15px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;border-bottom:2px solid #1a1a12;padding-bottom:10px;margin-bottom:24px;}</style></head><body><h1>${res.name}</h1><div style="white-space:pre-line;">${text}</div></body></html>`;
-          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",htmlContent:html}]}));
+          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,type:"resource",docText:text}]}));
         };
         return(
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginBottom:16}}>
@@ -9873,8 +9871,14 @@ ${shopName}`;
                     <span style={{flex:1,fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
                     {doc.url
                       ?<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)"}}>View ↗</a>
-                      :doc.htmlContent
-                        ?<button onClick={()=>{const b=new Blob([doc.htmlContent],{type:"text/html"});const u=URL.createObjectURL(b);window.open(u,"_blank");setTimeout(()=>URL.revokeObjectURL(u),10000);}} style={{background:"none",border:"none",color:"var(--accent2)",fontSize:11,cursor:"pointer",padding:0,fontFamily:"var(--font)"}}>View ↗</button>
+                      :doc.docText
+                        ?<button onClick={()=>{
+                            const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${doc.name}</title><style>body{font-family:Georgia,serif;font-size:13px;line-height:1.9;color:#222;max-width:720px;margin:0 auto;padding:48px;}h1{font-size:16px;font-weight:900;letter-spacing:0.05em;text-transform:uppercase;border-bottom:2px solid #222;padding-bottom:10px;margin-bottom:24px;}</style></head><body><h1>${doc.name}</h1><div style="white-space:pre-line;">${doc.docText}</div></body></html>`;
+                            const b=new Blob([html],{type:"text/html"});
+                            const u=URL.createObjectURL(b);
+                            window.open(u,"_blank");
+                            setTimeout(()=>URL.revokeObjectURL(u),30000);
+                          }} style={{background:"none",border:"none",color:"var(--accent2)",fontSize:11,cursor:"pointer",padding:0,fontFamily:"var(--font)"}}>View ↗</button>
                         :null}
                     <button onClick={()=>setSel(s=>({...s,supportingDocs:docs.filter((_,j)=>j!==i)}))}
                       style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>×</button>

@@ -1,5 +1,4 @@
 // netlify/functions/send-email/send-email.js
-// Attaches all supporting docs (T&C HTML + uploaded files) to the email
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -28,7 +27,7 @@ exports.handler = async (event) => {
     const attachmentInstructions = attachmentHtml ? `
       <div style="margin-top:40px;padding:16px 20px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:8px;font-family:Arial,sans-serif;font-size:12px;color:#666;line-height:1.7;">
         <strong style="color:#333;">📎 About the attached document</strong><br/>
-        To save or print a PDF copy: open the attachment in your browser → Ctrl+P / ⌘+P → Save as PDF.
+        To save or print a PDF: open the attachment → Ctrl+P / ⌘+P → Save as PDF.
       </div>` : "";
 
     const emailHtml = htmlBody
@@ -62,16 +61,17 @@ exports.handler = async (event) => {
       });
     }
 
-    // Supporting documents — attach each one
+    // Supporting documents
     if (Array.isArray(supportingDocs) && supportingDocs.length > 0) {
       for (const doc of supportingDocs) {
         try {
-          if (doc.htmlContent) {
-            // T&C or resource doc — attach as HTML file
+          if (doc.docText) {
+            // T&C / resource doc — send as plain text (.txt) which every email client opens correctly
+            const textContent = `${doc.name}\n${"=".repeat(doc.name.length)}\n\n${doc.docText}`;
             attachments.push({
-              content: Buffer.from(doc.htmlContent, "utf-8").toString("base64"),
-              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".html",
-              type: "text/html",
+              content: Buffer.from(textContent, "utf-8").toString("base64"),
+              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".txt",
+              type: "text/plain",
               disposition: "attachment"
             });
           } else if (doc.url && !doc.url.startsWith("data:")) {
@@ -80,14 +80,22 @@ exports.handler = async (event) => {
             if (res.ok) {
               const buffer = await res.arrayBuffer();
               const base64 = Buffer.from(buffer).toString("base64");
-              // Detect MIME type from URL extension
-              const ext = doc.url.split(".").pop().toLowerCase().split("?")[0];
-              const mimeMap = { pdf:"application/pdf", jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", gif:"image/gif", webp:"image/webp", doc:"application/msword", docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", xls:"application/vnd.ms-excel", xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", txt:"text/plain", csv:"text/csv" };
-              const mimeType = mimeMap[ext] || "application/octet-stream";
+              const ext = (doc.url.split("?")[0].split(".").pop() || "bin").toLowerCase();
+              const mimeMap = {
+                pdf: "application/pdf",
+                jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+                gif: "image/gif", webp: "image/webp",
+                doc: "application/msword",
+                docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                xls: "application/vnd.ms-excel",
+                xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                txt: "text/plain", csv: "text/csv",
+                dwg: "application/acad", dxf: "application/dxf"
+              };
               attachments.push({
                 content: base64,
                 filename: doc.name,
-                type: mimeType,
+                type: mimeMap[ext] || "application/octet-stream",
                 disposition: "attachment"
               });
             }
