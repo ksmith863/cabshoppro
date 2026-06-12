@@ -5096,14 +5096,7 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
                 const url=`${window.location.origin}/?portal=${shortToken}&cid=${c.id}`;
                 setContacts(prev=>prev.map(x=>x.id===c.id?{...x,portalToken:shortToken,portalUrl:url}:x));
                 const shopName=adminSettings?.companyName||"Us";
-                const msg=`Hi ${c.name},
-
-You can view your project progress, quotes, and invoices through your client portal:
-
-${url}
-
-Best regards,
-${shopName}`;
+                const msg="Hi "+c.name+",\n\nYou can view your project progress, quotes, and invoices through your client portal:\n\n"+url+"\n\nBest regards,\n"+shopName;
                 // Try clipboard API with fallback to prompt
                 try{
                   await navigator.clipboard.writeText(msg);
