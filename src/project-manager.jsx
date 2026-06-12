@@ -5091,13 +5091,23 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
               )}
               <Btn variant="secondary" onClick={()=>setDetail(null)}>Close</Btn>
               <Btn variant="secondary" onClick={async()=>{
-                const token=btoa(`portal:${c.id}:${Date.now()}`).replace(/=/g,"");
-                const url=`${window.location.origin}/?portal=${token}&cid=${c.id}`;
-                // Save token to contact
-                setContacts(prev=>prev.map(x=>x.id===c.id?{...x,portalToken:token,portalUrl:url}:x));
-                await navigator.clipboard.writeText(url);
-                alert("Portal link copied to clipboard! Share it with "+c.name+".");
-              }}>🔗 Send Portal Link</Btn>
+                // Generate a short readable token
+                const shortToken=Math.random().toString(36).slice(2,8)+Math.random().toString(36).slice(2,8);
+                const url=`${window.location.origin}/?portal=${shortToken}&cid=${c.id}`;
+                setContacts(prev=>prev.map(x=>x.id===c.id?{...x,portalToken:shortToken,portalUrl:url}:x));
+                // Build a nice email-ready message
+                const shopName=adminSettings?.companyName||"Us";
+                const msg=`Hi ${c.name},
+
+You can view your project progress, quotes, and invoices through your client portal:
+
+${url}
+
+Best regards,
+${shopName}`;
+                await navigator.clipboard.writeText(msg);
+                alert("Portal message copied to clipboard! Paste it into an email or text to "+c.name+".");
+              }}>🔗 Client Portal Link</Btn>
               <Btn onClick={()=>{setDetail(null);open(c);}}>Edit</Btn>
             </div>
           </Modal>
@@ -14618,7 +14628,13 @@ function ClientPortal({token, cid}) {
               </div>
             ):projects.map(proj=>{
               const stages = typeof proj.stages==="object"&&!Array.isArray(proj.stages)?proj.stages:{};
-              const stageKeys = Object.keys(stages);
+              // Use stageOrder if saved, otherwise fall back to PROJECT_STAGES order
+              const orderedKeys = proj.stageOrder?.length
+                ? proj.stageOrder.filter(k=>k in stages)
+                : PROJECT_STAGES.map(s=>s.id).filter(k=>k in stages)
+                    .concat(Object.keys(stages).filter(k=>!PROJECT_STAGES.find(s=>s.id===k)));
+              const allStages = [...PROJECT_STAGES,...Object.values(proj.customStages||{})];
+              const stageKeys = orderedKeys;
               const done = stageKeys.filter(k=>stages[k]?.done).length;
               const pct = stageKeys.length>0?Math.round(done/stageKeys.length*100):0;
               return(
@@ -14637,11 +14653,15 @@ function ClientPortal({token, cid}) {
                         <div style={{height:"100%",width:`${pct}%`,background:proj.color||accentColor,borderRadius:3,transition:"width 0.4s"}} />
                       </div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
-                        {stageKeys.map(k=>(
+                        {stageKeys.map(k=>{
+                          const stg=allStages.find(s=>s.id===k);
+                          const lbl=stg?stg.label:k.split(/[_-]/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+                          return(
                           <div key={k} style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:stages[k]?.done?(proj.color||accentColor)+"33":"#f0f0f0",color:stages[k]?.done?"#1a7a40":"#999",fontWeight:stages[k]?.done?700:400}}>
-                            {stages[k]?.done?"✓ ":""}{k}
+                            {stages[k]?.done?"✓ ":""}{lbl}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
