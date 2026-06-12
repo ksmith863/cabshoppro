@@ -1423,6 +1423,7 @@ Keep the tone practical and grounded. If data is missing or insufficient, note i
 function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTasks,inventory,resources,setResources,quotes,setQuotes,onOpenQuote,onScheduleEvent,onClose,onEdit,onArchive,onUnarchive,bp}) {
   const [newTaskTitle,setNewTaskTitle]=useState("");
   const [activeTab,setActiveTab]=useState("financials"); // "financials" | "stages" | "tasks" | "documents" | "notes"
+  const [photoLb,setPhotoLb]=useState(null); // lightbox for project photos tab
   const [timeModal,setTimeModal]=useState(null);
   const [timeForm,setTimeForm]=useState({minutes:"",date:new Date().toISOString().slice(0,10),note:""});
   const [timerRunning,setTimerRunning]=useState(false);
@@ -3043,9 +3044,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
       )}
 
       {/* ══ PHOTOS TAB ══ */}
-      {activeTab==="photos"&&(()=>{
-        const [photoLb,setPhotoLb]=useState(null);
-        return(
+      {activeTab==="photos"&&(
         <div>
           {photoLb&&<SimpleImageLightbox url={photoLb.url} caption={photoLb.caption} onClose={()=>setPhotoLb(null)} />}
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
@@ -3129,8 +3128,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
             )}
           </div>
         </div>
-        );
-      })()}
+      )}
 
       {activeTab==="review"&&(()=>{
         const stages=(()=>{const r=p.stages;if(!r)return defaultStages();if(Array.isArray(r))return r.reduce((a,s)=>{a[s]={done:false,timeLog:[]};return a;},{});return typeof r==="object"?r:defaultStages();})();
