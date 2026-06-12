@@ -13170,143 +13170,1595 @@ function NotificationBell({notifications, onNavigate}) {
 
 // ─── Help Page ────────────────────────────────────────────────────────────────
 function HelpPage({bp}) {
-  const [tab, setTab] = useState("guide");
-  const [openFaq, setOpenFaq] = useState(null);
-
-  const faqs = [
-    { q: "How do I create a new project?", a: "Go to Projects in the sidebar and click the + New Project button. Fill in the project details and click Save." },
-    { q: "How do I generate a quote?", a: "Navigate to Quotes in the sidebar, click + New Quote, select your client and add line items from your item library." },
-    { q: "Can I export data to QuickBooks?", a: "Yes. Go to Finance, then use the QuickBooks Export option to download a compatible file." },
-    { q: "How do I upgrade my plan?", a: "Click Subscription in the sidebar to view available plans and upgrade options." },
-    { q: "How do I add team members?", a: "Team plan subscribers can manage users under Admin > Team Settings." },
-    { q: "Where can I find the user guide?", a: "Click the User Guide tab above, or visit the guide link to open the full documentation." },
-  ];
-
-  const tabStyle = (t) => ({
-    padding: "8px 18px", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600,
-    background: tab === t ? "var(--accent)" : "var(--surface2)",
-    color: tab === t ? "#000" : "var(--muted)",
-    border: "none", transition: "all 0.15s",
-  });
-
   return (
-    <div style={{maxWidth: 820, margin: "0 auto", padding: bp === "phone" ? "16px 12px" : "32px 24px"}}>
-      <div style={{marginBottom: 28}}>
-        <div style={{fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", marginBottom: 6}}>Help & Guide</div>
-        <div style={{fontSize: 14, color: "var(--muted)"}}>Everything you need to get the most out of CabShop Pro.</div>
+    <div style={{height:"calc(100vh - 80px)",overflow:"hidden",margin:"-32px -32px",borderRadius:0}}>
+      <iframe
+        srcDoc={`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CabShop Pro — User Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@700;800&display=swap');
+
+  :root {
+    --ink: #1a1a12;
+    --ink-mid: #3d3d30;
+    --ink-light: #6b6b58;
+    --paper: #f7f5ef;
+    --paper-warm: #ede9df;
+    --accent: #4fffb0;
+    --accent-dark: #00c97a;
+    --accent2: #7b6fff;
+    --accent3: #ffc46b;
+    --rule: #d4cfc0;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+    --serif: 'Playfair Display', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    background: var(--ink);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px 10%;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 80% 20%, #4fffb022 0%, transparent 60%),
+                radial-gradient(ellipse at 20% 80%, #7b6fff18 0%, transparent 50%);
+  }
+  .cover-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+  .cover h1 {
+    font-family: var(--serif);
+    font-size: clamp(48px, 8vw, 96px);
+    line-height: 1.0;
+    color: #fff;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 1;
+  }
+  .cover h1 span { color: var(--accent); }
+  .cover-sub {
+    font-size: 20px;
+    color: #aaa;
+    margin-top: 16px;
+    margin-bottom: 48px;
+    max-width: 480px;
+    position: relative;
+    z-index: 1;
+  }
+  .cover-rule {
+    width: 60px;
+    height: 3px;
+    background: var(--accent);
+    margin-bottom: 48px;
+  }
+  .cover-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 0.08em;
+    position: relative;
+    z-index: 1;
+  }
+  .cover-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 32px;
+    position: relative;
+    z-index: 1;
+  }
+  .chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid #333;
+    font-size: 12px;
+    color: #999;
+    font-family: var(--mono);
+  }
+
+  /* ── LAYOUT ── */
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 40px; }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--paper-warm);
+    border-bottom: 1px solid var(--rule);
+    padding: 64px 0;
+  }
+  .toc-inner { max-width: 860px; margin: 0 auto; padding: 0 40px; }
+  .toc h2 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 32px;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 4px 32px;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+    text-decoration: none;
+    color: var(--ink-mid);
+    font-size: 13px;
+    transition: color 0.15s;
+  }
+  .toc-item:hover { color: var(--accent-dark); }
+  .toc-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-light);
+    min-width: 24px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    padding: 80px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .section-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: var(--ink);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+  .section-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--ink-light);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .section h2 {
+    font-family: var(--serif);
+    font-size: 36px;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .section-lead {
+    font-size: 16px;
+    color: var(--ink-mid);
+    margin-bottom: 32px;
+    max-width: 640px;
+    line-height: 1.7;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 32px 0 12px;
+    padding-left: 12px;
+    border-left: 3px solid var(--accent);
+  }
+  h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-mid);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 24px 0 8px;
+    font-family: var(--mono);
+  }
+  p { margin-bottom: 14px; color: var(--ink-mid); }
+
+  /* ── SCREENSHOT PLACEHOLDER ── */
+  .screenshot {
+    background: var(--ink);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 24px 0;
+    border: 1px solid #2a2a20;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+  .screenshot-bar {
+    background: #2a2a20;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f56; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #27c93f; }
+  .screenshot-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #555;
+    margin-left: auto;
+  }
+  .screenshot-body {
+    padding: 32px;
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .screenshot-placeholder {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #444;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+  .screenshot-title {
+    font-size: 13px;
+    color: #666;
+    font-weight: 600;
+  }
+
+  /* ── FEATURE GRID ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .feature-card {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .feature-card-icon { font-size: 24px; margin-bottom: 10px; }
+  .feature-card-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .feature-card-desc { font-size: 12px; color: var(--ink-light); line-height: 1.6; }
+
+  /* ── STEPS ── */
+  .steps { margin: 24px 0; }
+  .step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-body { flex: 1; }
+  .step-body strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .step-body span { font-size: 13px; color: var(--ink-mid); }
+
+  /* ── TIP ── */
+  .tip {
+    background: #f0fff8;
+    border: 1px solid #b3f0d4;
+    border-left: 4px solid var(--accent-dark);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 20px 0;
+    font-size: 13px;
+    color: #1a5c3a;
+  }
+  .tip strong { color: #0d4a2d; }
+
+  .note {
+    background: #f5f3ff;
+    border: 1px solid #c9c3ff;
+    border-left: 4px solid var(--accent2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 20px 0;
+    font-size: 13px;
+    color: #3a2f7a;
+  }
+
+  /* ── KEY COMBO ── */
+  kbd {
+    display: inline-block;
+    padding: 2px 7px;
+    background: var(--ink);
+    color: var(--accent);
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+  th { background: var(--ink); color: var(--accent); font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 10px 14px; text-align: left; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--rule); color: var(--ink-mid); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: var(--ink);
+    color: #555;
+    padding: 48px 40px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  .footer span { color: var(--accent); }
+
+  @media print {
+    .cover { min-height: auto; padding: 60px 10%; page-break-after: always; }
+    .section { page-break-inside: avoid; }
+    .screenshot { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-eyebrow">User Guide · Version 1.0</div>
+  <div class="cover-rule"></div>
+  <h1>CabShop<span>Pro</span></h1>
+  <p class="cover-sub">The complete management platform built for cabinet shops and custom woodworking studios.</p>
+  <div class="cover-chips">
+    <div class="chip">Projects & Stages</div>
+    <div class="chip">Quotes & Invoices</div>
+    <div class="chip">CRM</div>
+    <div class="chip">Inventory</div>
+    <div class="chip">Client Portal</div>
+    <div class="chip">AI Assistant</div>
+  </div>
+  <p class="cover-meta" style="margin-top:48px;">CABSHOP PRO · GOTHAM WOODWORKS, LLC · 2026</p>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-inner">
+    <h2>Table of Contents</h2>
+    <div class="toc-grid">
+      <a href="#dashboard" class="toc-item"><span class="toc-num">01</span>Dashboard</a>
+      <a href="#projects" class="toc-item"><span class="toc-num">02</span>Projects</a>
+      <a href="#stages" class="toc-item"><span class="toc-num">03</span>Stages & Time Tracking</a>
+      <a href="#crm" class="toc-item"><span class="toc-num">04</span>CRM & Contacts</a>
+      <a href="#quotes" class="toc-item"><span class="toc-num">05</span>Quotes & Invoices</a>
+      <a href="#tasks" class="toc-item"><span class="toc-num">06</span>Tasks</a>
+      <a href="#calendar" class="toc-item"><span class="toc-num">07</span>Calendar</a>
+      <a href="#finance" class="toc-item"><span class="toc-num">08</span>Finance</a>
+      <a href="#inventory" class="toc-item"><span class="toc-num">09</span>Inventory</a>
+      <a href="#itemlibrary" class="toc-item"><span class="toc-num">10</span>Item Library</a>
+      <a href="#media" class="toc-item"><span class="toc-num">11</span>Media & Gallery</a>
+      <a href="#tools" class="toc-item"><span class="toc-num">12</span>Tools & Equipment</a>
+      <a href="#portal" class="toc-item"><span class="toc-num">13</span>Client Portal</a>
+      <a href="#search" class="toc-item"><span class="toc-num">14</span>Global Search</a>
+      <a href="#ai" class="toc-item"><span class="toc-num">15</span>AI Assistant</a>
+      <a href="#admin" class="toc-item"><span class="toc-num">16</span>Admin Settings</a>
+    </div>
+  </div>
+</div>
+
+<!-- SECTIONS -->
+<div class="wrap">
+
+  <!-- 01 DASHBOARD -->
+  <div class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-icon">⬡</div>
+      <div>
+        <div class="section-num">01 — Home</div>
+        <h2>Dashboard</h2>
       </div>
+    </div>
+    <p class="section-lead">Your command center. At a glance — active projects, overdue invoices, low stock alerts, upcoming tasks, and recent activity across the shop.</p>
 
-      {/* Tabs */}
-      <div style={{display: "flex", gap: 8, marginBottom: 28}}>
-        <button style={tabStyle("guide")} onClick={() => setTab("guide")}>📖 User Guide</button>
-        <button style={tabStyle("faq")} onClick={() => setTab("faq")}>❓ FAQ</button>
-        <button style={tabStyle("contact")} onClick={() => setTab("contact")}>✉️ Contact Support</button>
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Dashboard</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="420" fill="#1a1a12"/>
+          <!-- Sidebar -->
+          <rect x="0" y="0" width="56" height="420" fill="#111109"/>
+          <text x="28" y="32" text-anchor="middle" font-size="18" fill="#4fffb0">⬡</text>
+          <circle cx="28" cy="70" r="14" fill="#4fffb022"/>
+          <text x="28" y="75" text-anchor="middle" font-size="11" fill="#4fffb0">◈</text>
+          <circle cx="28" cy="110" r="14" fill="none"/>
+          <text x="28" y="115" text-anchor="middle" font-size="11" fill="#444">👤</text>
+          <text x="28" y="155" text-anchor="middle" font-size="11" fill="#444">✓</text>
+          <text x="28" y="195" text-anchor="middle" font-size="11" fill="#444">📄</text>
+          <text x="28" y="235" text-anchor="middle" font-size="11" fill="#444">📅</text>
+          <text x="28" y="275" text-anchor="middle" font-size="11" fill="#444">💰</text>
+          <!-- Top bar -->
+          <rect x="56" y="0" width="744" height="44" fill="#16160f"/>
+          <text x="76" y="27" font-size="13" font-weight="700" fill="#fff" font-family="Georgia,serif">CabShop Pro</text>
+          <rect x="600" y="12" width="120" height="20" rx="10" fill="#222218"/>
+          <text x="660" y="26" text-anchor="middle" font-size="10" fill="#555">🔍 Search…</text>
+          <circle cx="760" cy="22" r="12" fill="#4fffb022"/>
+          <text x="760" y="27" text-anchor="middle" font-size="12" fill="#4fffb0">🔔</text>
+          <!-- Main content area -->
+          <!-- Stats row -->
+          <rect x="72" y="56" width="152" height="64" rx="10" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <text x="86" y="78" font-size="9" fill="#666" font-family="monospace">ACTIVE PROJECTS</text>
+          <text x="86" y="103" font-size="26" font-weight="800" fill="#4fffb0" font-family="Georgia,serif">7</text>
+          <rect x="236" y="56" width="152" height="64" rx="10" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <text x="250" y="78" font-size="9" fill="#666" font-family="monospace">OUTSTANDING</text>
+          <text x="250" y="103" font-size="22" font-weight="800" fill="#ffc46b" font-family="Georgia,serif">$48,200</text>
+          <rect x="400" y="56" width="152" height="64" rx="10" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <text x="414" y="78" font-size="9" fill="#666" font-family="monospace">TASKS DUE SOON</text>
+          <text x="414" y="103" font-size="26" font-weight="800" fill="#ff6b6b" font-family="Georgia,serif">4</text>
+          <rect x="564" y="56" width="152" height="64" rx="10" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <text x="578" y="78" font-size="9" fill="#666" font-family="monospace">MONTH REVENUE</text>
+          <text x="578" y="103" font-size="22" font-weight="800" fill="#4fffb0" font-family="Georgia,serif">$31,500</text>
+          <!-- Project cards -->
+          <text x="72" y="148" font-size="9" fill="#555" font-family="monospace">ACTIVE PROJECTS</text>
+          <!-- Card 1 -->
+          <rect x="72" y="160" width="216" height="110" rx="10" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="72" y="160" width="4" height="110" rx="2" fill="#4fffb0"/>
+          <text x="88" y="182" font-size="12" font-weight="700" fill="#fff">Hartwell Kitchen</text>
+          <text x="88" y="197" font-size="9" fill="#555">Kerry Smith · active</text>
+          <rect x="88" y="210" width="140" height="4" rx="2" fill="#333"/>
+          <rect x="88" y="210" width="98" height="4" rx="2" fill="#4fffb0"/>
+          <text x="88" y="225" font-size="8" fill="#666">70% complete · 5/12 stages</text>
+          <text x="88" y="242" font-size="9" fill="#ffc46b">Next: ⚙ CNC Routing</text>
+          <text x="200" y="257" font-size="8" fill="#4fffb0">$28,500</text>
+          <!-- Card 2 -->
+          <rect x="300" y="160" width="216" height="110" rx="10" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="300" y="160" width="4" height="110" rx="2" fill="#7b6fff"/>
+          <text x="316" y="182" font-size="12" font-weight="700" fill="#fff">Oleander Bath</text>
+          <text x="316" y="197" font-size="9" fill="#555">Mary Chen · active</text>
+          <rect x="316" y="210" width="140" height="4" rx="2" fill="#333"/>
+          <rect x="316" y="210" width="56" height="4" rx="2" fill="#7b6fff"/>
+          <text x="316" y="225" font-size="8" fill="#666">40% complete · 4/12 stages</text>
+          <text x="316" y="242" font-size="9" fill="#ffc46b">Next: 🔩 Joining</text>
+          <text x="428" y="257" font-size="8" fill="#7b6fff">$14,200</text>
+          <!-- Card 3 -->
+          <rect x="528" y="160" width="216" height="110" rx="10" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="528" y="160" width="4" height="110" rx="2" fill="#ffc46b"/>
+          <text x="544" y="182" font-size="12" font-weight="700" fill="#fff">Sycamore Office</text>
+          <text x="544" y="197" font-size="9" fill="#555">James Park · active</text>
+          <rect x="544" y="210" width="140" height="4" rx="2" fill="#333"/>
+          <rect x="544" y="210" width="21" height="4" rx="2" fill="#ffc46b"/>
+          <text x="544" y="225" font-size="8" fill="#666">15% complete · 2/12 stages</text>
+          <text x="544" y="242" font-size="9" fill="#ffc46b">Next: 📦 Procurement</text>
+          <text x="656" y="257" font-size="8" fill="#ffc46b">$22,800</text>
+          <!-- Notifications panel -->
+          <text x="72" y="302" font-size="9" fill="#555" font-family="monospace">NOTIFICATIONS</text>
+          <rect x="72" y="314" width="664" height="38" rx="8" fill="#1e1e14" stroke="#2a2a1e" stroke-width="1"/>
+          <text x="88" y="328" font-size="10" fill="#ffc46b">⚠</text>
+          <text x="104" y="328" font-size="11" font-weight="600" fill="#fff">Low Stock:</text>
+          <text x="168" y="328" font-size="11" fill="#888">Pocket Hole Screws — 12 boxes remaining (min: 20)</text>
+          <text x="104" y="344" font-size="10" fill="#555">→ Go to Inventory</text>
+          <rect x="72" y="358" width="664" height="38" rx="8" fill="#1e1e14" stroke="#2a2a1e" stroke-width="1"/>
+          <text x="88" y="372" font-size="10" fill="#4fffb0">✓</text>
+          <text x="104" y="372" font-size="11" font-weight="600" fill="#fff">Quote Approved:</text>
+          <text x="212" y="372" font-size="11" fill="#888">GW-2026-004 — Hartwell Kitchen is ready to invoice</text>
+          <text x="104" y="388" font-size="10" fill="#555">→ Go to Quotes</text>
+        </svg>
       </div>
+    </div>
 
-      {/* Guide Tab */}
-      {tab === "guide" && (
-        <div>
-          <div style={{background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "28px 24px", marginBottom: 20}}>
-            <div style={{fontSize: 18, fontWeight: 700, marginBottom: 10}}>CabShop Pro User Guide</div>
-            <div style={{fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 20}}>
-              The full user guide covers every feature in CabShop Pro — from creating your first project to generating invoices, tracking profitability, and managing your team.
-            </div>
-            <a href="/guide.html" target="_blank" rel="noopener noreferrer"
-              style={{display: "inline-block", background: "var(--accent)", color: "#000", padding: "10px 22px",
-                borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none"}}>
-              Open User Guide →
-            </a>
-          </div>
+    <h3>What you'll see</h3>
+    <div class="feature-grid">
+      <div class="feature-card"><div class="feature-card-icon">📊</div><div class="feature-card-title">Project Summary</div><div class="feature-card-desc">Active projects with stage progress bars, budget status, and next stage indicator.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🔔</div><div class="feature-card-title">Notifications</div><div class="feature-card-desc">Overdue tasks, low inventory, approved quotes waiting to invoice, and overdue invoices.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">💰</div><div class="feature-card-title">Financial Snapshot</div><div class="feature-card-desc">Revenue to date, outstanding invoices, and recent transactions.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">✓</div><div class="feature-card-title">Upcoming Tasks</div><div class="feature-card-desc">Tasks due soon across all projects, sorted by priority.</div></div>
+    </div>
 
-          {/* Explainer */}
-          <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.7,marginBottom:18,padding:"12px 16px",background:"var(--surface2)",borderRadius:10,border:"1px solid var(--border)"}}>
-            Below are the main feature areas of CabShop Pro. Click any section to go directly to that part of the User Guide.
-          </div>
+    <div class="tip"><strong>Tip:</strong> Click any project card on the Dashboard to jump directly to that project's detail view.</div>
+  </div>
 
-          {/* Feature highlights — clickable links into guide */}
-          <div style={{display: "grid", gridTemplateColumns: bp === "phone" ? "1fr" : "1fr 1fr", gap: 14}}>
-            {[
-              { icon: "📋", title: "Projects & Quotes", desc: "Manage jobs from estimate to completion with linked quotes and change orders.", anchor: "#projects" },
-              { icon: "💰", title: "Finance Tracker", desc: "Track income, expenses, and profitability with QuickBooks export.", anchor: "#finance" },
-              { icon: "📦", title: "Inventory & Items", desc: "Build a reusable item library to speed up quoting.", anchor: "#inventory" },
-              { icon: "📅", title: "Calendar & Tasks", desc: "Schedule jobs and assign tasks to keep your team on track.", anchor: "#calendar" },
-              { icon: "🤝", title: "CRM", desc: "Manage clients and contacts with full project history.", anchor: "#crm" },
-              { icon: "🤖", title: "AI Assistant", desc: "Get instant help, cost analysis, and project insights powered by AI.", anchor: "#ai" },
-            ].map(f => (
-              <a key={f.title} href={`/guide.html${f.anchor}`} target="_blank" rel="noopener noreferrer"
-                style={{background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 16px",
-                  textDecoration:"none", display:"block", transition:"border-color 0.15s, transform 0.15s", cursor:"pointer"}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.transform="translateY(-2px)";}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.transform="";}}>
-                <div style={{fontSize: 22, marginBottom: 8}}>{f.icon}</div>
-                <div style={{fontWeight: 700, fontSize: 14, marginBottom: 4, color:"var(--text)"}}>{f.title}</div>
-                <div style={{fontSize: 13, color: "var(--muted)", lineHeight: 1.5}}>{f.desc}</div>
-                <div style={{fontSize:11,color:"var(--accent)",marginTop:8,fontFamily:"var(--mono)"}}>Open in guide ↗</div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+  <!-- 02 PROJECTS -->
+  <div class="section" id="projects">
+    <div class="section-header">
+      <div class="section-icon">◈</div>
+      <div>
+        <div class="section-num">02 — Projects</div>
+        <h2>Projects</h2>
+      </div>
+    </div>
+    <p class="section-lead">Every job lives here. Create a project for each client engagement and track it from first contact through final installation.</p>
 
-      {/* FAQ Tab */}
-      {tab === "faq" && (
-        <div style={{display: "flex", flexDirection: "column", gap: 10}}>
-          {faqs.map((item, i) => (
-            <div key={i} style={{background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden"}}>
-              <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                style={{width: "100%", background: "none", border: "none", padding: "16px 18px",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  cursor: "pointer", textAlign: "left"}}>
-                <span style={{fontWeight: 600, fontSize: 14, color: "var(--text)"}}>{item.q}</span>
-                <span style={{color: "var(--accent)", fontSize: 18, lineHeight: 1}}>{openFaq === i ? "−" : "+"}</span>
-              </button>
-              {openFaq === i && (
-                <div style={{padding: "0 18px 16px", fontSize: 14, color: "var(--muted)", lineHeight: 1.6}}>
-                  {item.a}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Projects</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="380" fill="#1a1a12"/>
+          <!-- Header -->
+          <rect x="0" y="0" width="800" height="50" fill="#16160f"/>
+          <text x="24" y="32" font-size="18" font-weight="800" fill="#fff" font-family="Georgia,serif">Projects</text>
+          <rect x="580" y="13" width="100" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="630" y="29" text-anchor="middle" font-size="11" font-weight="700" fill="#4fffb0">+ New Project</text>
+          <!-- Filters -->
+          <rect x="24" y="62" width="60" height="24" rx="12" fill="#4fffb0"/>
+          <text x="54" y="78" text-anchor="middle" font-size="10" font-weight="700" fill="#000">Active</text>
+          <rect x="92" y="62" width="72" height="24" rx="12" fill="#222218" stroke="#333"/>
+          <text x="128" y="78" text-anchor="middle" font-size="10" fill="#666">Archived</text>
+          <rect x="172" y="62" width="60" height="24" rx="12" fill="#222218" stroke="#333"/>
+          <text x="202" y="78" text-anchor="middle" font-size="10" fill="#666">All</text>
+          <!-- Project Card 1 -->
+          <rect x="24" y="102" width="232" height="130" rx="12" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="24" y="102" width="232" height="4" rx="2" fill="#4fffb0"/>
+          <text x="40" y="125" font-size="13" font-weight="700" fill="#fff">Hartwell Kitchen</text>
+          <text x="40" y="141" font-size="10" fill="#555">Kerry Smith · Primary Client</text>
+          <rect x="40" y="152" width="180" height="5" rx="2.5" fill="#333"/>
+          <rect x="40" y="152" width="126" height="5" rx="2.5" fill="#4fffb0"/>
+          <text x="40" y="172" font-size="9" fill="#666" font-family="monospace">70% · 5 of 12 stages done</text>
+          <text x="40" y="188" font-size="10" fill="#aaa">Next: ⚙ CNC Routing</text>
+          <rect x="40" y="200" width="60" height="18" rx="9" fill="#4fffb022"/>
+          <text x="70" y="213" text-anchor="middle" font-size="9" fill="#4fffb0">active</text>
+          <text x="220" y="222" font-size="10" font-weight="700" fill="#fff" text-anchor="end">$28,500</text>
+          <!-- Project Card 2 -->
+          <rect x="268" y="102" width="232" height="130" rx="12" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="268" y="102" width="232" height="4" rx="2" fill="#7b6fff"/>
+          <text x="284" y="125" font-size="13" font-weight="700" fill="#fff">Oleander Bathroom</text>
+          <text x="284" y="141" font-size="10" fill="#555">Mary Chen · Primary Client</text>
+          <rect x="284" y="152" width="180" height="5" rx="2.5" fill="#333"/>
+          <rect x="284" y="152" width="72" height="5" rx="2.5" fill="#7b6fff"/>
+          <text x="284" y="172" font-size="9" fill="#666" font-family="monospace">40% · 4 of 12 stages done</text>
+          <text x="284" y="188" font-size="10" fill="#aaa">Next: 🔩 Joining</text>
+          <rect x="284" y="200" width="60" height="18" rx="9" fill="#7b6fff22"/>
+          <text x="314" y="213" text-anchor="middle" font-size="9" fill="#7b6fff">active</text>
+          <text x="464" y="222" font-size="10" font-weight="700" fill="#fff" text-anchor="end">$14,200</text>
+          <!-- Project Card 3 -->
+          <rect x="512" y="102" width="232" height="130" rx="12" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="512" y="102" width="232" height="4" rx="2" fill="#ffc46b"/>
+          <text x="528" y="125" font-size="13" font-weight="700" fill="#fff">Sycamore Office</text>
+          <text x="528" y="141" font-size="10" fill="#555">James Park · Primary Client</text>
+          <rect x="528" y="152" width="180" height="5" rx="2.5" fill="#333"/>
+          <rect x="528" y="152" width="27" height="5" rx="2.5" fill="#ffc46b"/>
+          <text x="528" y="172" font-size="9" fill="#666" font-family="monospace">15% · 2 of 12 stages done</text>
+          <text x="528" y="188" font-size="10" fill="#aaa">Next: 📦 Procurement</text>
+          <rect x="528" y="200" width="60" height="18" rx="9" fill="#ffc46b22"/>
+          <text x="558" y="213" text-anchor="middle" font-size="9" fill="#ffc46b">active</text>
+          <text x="708" y="222" font-size="10" font-weight="700" fill="#fff" text-anchor="end">$22,800</text>
+          <!-- Second row -->
+          <rect x="24" y="248" width="232" height="110" rx="12" fill="#222218" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="24" y="248" width="232" height="4" rx="2" fill="#ff6b6b"/>
+          <text x="40" y="270" font-size="13" font-weight="700" fill="#fff">Ridgeway Wine Rack</text>
+          <text x="40" y="286" font-size="10" fill="#555">Sarah Liu</text>
+          <rect x="40" y="298" width="180" height="5" rx="2.5" fill="#333"/>
+          <rect x="40" y="298" width="162" height="5" rx="2.5" fill="#ff6b6b"/>
+          <text x="40" y="318" font-size="9" fill="#666" font-family="monospace">90% · 10 of 12 stages done</text>
+          <text x="220" y="350" font-size="10" font-weight="700" fill="#fff" text-anchor="end">$9,400</text>
+          <!-- New project prompt card -->
+          <rect x="268" y="248" width="232" height="110" rx="12" fill="#1a1a14" stroke="#2a2a1e" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="384" y="296" text-anchor="middle" font-size="22" fill="#333">+</text>
+          <text x="384" y="316" text-anchor="middle" font-size="11" fill="#444">New Project</text>
+        </svg>
+      </div>
+    </div>
 
-      {/* Contact Tab */}
-      {tab === "contact" && (
-        <div style={{background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "28px 24px"}}>
-          <div style={{fontSize: 18, fontWeight: 700, marginBottom: 8}}>Contact Support</div>
-          <div style={{fontSize: 14, color: "var(--muted)", marginBottom: 24, lineHeight: 1.6}}>
-            Have a question or found a bug? Reach out and we'll get back to you as soon as possible.
-          </div>
-          <div style={{display: "flex", flexDirection: "column", gap: 14}}>
-            <div style={{background: "var(--surface2)", borderRadius: 10, padding: "16px 18px", display: "flex", gap: 14, alignItems: "center"}}>
-              <span style={{fontSize: 24}}>📧</span>
-              <div>
-                <div style={{fontWeight: 700, fontSize: 14}}>Email Support</div>
-                <a href="mailto:support@cabshoppro.com" style={{fontSize: 13, color: "var(--accent)"}}>support@cabshoppro.com</a>
-              </div>
-            </div>
-            <div style={{background: "var(--surface2)", borderRadius: 10, padding: "16px 18px", display: "flex", gap: 14, alignItems: "center"}}>
-              <span style={{fontSize: 24}}>💬</span>
-              <div>
-                <div style={{fontWeight: 700, fontSize: 14}}>AI Chat Assistant</div>
-                <div style={{fontSize: 13, color: "var(--muted)"}}>Use the chat bubble (bottom right) for instant help.</div>
-              </div>
-            </div>
-            <div style={{background: "var(--surface2)", borderRadius: 10, padding: "16px 18px", display: "flex", gap: 14, alignItems: "center"}}>
-              <span style={{fontSize: 24}}>🐛</span>
-              <div>
-                <div style={{fontWeight: 700, fontSize: 14}}>Report a Bug</div>
-                <div style={{fontSize: 13, color: "var(--muted)"}}>Use the Feature Requests button in the sidebar to report issues.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    <h3>Creating a Project</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Click + New Project</strong><span>Opens the project creation form.</span></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Choose a template (optional)</strong><span>9 built-in templates for Kitchen, Bathroom, Office, Mudroom, Wine Rack, Laundry, and more. Each pre-loads relevant stages and default tasks.</span></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Fill in project details</strong><span>Name, description, linked client, start/end dates, and budget.</span></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Select stages</strong><span>Toggle the stages relevant to this project. Add custom stages by typing a name and pressing Enter.</span></div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Set the job site address</strong><span>Auto-fills from the linked client's address. Shows a live map preview.</span></div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-body"><strong>Save</strong><span>Project is created and saved to your account.</span></div></div>
+    </div>
+
+    <h3>Project Detail View</h3>
+    <p>Click any project card to open the full detail view. It contains several tabs:</p>
+    <table>
+      <tr><th>Tab</th><th>What it contains</th></tr>
+      <tr><td>$ Financials</td><td>Budget vs actual, revenue, material costs, labor, profit & loss summary</td></tr>
+      <tr><td>Stages</td><td>All project stages with completion toggles, time logging, and per-stage photos</td></tr>
+      <tr><td>Tasks</td><td>Tasks linked to this project</td></tr>
+      <tr><td>Docs</td><td>Resources and documents linked to this project</td></tr>
+      <tr><td>Quotes</td><td>All quotes and invoices for this project</td></tr>
+      <tr><td>Notes</td><td>Internal notes and history</td></tr>
+      <tr><td>Changes</td><td>Change orders</td></tr>
+      <tr><td>📷 Photos</td><td>All project photos grouped by stage, plus field captures</td></tr>
+      <tr><td>📊 Review</td><td>Full profitability analysis with AI insights</td></tr>
+    </table>
+
+    <h3>Project Templates</h3>
+    <p>Save any project as a template by clicking <strong>⭐ Save as Template</strong> in the project header. Templates capture stages, tasks, and description so you can re-use that structure on future jobs. Manage templates in Admin Settings → 📐 Templates.</p>
+
+    <h3>Adding Contacts to a Project</h3>
+    <p>Open any project and scroll to the <strong>Project Contacts</strong> section. Use the <em>"+ Add contact to project…"</em> search field to find and add any CRM contact. Click the <strong>×</strong> next to any additional contact to remove them.</p>
+
+    <div class="tip"><strong>Field Tip:</strong> On phones and tablets, a floating 📷 camera button appears in every project. Tap it to capture a site photo directly — it saves to the project's Photos tab instantly.</div>
+  </div>
+
+  <!-- 03 STAGES & TIME TRACKING -->
+  <div class="section" id="stages">
+    <div class="section-header">
+      <div class="section-icon">⚙️</div>
+      <div>
+        <div class="section-num">03 — Stages</div>
+        <h2>Stages & Time Tracking</h2>
+      </div>
+    </div>
+    <p class="section-lead">Track every project through your production workflow. Log time, capture photos, and mark stages complete as work progresses.</p>
+
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Project → Stages Tab</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="380" fill="#1a1a12"/>
+          <!-- Tab bar -->
+          <rect x="0" y="0" width="800" height="40" fill="#16160f"/>
+          <rect x="16" y="8" width="70" height="24" rx="7" fill="#222218"/>
+          <text x="51" y="24" text-anchor="middle" font-size="10" fill="#666">$ Financials</text>
+          <rect x="94" y="8" width="80" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="134" y="24" text-anchor="middle" font-size="10" font-weight="700" fill="#4fffb0">Stages (5/12)</text>
+          <rect x="182" y="8" width="64" height="24" rx="7" fill="#222218"/>
+          <text x="214" y="24" text-anchor="middle" font-size="10" fill="#666">Tasks (3)</text>
+          <rect x="254" y="8" width="52" height="24" rx="7" fill="#222218"/>
+          <text x="280" y="24" text-anchor="middle" font-size="10" fill="#666">Docs</text>
+          <rect x="314" y="8" width="68" height="24" rx="7" fill="#222218"/>
+          <text x="348" y="24" text-anchor="middle" font-size="10" fill="#666">📷 Photos</text>
+          <!-- Stage card 1 - done -->
+          <rect x="16" y="52" width="760" height="54" rx="10" fill="#222218" stroke="#4fffb033" stroke-width="1"/>
+          <rect x="16" y="52" width="4" height="54" rx="2" fill="#4fffb0"/>
+          <rect x="28" y="66" width="20" height="20" rx="6" fill="#4fffb0"/>
+          <text x="38" y="80" text-anchor="middle" font-size="11" fill="#000">✓</text>
+          <text x="60" y="68" font-size="12" font-weight="700" fill="#fff">✏️ Design</text>
+          <text x="60" y="84" font-size="9" fill="#4fffb0">Completed · 4h 30m logged</text>
+          <text x="700" y="73" font-size="9" fill="#555" font-family="monospace">3 entries</text>
+          <rect x="740" y="62" width="28" height="24" rx="6" fill="#333"/>
+          <text x="754" y="78" text-anchor="middle" font-size="11" fill="#888">📷</text>
+          <!-- Stage card 2 - done -->
+          <rect x="16" y="114" width="760" height="54" rx="10" fill="#222218" stroke="#4fffb033" stroke-width="1"/>
+          <rect x="16" y="114" width="4" height="54" rx="2" fill="#4fffb0"/>
+          <rect x="28" y="128" width="20" height="20" rx="6" fill="#4fffb0"/>
+          <text x="38" y="142" text-anchor="middle" font-size="11" fill="#000">✓</text>
+          <text x="60" y="130" font-size="12" font-weight="700" fill="#fff">📦 Material Procurement</text>
+          <text x="60" y="146" font-size="9" fill="#4fffb0">Completed · 2h 15m logged</text>
+          <rect x="740" y="124" width="28" height="24" rx="6" fill="#333"/>
+          <text x="754" y="140" text-anchor="middle" font-size="11" fill="#888">📷</text>
+          <!-- Stage card 3 - active, expanded -->
+          <rect x="16" y="176" width="760" height="100" rx="10" fill="#1e1e14" stroke="#ffc46b44" stroke-width="1"/>
+          <rect x="16" y="176" width="4" height="100" rx="2" fill="#ffc46b"/>
+          <rect x="28" y="190" width="20" height="20" rx="6" fill="#333" stroke="#555"/>
+          <text x="60" y="192" font-size="12" font-weight="700" fill="#fff">⚙️ CNC Routing</text>
+          <rect x="620" y="184" width="64" height="22" rx="6" fill="#ffc46b22" stroke="#ffc46b44"/>
+          <text x="652" y="199" text-anchor="middle" font-size="9" font-weight="700" fill="#ffc46b">IN PROGRESS</text>
+          <rect x="740" y="184" width="28" height="22" rx="6" fill="#4fffb022"/>
+          <text x="754" y="199" text-anchor="middle" font-size="11" fill="#4fffb0">📷</text>
+          <!-- Timer section -->
+          <rect x="40" y="218" width="120" height="46" rx="8" fill="#222218"/>
+          <text x="100" y="234" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">TIMER</text>
+          <text x="100" y="254" text-anchor="middle" font-size="18" font-weight="700" fill="#fff" font-family="monospace">00:34:12</text>
+          <rect x="172" y="222" width="56" height="34" rx="7" fill="#4fffb0"/>
+          <text x="200" y="244" text-anchor="middle" font-size="10" font-weight="700" fill="#000">■ Stop</text>
+          <!-- Manual entry -->
+          <rect x="248" y="218" width="80" height="22" rx="6" fill="#333"/>
+          <text x="280" y="233" text-anchor="middle" font-size="10" fill="#888">45 min</text>
+          <rect x="338" y="218" width="180" height="22" rx="6" fill="#333"/>
+          <text x="380" y="233" font-size="10" fill="#555">Note: routing drawer fronts…</text>
+          <rect x="528" y="218" width="60" height="22" rx="6" fill="#7b6fff22" stroke="#7b6fff44"/>
+          <text x="558" y="233" text-anchor="middle" font-size="10" fill="#7b6fff">Log Time</text>
+          <!-- Stage card 4 - not started -->
+          <rect x="16" y="286" width="760" height="46" rx="10" fill="#1a1a12" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="16" y="286" width="4" height="46" rx="2" fill="#333"/>
+          <rect x="28" y="300" width="20" height="20" rx="6" fill="#222218" stroke="#333"/>
+          <text x="60" y="302" font-size="12" font-weight="600" fill="#555">🔲 Edgebanding</text>
+          <text x="60" y="318" font-size="9" fill="#444">Not started</text>
+          <rect x="740" y="296" width="28" height="22" rx="6" fill="#222218"/>
+          <text x="754" y="311" text-anchor="middle" font-size="11" fill="#555">📷</text>
+          <!-- Stage card 5 - not started -->
+          <rect x="16" y="340" width="760" height="34" rx="10" fill="#1a1a12" stroke="#2a2a1e" stroke-width="1"/>
+          <rect x="16" y="340" width="4" height="34" rx="2" fill="#333"/>
+          <text x="60" y="362" font-size="12" font-weight="600" fill="#555">🔨 Assembly</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Default Stage Order</h3>
+    <div class="feature-grid">
+      <div class="feature-card"><div class="feature-card-icon">✏️</div><div class="feature-card-title">Design</div><div class="feature-card-desc">Drawings, renderings, client presentations</div></div>
+      <div class="feature-card"><div class="feature-card-icon">📦</div><div class="feature-card-title">Material Procurement</div><div class="feature-card-desc">Ordering lumber, hardware, and components</div></div>
+      <div class="feature-card"><div class="feature-card-icon">📍</div><div class="feature-card-title">Site Visits / Consultations</div><div class="feature-card-desc">Field measurements and client meetings</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🪚</div><div class="feature-card-title">Milling</div><div class="feature-card-desc">Dimensioning lumber and sheet goods</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🔩</div><div class="feature-card-title">Joining</div><div class="feature-card-desc">Mortise & tenon, dowels, biscuits</div></div>
+      <div class="feature-card"><div class="feature-card-icon">⚙️</div><div class="feature-card-title">CNC Routing</div><div class="feature-card-desc">CNC machining and routing operations</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🔲</div><div class="feature-card-title">Edgebanding</div><div class="feature-card-desc">Applying and trimming edge material</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🔨</div><div class="feature-card-title">Assembly</div><div class="feature-card-desc">Box construction and case assembly</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🧹</div><div class="feature-card-title">Finish Prep</div><div class="feature-card-desc">Sanding, filling, and surface preparation</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🖌️</div><div class="feature-card-title">Finishing</div><div class="feature-card-desc">Staining, painting, or clear coating</div></div>
+      <div class="feature-card"><div class="feature-card-icon">📋</div><div class="feature-card-title">Delivery Prep</div><div class="feature-card-desc">Wrapping, packing, and staging</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🏠</div><div class="feature-card-title">Installation</div><div class="feature-card-desc">On-site installation and punch list</div></div>
+    </div>
+
+    <h3>Logging Time</h3>
+    <p>Each stage has a built-in time logger. You can use it two ways:</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">▶</div><div class="step-body"><strong>Live Timer</strong><span>Click Start — the timer runs while you work. Click Stop to auto-fill the minutes. Add a note and click Log Time.</span></div></div>
+      <div class="step"><div class="step-num">✎</div><div class="step-body"><strong>Manual Entry</strong><span>Type the number of minutes directly, add a note, and click Log Time.</span></div></div>
+    </div>
+    <p>All logged time feeds into the project's profitability review and labor cost calculations.</p>
+
+    <h3>Stage Photos</h3>
+    <p>Each stage has a 📷 camera button to capture in-progress photos. Photos are saved to Supabase Storage and appear in the project's Photos tab grouped by stage. On mobile, the floating camera button captures directly to the project gallery without needing to open a specific stage.</p>
+  </div>
+
+  <!-- 04 CRM -->
+  <div class="section" id="crm">
+    <div class="section-header">
+      <div class="section-icon">👤</div>
+      <div>
+        <div class="section-num">04 — CRM</div>
+        <h2>CRM & Contacts</h2>
+      </div>
+    </div>
+    <p class="section-lead">Manage clients, suppliers, subcontractors, and partners. Every contact links to their projects, quotes, and invoices.</p>
+
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">CRM</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="360" fill="#1a1a12"/>
+          <!-- Header -->
+          <rect x="0" y="0" width="800" height="50" fill="#16160f"/>
+          <text x="24" y="32" font-size="18" font-weight="800" fill="#fff" font-family="Georgia,serif">CRM &amp; Contacts</text>
+          <rect x="590" y="13" width="90" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="635" y="29" text-anchor="middle" font-size="11" font-weight="700" fill="#4fffb0">+ New Contact</text>
+          <!-- Search + filters -->
+          <rect x="24" y="62" width="220" height="28" rx="8" fill="#222218" stroke="#333"/>
+          <text x="40" y="80" font-size="11" fill="#555">🔍 Search contacts…</text>
+          <rect x="256" y="62" width="52" height="28" rx="14" fill="#4fffb0"/>
+          <text x="282" y="80" text-anchor="middle" font-size="10" font-weight="700" fill="#000">All</text>
+          <rect x="316" y="62" width="56" height="28" rx="14" fill="#222218" stroke="#333"/>
+          <text x="344" y="80" text-anchor="middle" font-size="10" fill="#666">Clients</text>
+          <rect x="380" y="62" width="68" height="28" rx="14" fill="#222218" stroke="#333"/>
+          <text x="414" y="80" text-anchor="middle" font-size="10" fill="#666">Suppliers</text>
+          <rect x="456" y="62" width="68" height="28" rx="14" fill="#222218" stroke="#333"/>
+          <text x="490" y="80" text-anchor="middle" font-size="10" fill="#666">Partners</text>
+          <!-- Contact Card 1 -->
+          <rect x="24" y="104" width="232" height="110" rx="12" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="24" y="104" width="232" height="3" rx="2" fill="#4fffb0"/>
+          <circle cx="52" cy="134" r="18" fill="#4fffb022"/>
+          <text x="52" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#4fffb0">KS</text>
+          <text x="80" y="126" font-size="12" font-weight="700" fill="#fff">Kerry Smith</text>
+          <text x="80" y="141" font-size="9" fill="#555">Gotham Woodworks</text>
+          <rect x="80" y="148" width="34" height="14" rx="7" fill="#4fffb022"/>
+          <text x="97" y="158" text-anchor="middle" font-size="8" fill="#4fffb0">Client</text>
+          <text x="36" y="174" font-size="9" fill="#555">✉ kerry@gothamwoodworks.com</text>
+          <text x="36" y="190" font-size="9" fill="#555">✆ (704) 555-0100</text>
+          <text x="36" y="203" font-size="8" fill="#4fffb0">3 active projects</text>
+          <!-- Contact Card 2 -->
+          <rect x="268" y="104" width="232" height="110" rx="12" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="268" y="104" width="232" height="3" rx="2" fill="#7b6fff"/>
+          <circle cx="292" cy="134" r="18" fill="#7b6fff22"/>
+          <text x="292" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#7b6fff">MC</text>
+          <text x="320" y="126" font-size="12" font-weight="700" fill="#fff">Mary Chen</text>
+          <text x="320" y="141" font-size="9" fill="#555">Homeowner</text>
+          <rect x="320" y="148" width="34" height="14" rx="7" fill="#4fffb022"/>
+          <text x="337" y="158" text-anchor="middle" font-size="8" fill="#4fffb0">Client</text>
+          <text x="280" y="174" font-size="9" fill="#555">✉ mchen@email.com</text>
+          <text x="280" y="190" font-size="9" fill="#555">✆ (828) 555-0234</text>
+          <text x="280" y="203" font-size="8" fill="#7b6fff">1 active project</text>
+          <!-- Contact Card 3 -->
+          <rect x="512" y="104" width="232" height="110" rx="12" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="512" y="104" width="232" height="3" rx="2" fill="#ffc46b"/>
+          <circle cx="536" cy="134" r="18" fill="#ffc46b22"/>
+          <text x="536" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#ffc46b">BF</text>
+          <text x="564" y="126" font-size="12" font-weight="700" fill="#fff">Bell Forest Products</text>
+          <text x="564" y="141" font-size="9" fill="#555">Lumber Supplier</text>
+          <rect x="564" y="148" width="50" height="14" rx="7" fill="#ffc46b22"/>
+          <text x="589" y="158" text-anchor="middle" font-size="8" fill="#ffc46b">Supplier</text>
+          <text x="524" y="174" font-size="9" fill="#555">✉ orders@bellforest.com</text>
+          <text x="524" y="190" font-size="9" fill="#555">✆ (800) 545-5071</text>
+          <text x="524" y="203" font-size="8" fill="#ffc46b">Hardwood · Lead time 5–7d</text>
+          <!-- Contact Card 4 -->
+          <rect x="24" y="228" width="232" height="110" rx="12" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="24" y="228" width="232" height="3" rx="2" fill="#ff6b6b"/>
+          <circle cx="52" cy="258" r="18" fill="#ff6b6b22"/>
+          <text x="52" y="263" text-anchor="middle" font-size="13" font-weight="800" fill="#ff6b6b">JP</text>
+          <text x="80" y="250" font-size="12" font-weight="700" fill="#fff">James Park</text>
+          <text x="80" y="265" font-size="9" fill="#555">Cottonwood Development</text>
+          <rect x="80" y="272" width="34" height="14" rx="7" fill="#4fffb022"/>
+          <text x="97" y="282" text-anchor="middle" font-size="8" fill="#4fffb0">Client</text>
+          <text x="36" y="298" font-size="9" fill="#555">✉ jpark@cottonwood.com</text>
+          <text x="36" y="314" font-size="9" fill="#555">✆ (704) 555-0388</text>
+          <text x="36" y="327" font-size="8" fill="#ff6b6b">2 active projects</text>
+          <!-- Map embed preview on card -->
+          <rect x="268" y="228" width="232" height="110" rx="12" fill="#1e1e14" stroke="#2a2a1e"/>
+          <text x="384" y="268" text-anchor="middle" font-size="9" fill="#444" font-family="monospace">CONTACT DETAIL</text>
+          <rect x="284" y="278" width="200" height="50" rx="6" fill="#1a2a1a"/>
+          <text x="384" y="308" text-anchor="middle" font-size="10" fill="#4fffb044">📍 Google Maps embed</text>
+          <text x="384" y="324" text-anchor="middle" font-size="8" fill="#333">142 Peaceful Ridge Lane</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Contact Types</h3>
+    <table>
+      <tr><th>Type</th><th>Use for</th></tr>
+      <tr><td>Client</td><td>Homeowners, builders, designers who commission work</td></tr>
+      <tr><td>Supplier</td><td>Lumber yards, hardware suppliers, finishing suppliers</td></tr>
+      <tr><td>Partner</td><td>Subcontractors, architects, designers you collaborate with</td></tr>
+    </table>
+
+    <h3>Contact Detail</h3>
+    <p>Click any contact to open their detail panel. You'll find:</p>
+    <ul style="padding-left:20px;color:var(--ink-mid);font-size:14px;line-height:2;">
+      <li>Phone, email, and website with one-click actions</li>
+      <li>Multiple addresses (Mailing, Shipping, Billing)</li>
+      <li>Google Maps embed for the job site location</li>
+      <li>Associated projects and linked quotes</li>
+      <li>Referral source and internal notes</li>
+    </ul>
+
+    <h3>Client Portal Link</h3>
+    <p>From any contact's detail panel, click <strong>🔗 Client Portal Link</strong> to generate a secure portal link for that client. The link gives them a branded view of their projects, quotes, and invoices — no account needed.</p>
+
+    <div class="tip"><strong>Tip:</strong> Phone numbers auto-format to (xxx) xxx-xxxx as you type.</div>
+  </div>
+
+  <!-- 05 QUOTES & INVOICES -->
+  <div class="section" id="quotes">
+    <div class="section-header">
+      <div class="section-icon">📄</div>
+      <div>
+        <div class="section-num">05 — Quotes & Invoices</div>
+        <h2>Quotes & Invoices</h2>
+      </div>
+    </div>
+    <p class="section-lead">Build professional quotes with line items, markup, and tax. Send for client approval with one click. Convert approved quotes to invoices and collect payment online.</p>
+
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Quotes & Invoices</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="420" fill="#1a1a12"/>
+          <!-- Top bar -->
+          <rect x="0" y="0" width="800" height="44" fill="#16160f"/>
+          <text x="24" y="28" font-size="14" font-weight="700" fill="#aaa">← Quotes</text>
+          <text x="110" y="28" font-size="14" font-weight="700" fill="#fff">GW-2026-004 — Hartwell Kitchen</text>
+          <rect x="620" y="10" width="76" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="658" y="26" text-anchor="middle" font-size="10" font-weight="700" fill="#4fffb0">✉ Send Quote</text>
+          <rect x="704" y="10" width="72" height="24" rx="7" fill="#7b6fff22" stroke="#7b6fff44"/>
+          <text x="740" y="26" text-anchor="middle" font-size="10" font-weight="700" fill="#7b6fff">Convert →</text>
+          <!-- Quote header info -->
+          <rect x="16" y="56" width="380" height="60" rx="10" fill="#222218"/>
+          <text x="32" y="76" font-size="9" fill="#555" font-family="monospace">CLIENT</text>
+          <text x="32" y="92" font-size="12" font-weight="700" fill="#fff">Kerry Smith</text>
+          <text x="32" y="107" font-size="9" fill="#555">Gotham Woodworks</text>
+          <text x="220" y="76" font-size="9" fill="#555" font-family="monospace">PROJECT</text>
+          <text x="220" y="92" font-size="12" font-weight="700" fill="#fff">Hartwell Kitchen</text>
+          <text x="220" y="107" font-size="9" fill="#555">Date: 2026-06-08</text>
+          <rect x="408" y="56" width="170" height="60" rx="10" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="424" y="76" font-size="9" fill="#4fffb0" font-family="monospace">STATUS</text>
+          <text x="424" y="98" font-size="20" font-weight="800" fill="#4fffb0">APPROVED</text>
+          <!-- Line items header -->
+          <rect x="16" y="130" width="770" height="24" rx="0" fill="#16160f"/>
+          <text x="32" y="146" font-size="9" fill="#555" font-family="monospace">DESCRIPTION</text>
+          <text x="500" y="146" font-size="9" fill="#555" font-family="monospace">QTY</text>
+          <text x="560" y="146" font-size="9" fill="#555" font-family="monospace">UNIT</text>
+          <text x="630" y="146" font-size="9" fill="#555" font-family="monospace">UNIT PRICE</text>
+          <text x="730" y="146" font-size="9" fill="#555" font-family="monospace">TOTAL</text>
+          <!-- Line item 1 -->
+          <rect x="16" y="154" width="770" height="44" rx="0" fill="#1e1e14" stroke="#2a2a1e" stroke-width="0" stroke-dasharray="0"/>
+          <rect x="16" y="154" width="2" height="44" fill="#7b6fff"/>
+          <text x="32" y="172" font-size="12" font-weight="600" fill="#fff">Design &amp; Drafting</text>
+          <text x="32" y="187" font-size="9" fill="#555">Measured drawings, 3D renderings, presentations</text>
+          <text x="506" y="178" font-size="12" fill="#aaa">3</text>
+          <text x="566" y="178" font-size="12" fill="#aaa">hr</text>
+          <text x="638" y="178" font-size="12" fill="#aaa">$95.00</text>
+          <text x="756" y="178" text-anchor="end" font-size="12" font-weight="700" fill="#fff">$285.00</text>
+          <line x1="16" y1="198" x2="786" y2="198" stroke="#2a2a1e" stroke-width="1"/>
+          <!-- Line item 2 -->
+          <rect x="16" y="198" width="2" height="44" fill="#4fffb0"/>
+          <text x="32" y="216" font-size="12" font-weight="600" fill="#fff">Upper Cabinet — 42"</text>
+          <text x="32" y="231" font-size="9" fill="#555">Maple veneer, soft-close hinges, adjustable shelving</text>
+          <text x="506" y="222" font-size="12" fill="#aaa">6</text>
+          <text x="566" y="222" font-size="12" fill="#aaa">ea</text>
+          <text x="638" y="222" font-size="12" fill="#aaa">$680.00</text>
+          <text x="756" y="222" text-anchor="end" font-size="12" font-weight="700" fill="#fff">$4,080.00</text>
+          <line x1="16" y1="242" x2="786" y2="242" stroke="#2a2a1e" stroke-width="1"/>
+          <!-- Line item 3 -->
+          <rect x="16" y="242" width="2" height="44" fill="#ffc46b"/>
+          <text x="32" y="260" font-size="12" font-weight="600" fill="#fff">Drawer Bank (3-drawer)</text>
+          <text x="32" y="275" font-size="9" fill="#555">Dovetail boxes, undermount slides, soft-close</text>
+          <text x="506" y="266" font-size="12" fill="#aaa">4</text>
+          <text x="566" y="266" font-size="12" fill="#aaa">ea</text>
+          <text x="638" y="266" font-size="12" fill="#aaa">$1,200.00</text>
+          <text x="756" y="266" text-anchor="end" font-size="12" font-weight="700" fill="#fff">$4,800.00</text>
+          <line x1="16" y1="286" x2="786" y2="286" stroke="#2a2a1e" stroke-width="1"/>
+          <!-- Add line button -->
+          <rect x="16" y="290" width="770" height="36" rx="0" fill="#1a1a12"/>
+          <text x="400" y="312" text-anchor="middle" font-size="11" fill="#444">+ Add Line Item · 📚 From Library</text>
+          <!-- Totals -->
+          <rect x="500" y="338" width="286" height="72" rx="10" fill="#222218"/>
+          <text x="516" y="358" font-size="11" fill="#888">Subtotal</text>
+          <text x="772" y="358" text-anchor="end" font-size="11" fill="#fff">$9,165.00</text>
+          <text x="516" y="378" font-size="11" fill="#888">Tax (7%)</text>
+          <text x="772" y="378" text-anchor="end" font-size="11" fill="#fff">$641.55</text>
+          <line x1="516" y1="388" x2="772" y2="388" stroke="#333" stroke-width="1"/>
+          <text x="516" y="402" font-size="13" font-weight="800" fill="#fff">TOTAL</text>
+          <text x="772" y="402" text-anchor="end" font-size="13" font-weight="800" fill="#4fffb0">$9,806.55</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Creating a Quote</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Click + New Quote</strong><span>Opens the quote editor. Link it to a project and client.</span></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Add line items</strong><span>Type items manually, or click the 📚 Library button to pull from your Item Library with pricing pre-filled.</span></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Set markup and tax</strong><span>Apply markup per line or a global tax rate. Margins and sell prices calculate automatically.</span></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Add supporting documents</strong><span>Attach T&Cs, renderings, or spec sheets in the Supporting Documents section.</span></div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Send for approval</strong><span>Click ✉ Send Quote — client receives a branded email with the full quote and an approval link.</span></div></div>
+    </div>
+
+    <h3>Client Approval Flow</h3>
+    <p>When a client receives a quote email, they click the link to open a secure approval page. They can review line items, sign digitally, and approve — you get notified instantly and the quote status updates to Approved.</p>
+
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Client Approval Page</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="340" fill="#f7f5ef"/>
+          <!-- Header -->
+          <rect x="0" y="0" width="800" height="56" fill="#1a1a12"/>
+          <text x="40" y="24" font-size="10" font-weight="700" fill="#4fffb0" font-family="monospace">GOTHAM WOODWORKS, LLC</text>
+          <text x="40" y="44" font-size="13" fill="#888">Quote Review &amp; Approval</text>
+          <!-- Quote header -->
+          <rect x="40" y="72" width="720" height="60" rx="10" fill="#fff" stroke="#e0e0d0"/>
+          <text x="60" y="96" font-size="16" font-weight="800" fill="#1a1a12" font-family="Georgia,serif">GW-2026-004 — Hartwell Kitchen Remodel</text>
+          <text x="60" y="116" font-size="11" fill="#888">Prepared for: Kerry Smith · Date: June 8, 2026 · Valid 30 days</text>
+          <text x="700" y="96" text-anchor="end" font-size="22" font-weight="900" fill="#1a1a12">$9,806.55</text>
+          <!-- Line items summary -->
+          <rect x="40" y="144" width="440" height="100" rx="10" fill="#fff" stroke="#e0e0d0"/>
+          <text x="60" y="166" font-size="9" fill="#888" font-family="monospace">LINE ITEMS</text>
+          <text x="60" y="184" font-size="12" fill="#333">Design &amp; Drafting (3 hr)</text>
+          <text x="460" y="184" text-anchor="end" font-size="12" fill="#1a1a12">$285.00</text>
+          <text x="60" y="202" font-size="12" fill="#333">Upper Cabinets 42" (×6)</text>
+          <text x="460" y="202" text-anchor="end" font-size="12" fill="#1a1a12">$4,080.00</text>
+          <text x="60" y="220" font-size="12" fill="#333">Drawer Bank 3-drawer (×4)</text>
+          <text x="460" y="220" text-anchor="end" font-size="12" fill="#1a1a12">$4,800.00</text>
+          <line x1="60" y1="228" x2="460" y2="228" stroke="#e0e0d0" stroke-width="1"/>
+          <text x="60" y="240" font-size="12" font-weight="700" fill="#1a1a12">Total</text>
+          <text x="460" y="240" text-anchor="end" font-size="12" font-weight="700" fill="#1a1a12">$9,806.55</text>
+          <!-- Signature area -->
+          <rect x="500" y="144" width="260" height="100" rx="10" fill="#fff" stroke="#e0e0d0"/>
+          <text x="520" y="166" font-size="9" fill="#888" font-family="monospace">YOUR SIGNATURE</text>
+          <rect x="516" y="176" width="228" height="52" rx="6" fill="#f8f7f3" stroke="#ddd" stroke-dasharray="4,3"/>
+          <text x="630" y="206" text-anchor="middle" font-size="11" fill="#bbb">Sign here</text>
+          <text x="520" y="238" font-size="9" fill="#bbb">By signing, you approve this quote</text>
+          <!-- Approve button -->
+          <rect x="40" y="260" width="720" height="56" rx="12" fill="#1a1a12"/>
+          <rect x="40" y="260" width="720" height="56" rx="12" fill="#4fffb0"/>
+          <text x="400" y="294" text-anchor="middle" font-size="16" font-weight="800" fill="#000">✓ Approve &amp; Sign Quote</text>
+          <!-- Decline link -->
+          <text x="400" y="328" text-anchor="middle" font-size="11" fill="#bbb">Not ready? Decline this quote</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Converting to Invoice</h3>
+    <p>Once approved, open the quote and click <strong>Convert to Invoice</strong>. The invoice inherits all line items. Set a due date, add payment terms, and send.</p>
+
+    <h3>Online Payment</h3>
+    <p>On any invoice, click <strong>💳 Payment Link</strong> to generate a Stripe-powered payment page for the exact invoice amount. The client can pay by card immediately. The link is included automatically when you email the invoice.</p>
+
+    <h3>Quote & Invoice Statuses</h3>
+    <table>
+      <tr><th>Status</th><th>Meaning</th></tr>
+      <tr><td>Draft</td><td>Not yet sent to client</td></tr>
+      <tr><td>Sent</td><td>Emailed to client, awaiting approval</td></tr>
+      <tr><td>Approved</td><td>Client has signed and approved</td></tr>
+      <tr><td>Declined</td><td>Client declined</td></tr>
+      <tr><td>Unpaid</td><td>Invoice sent, payment pending</td></tr>
+      <tr><td>Paid</td><td>Payment received</td></tr>
+    </table>
+
+    <div class="tip"><strong>Tip:</strong> The quote editor remembers where you were — if you refresh the page while editing a quote, it reopens to the same quote automatically.</div>
+  </div>
+
+  <!-- 06 TASKS -->
+  <div class="section" id="tasks">
+    <div class="section-header">
+      <div class="section-icon">✓</div>
+      <div>
+        <div class="section-num">06 — Tasks</div>
+        <h2>Tasks</h2>
+      </div>
+    </div>
+    <p class="section-lead">Keep every job on track. Tasks can be linked to projects, assigned priorities, and tracked in a kanban board or list view.</p>
+
+    <h3>Views</h3>
+    <p><strong>Board view</strong> — tasks grouped into To Do, In Progress, and Done columns. Drag and drop to move between columns.</p>
+    <p><strong>List view</strong> — all tasks in a flat list, sortable by project, due date, priority, or creation date. Supports bulk selection for marking done or deleting multiple tasks at once.</p>
+
+    <h3>Task Fields</h3>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Title</td><td>What needs to be done</td></tr>
+      <tr><td>Project</td><td>Links the task to a specific project</td></tr>
+      <tr><td>Priority</td><td>High / Medium / Low</td></tr>
+      <tr><td>Due Date</td><td>When it needs to be completed</td></tr>
+      <tr><td>Notes</td><td>Additional detail or instructions</td></tr>
+      <tr><td>Subtasks</td><td>Break larger tasks into smaller steps</td></tr>
+    </table>
+
+    <div class="tip"><strong>Quick Add:</strong> Type a task and press Enter directly from the project detail view to add a task without opening the full task form.</div>
+  </div>
+
+  <!-- 07 CALENDAR -->
+  <div class="section" id="calendar">
+    <div class="section-header">
+      <div class="section-icon">📅</div>
+      <div>
+        <div class="section-num">07 — Calendar</div>
+        <h2>Calendar</h2>
+      </div>
+    </div>
+    <p class="section-lead">Schedule site visits, deliveries, installations, and client meetings. Toggle task due dates into the calendar view for a complete picture of your schedule.</p>
+
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Calendar</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="360" fill="#1a1a12"/>
+          <!-- Header -->
+          <rect x="0" y="0" width="800" height="44" fill="#16160f"/>
+          <text x="24" y="28" font-size="16" font-weight="700" fill="#fff">June 2026</text>
+          <text x="120" y="28" font-size="18" fill="#555">‹</text>
+          <text x="140" y="28" font-size="18" fill="#555">›</text>
+          <rect x="620" y="10" width="80" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="660" y="26" text-anchor="middle" font-size="10" font-weight="700" fill="#4fffb0">+ New Event</text>
+          <rect x="708" y="10" width="72" height="24" rx="7" fill="#222218"/>
+          <text x="744" y="26" text-anchor="middle" font-size="10" fill="#888">⬇ Export .ics</text>
+          <!-- Day headers -->
+          <rect x="0" y="44" width="800" height="24" fill="#16160f"/>
+          <text x="57" y="60" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">SUN</text>
+          <text x="171" y="60" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">MON</text>
+          <text x="285" y="60" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">TUE</text>
+          <text x="399" y="60" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">WED</text>
+          <text x="513" y="60" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">THU</text>
+          <text x="627" y="60" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">FRI</text>
+          <text x="741" y="60" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">SAT</text>
+          <!-- Calendar grid lines -->
+          <line x1="114" y1="68" x2="114" y2="360" stroke="#222" stroke-width="1"/>
+          <line x1="228" y1="68" x2="228" y2="360" stroke="#222" stroke-width="1"/>
+          <line x1="342" y1="68" x2="342" y2="360" stroke="#222" stroke-width="1"/>
+          <line x1="456" y1="68" x2="456" y2="360" stroke="#222" stroke-width="1"/>
+          <line x1="570" y1="68" x2="570" y2="360" stroke="#222" stroke-width="1"/>
+          <line x1="684" y1="68" x2="684" y2="360" stroke="#222" stroke-width="1"/>
+          <line x1="0" y1="140" x2="800" y2="140" stroke="#222" stroke-width="1"/>
+          <line x1="0" y1="212" x2="800" y2="212" stroke="#222" stroke-width="1"/>
+          <line x1="0" y1="284" x2="800" y2="284" stroke="#222" stroke-width="1"/>
+          <!-- Week 1 dates -->
+          <text x="100" y="84" text-anchor="end" font-size="11" fill="#444">1</text>
+          <text x="214" y="84" text-anchor="end" font-size="11" fill="#444">2</text>
+          <text x="328" y="84" text-anchor="end" font-size="11" fill="#444">3</text>
+          <text x="442" y="84" text-anchor="end" font-size="11" fill="#444">4</text>
+          <text x="556" y="84" text-anchor="end" font-size="11" fill="#444">5</text>
+          <text x="670" y="84" text-anchor="end" font-size="11" fill="#444">6</text>
+          <text x="784" y="84" text-anchor="end" font-size="11" fill="#444">7</text>
+          <!-- Event: Site Visit -->
+          <rect x="116" y="88" width="110" height="20" rx="4" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="122" y="102" font-size="9" fill="#4fffb0">📍 Hartwell Site Visit</text>
+          <!-- Week 2 -->
+          <text x="100" y="156" text-anchor="end" font-size="11" fill="#444">8</text>
+          <text x="214" y="156" text-anchor="end" font-size="11" fill="#444">9</text>
+          <text x="328" y="156" text-anchor="end" font-size="11" fill="#444">10</text>
+          <text x="442" y="156" text-anchor="end" font-size="11" fill="#444">11</text>
+          <rect x="342" y="160" width="110" height="20" rx="4" fill="#7b6fff22" stroke="#7b6fff44"/>
+          <text x="348" y="174" font-size="9" fill="#7b6fff">🤝 Design Review</text>
+          <text x="556" y="156" text-anchor="end" font-size="11" fill="#444">12</text>
+          <text x="670" y="156" text-anchor="end" font-size="11" fill="#444">13</text>
+          <text x="784" y="156" text-anchor="end" font-size="11" fill="#444">14</text>
+          <!-- Week 3 -->
+          <text x="100" y="228" text-anchor="end" font-size="11" fill="#fff">15</text>
+          <rect x="2" y="214" width="112" height="70" rx="0" fill="#222218"/>
+          <text x="100" y="228" text-anchor="end" font-size="11" fill="#fff">15</text>
+          <rect x="4" y="232" width="106" height="20" rx="4" fill="#4fffb0"/>
+          <text x="10" y="246" font-size="9" font-weight="700" fill="#000">🏠 Installation Day 1</text>
+          <rect x="4" y="254" width="106" height="20" rx="4" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="10" y="268" font-size="9" fill="#4fffb0">🏠 Installation Day 2</text>
+          <text x="214" y="228" text-anchor="end" font-size="11" fill="#444">16</text>
+          <text x="328" y="228" text-anchor="end" font-size="11" fill="#444">17</text>
+          <text x="442" y="228" text-anchor="end" font-size="11" fill="#444">18</text>
+          <rect x="344" y="232" width="110" height="20" rx="4" fill="#ffc46b22" stroke="#ffc46b44"/>
+          <text x="350" y="246" font-size="9" fill="#ffc46b">🚚 Oleander Delivery</text>
+          <text x="556" y="228" text-anchor="end" font-size="11" fill="#444">19</text>
+          <text x="670" y="228" text-anchor="end" font-size="11" fill="#444">20</text>
+          <!-- Task due indicator -->
+          <rect x="572" y="232" width="110" height="18" rx="4" fill="#ff6b6b22" stroke="#ff6b6b44"/>
+          <text x="578" y="245" font-size="9" fill="#ff6b6b">✓ Drawer order due</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Event Types</h3>
+    <div class="feature-grid">
+      <div class="feature-card"><div class="feature-card-icon">📍</div><div class="feature-card-title">Site Visit</div><div class="feature-card-desc">Field measurements and on-site consultations</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🤝</div><div class="feature-card-title">Meeting</div><div class="feature-card-desc">Client or team meetings</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🚚</div><div class="feature-card-title">Delivery</div><div class="feature-card-desc">Material or job deliveries</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🏠</div><div class="feature-card-title">Installation</div><div class="feature-card-desc">On-site installation days</div></div>
+      <div class="feature-card"><div class="feature-card-icon">⏰</div><div class="feature-card-title">Deadline</div><div class="feature-card-desc">Project milestones and deadlines</div></div>
+      <div class="feature-card"><div class="feature-card-icon">📌</div><div class="feature-card-title">Other</div><div class="feature-card-desc">Any other scheduled event</div></div>
+    </div>
+
+    <h3>Recurring Events</h3>
+    <p>Set any event to repeat daily, weekly, biweekly, or monthly. Recurring events appear on all matching dates in the calendar automatically.</p>
+
+    <h3>Exporting to External Calendars</h3>
+    <p>From the calendar page, click <strong>⬇ Export .ics</strong> to download all events as a single .ics file — import into Google Calendar, Apple Calendar, or Outlook.</p>
+    <p>When creating or editing an event, use the <strong>Export to Calendar</strong> section to send a single event to:</p>
+    <ul style="padding-left:20px;color:var(--ink-mid);font-size:14px;line-height:2.2;">
+      <li><strong>Google Calendar</strong> — opens Google Calendar in a new tab with event pre-filled</li>
+      <li><strong>Apple / iCal</strong> — downloads an .ics file; on Mac it opens Calendar automatically</li>
+      <li><strong>Outlook / Other</strong> — downloads an .ics file to import into Outlook or Windows Calendar</li>
+    </ul>
+  </div>
+
+  <!-- 08 FINANCE -->
+  <div class="section" id="finance">
+    <div class="section-header">
+      <div class="section-icon">💰</div>
+      <div>
+        <div class="section-num">08 — Finance</div>
+        <h2>Finance</h2>
+      </div>
+    </div>
+    <p class="section-lead">Track income and expenses, manage your chart of accounts, and export to QuickBooks-compatible CSV.</p>
+
+    <h3>Transactions</h3>
+    <p>Log any income or expense transaction and assign it to a Chart of Accounts category. Filter by date range, type, or category to see exactly where your money is going.</p>
+
+    <h3>Chart of Accounts</h3>
+    <p>Customize your account categories in Admin Settings → 📋 Chart of Accounts. Default categories include Revenue, Material Costs, Labor, and Operating Expenses.</p>
+
+    <h3>QuickBooks Export</h3>
+    <p>Go to Admin Settings → 📊 QuickBooks to export:</p>
+    <ul style="padding-left:20px;color:var(--ink-mid);font-size:14px;line-height:2.2;">
+      <li>Chart of Accounts (QBO-formatted CSV)</li>
+      <li>Transactions</li>
+      <li>Invoices</li>
+    </ul>
+    <p>Import these files into QuickBooks Online via the import tool. Full OAuth live sync is planned for a future update.</p>
+
+    <h3>Profitability Dashboard</h3>
+    <p>Navigate to <strong>Profitability</strong> in the sidebar for a full breakdown by project — revenue, material costs, labor hours and cost, gross profit, and margin percentage. Compare projects side by side and identify your most and least profitable work.</p>
+  </div>
+
+  <!-- 09 INVENTORY -->
+  <div class="section" id="inventory">
+    <div class="section-header">
+      <div class="section-icon">📦</div>
+      <div>
+        <div class="section-num">09 — Inventory</div>
+        <h2>Inventory</h2>
+      </div>
+    </div>
+    <p class="section-lead">Track stock levels for materials, hardware, and supplies. Get alerted when anything runs low.</p>
+
+    <h3>Adding Items to Inventory</h3>
+    <p>Items can be added directly in the Inventory section, or pushed from the Item Library by clicking <strong>+ Inventory</strong> on any item (not available for Labor items).</p>
+
+    <h3>Low Stock Alerts</h3>
+    <p>Set a minimum quantity for any inventory item. When stock falls below that threshold, a notification appears in the dashboard and notification bell.</p>
+
+    <h3>Usage Logging</h3>
+    <p>Log material usage directly to a project to track what's been consumed and keep inventory counts accurate.</p>
+  </div>
+
+  <!-- 10 ITEM LIBRARY -->
+  <div class="section" id="itemlibrary">
+    <div class="section-header">
+      <div class="section-icon">📚</div>
+      <div>
+        <div class="section-num">10 — Item Library</div>
+        <h2>Material & Item Library</h2>
+      </div>
+    </div>
+    <p class="section-lead">Your pre-built catalog of materials, labor rates, hardware, and components. Pull any item into a quote instantly with pricing and markup pre-filled.</p>
+
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Item Library</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="360" fill="#1a1a12"/>
+          <!-- Header -->
+          <rect x="0" y="0" width="800" height="44" fill="#16160f"/>
+          <text x="24" y="28" font-size="16" font-weight="800" fill="#fff" font-family="Georgia,serif">Material &amp; Item Library</text>
+          <rect x="600" y="10" width="80" height="24" rx="7" fill="#222218" stroke="#333"/>
+          <text x="640" y="26" text-anchor="middle" font-size="10" fill="#888">⋯ Actions</text>
+          <rect x="688" y="10" width="90" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+          <text x="733" y="26" text-anchor="middle" font-size="10" font-weight="700" fill="#4fffb0">+ New Item</text>
+          <!-- Search + filters -->
+          <rect x="24" y="56" width="200" height="26" rx="7" fill="#222218" stroke="#333"/>
+          <text x="40" y="73" font-size="10" fill="#555">🔍 Search items…</text>
+          <rect x="236" y="56" width="50" height="26" rx="13" fill="#4fffb0"/>
+          <text x="261" y="73" text-anchor="middle" font-size="9" font-weight="700" fill="#000">All</text>
+          <rect x="294" y="56" width="68" height="26" rx="13" fill="#222218" stroke="#333"/>
+          <text x="328" y="73" text-anchor="middle" font-size="9" fill="#666">Cabinetry</text>
+          <rect x="370" y="56" width="52" height="26" rx="13" fill="#222218" stroke="#333"/>
+          <text x="396" y="73" text-anchor="middle" font-size="9" fill="#666">Labor</text>
+          <rect x="430" y="56" width="68" height="26" rx="13" fill="#222218" stroke="#333"/>
+          <text x="464" y="73" text-anchor="middle" font-size="9" fill="#666">Hardware</text>
+          <rect x="506" y="56" width="68" height="26" rx="13" fill="#222218" stroke="#333"/>
+          <text x="540" y="73" text-anchor="middle" font-size="9" fill="#666">Finishing</text>
+          <!-- Item Card 1 -->
+          <rect x="24" y="96" width="178" height="120" rx="10" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="24" y="96" width="178" height="52" rx="10" fill="#2a3a2a"/>
+          <text x="113" y="126" text-anchor="middle" font-size="28" fill="#4fffb044">🪵</text>
+          <text x="40" y="166" font-size="11" font-weight="700" fill="#fff">Upper Cabinet 42"</text>
+          <text x="40" y="180" font-size="9" fill="#555">Cabinetry · ea</text>
+          <text x="40" y="196" font-size="10" font-weight="700" fill="#4fffb0">Sell: $680</text>
+          <text x="150" y="196" font-size="9" fill="#555">Cost: $420</text>
+          <text x="40" y="208" font-size="8" fill="#7b6fff">📎 3 docs</text>
+          <!-- Item Card 2 -->
+          <rect x="214" y="96" width="178" height="120" rx="10" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="214" y="96" width="178" height="52" rx="10" fill="#1a2a3a"/>
+          <text x="303" y="126" text-anchor="middle" font-size="28" fill="#7b6fff44">🔧</text>
+          <text x="230" y="166" font-size="11" font-weight="700" fill="#fff">Design &amp; Drafting</text>
+          <text x="230" y="180" font-size="9" fill="#555">Labor · hr</text>
+          <text x="230" y="196" font-size="10" font-weight="700" fill="#4fffb0">Sell: $95</text>
+          <text x="340" y="196" font-size="9" fill="#555">Cost: $65</text>
+          <!-- Item Card 3 -->
+          <rect x="404" y="96" width="178" height="120" rx="10" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="404" y="96" width="178" height="52" rx="10" fill="#2a2a1a"/>
+          <text x="493" y="126" text-anchor="middle" font-size="28" fill="#ffc46b44">⚙️</text>
+          <text x="420" y="166" font-size="11" font-weight="700" fill="#fff">Drawer Bank (3-drawer)</text>
+          <text x="420" y="180" font-size="9" fill="#555">Cabinetry · ea</text>
+          <text x="420" y="196" font-size="10" font-weight="700" fill="#4fffb0">Sell: $1,200</text>
+          <text x="540" y="196" font-size="9" fill="#555">Cost: $780</text>
+          <text x="420" y="208" font-size="8" fill="#4fffb0">↗ Product Page</text>
+          <!-- Item Card 4 -->
+          <rect x="594" y="96" width="178" height="120" rx="10" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="594" y="96" width="178" height="52" rx="10" fill="#2a1a2a"/>
+          <text x="683" y="126" text-anchor="middle" font-size="28" fill="#ff6b6b44">🖌️</text>
+          <text x="610" y="166" font-size="11" font-weight="700" fill="#fff">Finishing — Lacquer</text>
+          <text x="610" y="180" font-size="9" fill="#555">Finishing · sf</text>
+          <text x="610" y="196" font-size="10" font-weight="700" fill="#4fffb0">Sell: $8.50</text>
+          <text x="720" y="196" font-size="9" fill="#555">Cost: $5.20</text>
+          <!-- Second row -->
+          <rect x="24" y="234" width="178" height="106" rx="10" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="24" y="234" width="178" height="44" rx="10" fill="#1a2a2a"/>
+          <text x="40" y="296" font-size="11" font-weight="700" fill="#fff">Soft-Close Hinges</text>
+          <text x="40" y="310" font-size="9" fill="#555">Hardware · ea</text>
+          <text x="40" y="326" font-size="10" font-weight="700" fill="#4fffb0">Sell: $14.50</text>
+          <text x="150" y="326" font-size="9" fill="#555">Cost: $8.75</text>
+          <rect x="214" y="234" width="178" height="106" rx="10" fill="#222218" stroke="#2a2a1e"/>
+          <rect x="214" y="234" width="178" height="44" rx="10" fill="#2a1a1a"/>
+          <text x="230" y="296" font-size="11" font-weight="700" fill="#fff">Undermount Slide 21"</text>
+          <text x="230" y="310" font-size="9" fill="#555">Hardware · pr</text>
+          <text x="230" y="326" font-size="10" font-weight="700" fill="#4fffb0">Sell: $48.00</text>
+          <text x="340" y="326" font-size="9" fill="#555">Cost: $31.50</text>
+          <text x="230" y="338" font-size="8" fill="#555">#BL-4210</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Item Fields</h3>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Name</td><td>Item description</td></tr>
+      <tr><td>Category</td><td>Cabinetry, Labor, Hardware, Doors, Surfaces, Cabinet Accessories, Drawers, Finishing, Custom, Supplier</td></tr>
+      <tr><td>Unit</td><td>ea, hr, lf, sf, bf, lbs, gal, and more — selected from a dropdown</td></tr>
+      <tr><td>Product # / SKU</td><td>Supplier part number for easy reordering</td></tr>
+      <tr><td>Product URL</td><td>Direct link to the product page on the supplier's website</td></tr>
+      <tr><td>Base Cost</td><td>Your cost — kept internal, never shown to clients</td></tr>
+      <tr><td>Default Markup %</td><td>Markup applied automatically when pulled into a quote</td></tr>
+      <tr><td>Default Margin %</td><td>Alternative to markup — set your target margin instead</td></tr>
+      <tr><td>Photo</td><td>Upload a product photo for visual reference</td></tr>
+      <tr><td>Related Documents</td><td>Attach spec sheets, installation guides, DWG/DXF files</td></tr>
+    </table>
+
+    <h3>Importing Supplier Price Lists</h3>
+    <p>Click <strong>⋯ Actions → Import Items or Price List</strong> and upload any CSV file. CabShop Pro auto-detects column names from common supplier formats — columns like Item, Description, Part#, Price/Cost, UOM, and Category are mapped automatically.</p>
+    <p>After import, items are categorized as "Supplier" and a reminder appears to add your markup before quoting.</p>
+
+    <div class="note"><strong>Note:</strong> Inventory buttons are hidden for Labor category items since labor hours don't need stock tracking.</div>
+  </div>
+
+  <!-- 11 MEDIA & GALLERY -->
+  <div class="section" id="media">
+    <div class="section-header">
+      <div class="section-icon">🖼</div>
+      <div>
+        <div class="section-num">11 — Media & Gallery</div>
+        <h2>Media, Gallery & Samples</h2>
+      </div>
+    </div>
+    <p class="section-lead">Three dedicated libraries for different types of visual assets.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-card-icon">🖼</div>
+        <div class="feature-card-title">Media Library</div>
+        <div class="feature-card-desc">Reference images, inspiration photos, and project assets. Tag and filter by project. Supports images and documents.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">🏆</div>
+        <div class="feature-card-title">Gallery</div>
+        <div class="feature-card-desc">Portfolio of completed work. Organize finished project photos with captions and project links.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">🎨</div>
+        <div class="feature-card-title">Samples Library</div>
+        <div class="feature-card-desc">Wood species, finishes, hardware finishes, and material samples. Reference during client consultations.</div>
+      </div>
+    </div>
+
+    <div class="tip"><strong>Mobile Tip:</strong> On phones and tablets, a floating 📷 camera button appears in the Media Library. Tap it to capture and add a photo instantly — no need to open the Add File dialog.</div>
+  </div>
+
+  <!-- 12 TOOLS -->
+  <div class="section" id="tools">
+    <div class="section-header">
+      <div class="section-icon">🔧</div>
+      <div>
+        <div class="section-num">12 — Tools</div>
+        <h2>Tools & Equipment</h2>
+      </div>
+    </div>
+    <p class="section-lead">Keep a record of every major tool and machine in your shop — purchase date, value, maintenance history, and photos.</p>
+
+    <h3>What to Track</h3>
+    <p>Log any significant shop equipment: table saws, CNC routers, edge banders, planers, jointers, spray equipment, and hand tools of value. Include purchase price and current value for insurance and depreciation purposes.</p>
+
+    <h3>Photos</h3>
+    <p>Attach photos to each tool record. Use the camera button on mobile to capture photos directly in the shop.</p>
+  </div>
+
+  <!-- 13 CLIENT PORTAL -->
+  <div class="section" id="portal">
+    <div class="section-header">
+      <div class="section-icon">🔗</div>
+      <div>
+        <div class="section-num">13 — Client Portal</div>
+        <h2>Client Portal</h2>
+      </div>
+    </div>
+    <p class="section-lead">Give clients a branded window into their project — without needing an account or login. They can view progress, approve quotes, pay invoices, and share inspiration photos.</p>
+
+    <div class="screenshot">
+      <div class="screenshot-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screenshot-label">Client Portal</span></div>
+      <div class="screenshot-body" style="padding:0;display:block;">
+        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <rect width="800" height="400" fill="#f7f5ef"/>
+          <!-- Branded header -->
+          <rect x="0" y="0" width="800" height="60" fill="#1a1a12"/>
+          <rect x="24" y="14" width="32" height="32" rx="8" fill="#4fffb022"/>
+          <text x="40" y="35" text-anchor="middle" font-size="16" fill="#4fffb0">⬡</text>
+          <text x="66" y="26" font-size="16" font-weight="800" fill="#fff" font-family="Georgia,serif">Gotham Woodworks, LLC</text>
+          <text x="66" y="44" font-size="10" fill="#666">Client Portal</text>
+          <text x="750" y="36" text-anchor="end" font-size="10" fill="#666">✉ hello@gothamwoodworks.com</text>
+          <!-- Welcome bar -->
+          <rect x="0" y="60" width="800" height="36" fill="#4fffb0"/>
+          <text x="24" y="83" font-size="13" font-weight="700" fill="#000">Welcome, Kerry Smith!</text>
+          <text x="750" y="83" text-anchor="end" font-size="11" fill="#1a6040">📞 (704) 555-0100</text>
+          <!-- Tab bar -->
+          <rect x="40" y="112" width="720" height="40" rx="10" fill="#fff" stroke="#e0e0d0"/>
+          <rect x="48" y="118" width="80" height="28" rx="8" fill="#f7f5ef"/>
+          <text x="88" y="136" text-anchor="middle" font-size="11" fill="#888">🏗 Projects</text>
+          <rect x="136" y="118" width="72" height="28" rx="8" fill="#f7f5ef"/>
+          <text x="172" y="136" text-anchor="middle" font-size="11" fill="#888">📄 Quotes</text>
+          <rect x="216" y="118" width="76" height="28" rx="8" fill="#f7f5ef"/>
+          <text x="254" y="136" text-anchor="middle" font-size="11" fill="#888">🧾 Invoices</text>
+          <rect x="300" y="118" width="84" height="28" rx="8" fill="#4fffb0"/>
+          <text x="342" y="136" text-anchor="middle" font-size="11" font-weight="700" fill="#000">📷 Photos</text>
+          <!-- Photo upload area -->
+          <rect x="40" y="168" width="720" height="90" rx="12" fill="#fff" stroke="#e0e0d0" stroke-dasharray="6,4"/>
+          <text x="400" y="200" text-anchor="middle" font-size="24" fill="#ccc">📷</text>
+          <text x="400" y="222" text-anchor="middle" font-size="13" font-weight="700" fill="#333">Share inspiration photos with Gotham Woodworks, LLC</text>
+          <text x="400" y="240" text-anchor="middle" font-size="11" fill="#aaa">Upload design ideas, site conditions, or reference images</text>
+          <rect x="310" y="248" width="100" height="28" rx="8" fill="#4fffb0"/>
+          <text x="360" y="266" text-anchor="middle" font-size="11" font-weight="700" fill="#000">📁 Choose Photo</text>
+          <rect x="420" y="248" width="80" height="28" rx="8" fill="#f0f0f0"/>
+          <text x="460" y="266" text-anchor="middle" font-size="11" fill="#666">📷 Camera</text>
+          <!-- Uploaded photos -->
+          <text x="40" y="308" font-size="9" fill="#aaa" font-family="monospace">YOUR UPLOADS</text>
+          <rect x="40" y="318" width="120" height="70" rx="8" fill="#e0e0d0"/>
+          <text x="100" y="357" text-anchor="middle" font-size="22" fill="#bbb">🏡</text>
+          <text x="100" y="378" text-anchor="middle" font-size="8" fill="#999">Inspiration 1</text>
+          <rect x="172" y="318" width="120" height="70" rx="8" fill="#d4e8d4"/>
+          <text x="232" y="357" text-anchor="middle" font-size="22" fill="#aaa">🪵</text>
+          <text x="232" y="378" text-anchor="middle" font-size="8" fill="#999">Wood sample</text>
+          <rect x="304" y="318" width="120" height="70" rx="8" fill="#e8d4d4"/>
+          <text x="364" y="357" text-anchor="middle" font-size="22" fill="#bbb">🎨</text>
+          <text x="364" y="378" text-anchor="middle" font-size="8" fill="#999">Color swatch</text>
+          <!-- Project photos from shop -->
+          <text x="500" y="308" font-size="9" fill="#aaa" font-family="monospace">PROJECT PHOTOS</text>
+          <rect x="500" y="318" width="80" height="70" rx="8" fill="#1a2a1a"/>
+          <text x="540" y="357" text-anchor="middle" font-size="18" fill="#4fffb044">⬡</text>
+          <rect x="592" y="318" width="80" height="70" rx="8" fill="#1a1a2a"/>
+          <text x="632" y="357" text-anchor="middle" font-size="18" fill="#7b6fff44">◈</text>
+          <rect x="684" y="318" width="76" height="70" rx="8" fill="#2a1a1a"/>
+          <text x="722" y="357" text-anchor="middle" font-size="18" fill="#ffc46b44">🪵</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Sending a Portal Link</h3>
+    <p>There are two ways to generate a portal link:</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">A</div><div class="step-body"><strong>From a Contact record</strong><span>CRM → open a contact → click 🔗 Client Portal Link → Copy the link or click ✉ Open in Email.</span></div></div>
+      <div class="step"><div class="step-num">B</div><div class="step-body"><strong>From a Project</strong><span>Open any project → click 🔗 Client Portal in the footer → select which contacts to invite → Copy Link or ✉ Email for each.</span></div></div>
+    </div>
+
+    <h3>What Clients See</h3>
+    <table>
+      <tr><th>Tab</th><th>Contents</th></tr>
+      <tr><td>🏗 Projects</td><td>Active projects with stage progress bars in the correct order. Completed stages shown in green.</td></tr>
+      <tr><td>📄 Quotes</td><td>Pending quotes with a Review & Sign button linking to the approval page.</td></tr>
+      <tr><td>🧾 Invoices</td><td>All invoices with status and a Pay Now button for online payment via Stripe.</td></tr>
+      <tr><td>📷 Photos</td><td>Project photos from the shop, plus an upload area for the client to share inspiration images.</td></tr>
+    </table>
+
+    <div class="note"><strong>Note:</strong> The portal is branded with your shop name, logo, and accent color from Admin Settings. No CabShop Pro branding is visible to clients.</div>
+
+    <h3>Multiple Stakeholders</h3>
+    <p>From a project's 🔗 Client Portal button, you can generate separate portal links for multiple stakeholders — homeowner, architect, designer, builder — each with their own unique link.</p>
+
+    <h3>Client Photo Uploads</h3>
+    <p>Clients can upload inspiration photos or site images from the Photos tab of their portal. Uploaded photos appear immediately in the project's Photos tab in CabShop Pro (real-time sync).</p>
+  </div>
+
+  <!-- 14 GLOBAL SEARCH -->
+  <div class="section" id="search">
+    <div class="section-header">
+      <div class="section-icon">🔍</div>
+      <div>
+        <div class="section-num">14 — Search</div>
+        <h2>Global Search</h2>
+      </div>
+    </div>
+    <p class="section-lead">Find anything instantly — across projects, contacts, quotes, and tasks — from anywhere in the app.</p>
+
+    <h3>How to Open</h3>
+    <p>Press <kbd>Ctrl+K</kbd> (Windows) or <kbd>⌘K</kbd> (Mac) from anywhere in the app, or click the 🔍 Search button in the left sidebar.</p>
+
+    <h3>What it searches</h3>
+    <table>
+      <tr><th>Category</th><th>Searched fields</th></tr>
+      <tr><td>Projects</td><td>Name, description, address</td></tr>
+      <tr><td>Contacts</td><td>Name, company, email, phone</td></tr>
+      <tr><td>Quotes & Invoices</td><td>Title, quote number</td></tr>
+      <tr><td>Tasks</td><td>Title, description</td></tr>
+    </table>
+
+    <p>Click any result to navigate directly to that item — contacts open their detail panel, projects open the project view, quotes open the editor, tasks open in list view with the task pre-selected.</p>
+
+    <div class="tip"><strong>Tip:</strong> Type at least 2 characters to start seeing results.</div>
+  </div>
+
+  <!-- 15 AI ASSISTANT -->
+  <div class="section" id="ai">
+    <div class="section-header">
+      <div class="section-icon">🤖</div>
+      <div>
+        <div class="section-num">15 — AI</div>
+        <h2>AI Assistant</h2>
+      </div>
+    </div>
+    <p class="section-lead">A cabinet shop expert in your pocket — powered by Claude AI. Ask questions about running your business, pricing, materials, and how to use CabShop Pro.</p>
+
+    <h3>Opening the Assistant</h3>
+    <p>Click the chat bubble icon in the bottom-right corner of any page to open the AI Assistant.</p>
+
+    <h3>What you can ask</h3>
+    <ul style="padding-left:20px;color:var(--ink-mid);font-size:14px;line-height:2.2;">
+      <li>How to use any feature in CabShop Pro</li>
+      <li>Pricing advice and markup strategy for cabinet work</li>
+      <li>Material quantities and estimating help</li>
+      <li>Best practices for client communication</li>
+      <li>Finishing and installation tips</li>
+      <li>Business and workflow questions specific to cabinet shops</li>
+    </ul>
+
+    <h3>Project Analysis</h3>
+    <p>From the <strong>📊 Review</strong> tab of any project, click <strong>AI Analysis</strong> to get a detailed profitability review — including comparisons to industry benchmarks, identification of where margin was gained or lost, and specific recommendations for improving profitability on similar future jobs.</p>
+  </div>
+
+  <!-- 16 ADMIN -->
+  <div class="section" id="admin">
+    <div class="section-header">
+      <div class="section-icon">⚙</div>
+      <div>
+        <div class="section-num">16 — Admin</div>
+        <h2>Admin Settings</h2>
+      </div>
+    </div>
+    <p class="section-lead">Configure your shop profile, email settings, subscription, and more.</p>
+
+    <h3>Settings Tabs</h3>
+    <table>
+      <tr><th>Tab</th><th>What you can configure</th></tr>
+      <tr><td>🏢 Company</td><td>Shop name, logo, address, phone, email, brand color, tax rate, currency</td></tr>
+      <tr><td>✉ Email</td><td>SendGrid API key, sender name and email for outgoing quotes and invoices</td></tr>
+      <tr><td>🌐 Regional</td><td>Date format, currency, measurement units</td></tr>
+      <tr><td>💳 Subscription</td><td>View and manage your CabShop Pro plan</td></tr>
+      <tr><td>👥 Users</td><td>Manage team members (Pro and Team plans)</td></tr>
+      <tr><td>🔔 Notifications</td><td>Configure which alerts you receive</td></tr>
+      <tr><td>📐 Templates</td><td>View, edit, and delete project templates</td></tr>
+      <tr><td>📋 Chart of Accounts</td><td>Add and organize financial account categories</td></tr>
+      <tr><td>📊 QuickBooks</td><td>Export data to QuickBooks-compatible CSV files</td></tr>
+    </table>
+
+    <h3>Setting Up Email</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Create a free SendGrid account</strong><span>Go to sendgrid.com and sign up.</span></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Generate an API key</strong><span>In SendGrid: Settings → API Keys → Create API Key with Mail Send permission.</span></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Paste into Admin Settings → ✉ Email</strong><span>Add your API key, sender name, and sender email address.</span></div></div>
+    </div>
+
+    <div class="tip"><strong>Tip:</strong> Your shop logo, brand color, and company name set in Admin Settings appear on all quotes, invoices, and the client portal — make sure they're filled in before sending anything to clients.</div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div style="font-size:24px;margin-bottom:12px;">◈</div>
+  <div><span>CabShop Pro</span> · User Guide · 2026</div>
+  <div style="margin-top:8px;">Built for cabinet shops and custom woodworking studios</div>
+</div>
+
+</body>
+</html>
+`}
+        style={{width:"100%",height:"100%",border:"none",display:"block"}}
+        title="CabShop Pro User Guide"
+      />
     </div>
   );
 }
 
-// ─── Global Search Modal ──────────────────────────────────────────────────────
+
 function GlobalSearch({projects,contacts,quotes,tasks,onNavigate,onClose}) {
   const [q,setQ]=useState("");
   const inputRef=useRef(null);
