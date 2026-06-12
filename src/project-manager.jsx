@@ -1198,19 +1198,18 @@ function Dashboard({projects,tasks,transactions,quotes,quoteItems,contacts,bp,on
 
 // ─── Project Stages ───────────────────────────────────────────────────────────
 var PROJECT_STAGES = [
-  { id:"design",        label:"Design",        icon:"✏️" },
-  { id:"procurement",   label:"Procurement",   icon:"📦" },
-  { id:"milling",       label:"Milling",       icon:"🪚" },
-  { id:"cnc",           label:"CNC",           icon:"⚙️" },
-  { id:"edgebanding",   label:"Edgebanding",   icon:"🔲" },
-  { id:"joining",       label:"Joining",       icon:"🔩" },
-  { id:"assembly",      label:"Assembly",      icon:"🔨" },
-  { id:"finishing",     label:"Finishing",     icon:"🖌️" },
-  { id:"deliveryprep",  label:"Delivery Prep", icon:"📋" },
-  { id:"delivery",      label:"Delivery",      icon:"🚚" },
-  { id:"installation",  label:"Installation",  icon:"🏠" },
-  { id:"sitevisits",    label:"Site Visits",   icon:"📍" },
-  { id:"consultations", label:"Consultations", icon:"💬" },
+  { id:"design",        label:"Design",                      icon:"✏️" },
+  { id:"procurement",   label:"Material Procurement",        icon:"📦" },
+  { id:"sitevisits",    label:"Site Visits/Consultations",   icon:"📍" },
+  { id:"milling",       label:"Milling",                     icon:"🪚" },
+  { id:"joining",       label:"Joining",                     icon:"🔩" },
+  { id:"cnc",           label:"CNC Routing",                 icon:"⚙️" },
+  { id:"edgebanding",   label:"Edgebanding",                 icon:"🔲" },
+  { id:"assembly",      label:"Assembly",                    icon:"🔨" },
+  { id:"finishprep",    label:"Finish Prep",                 icon:"🧹" },
+  { id:"finishing",     label:"Finishing",                   icon:"🖌️" },
+  { id:"deliveryprep",  label:"Delivery Prep",               icon:"📋" },
+  { id:"installation",  label:"Installation",                icon:"🏠" },
 ];
 
 // Default stages for a new project: each stage has done, timeLog[]
@@ -1571,11 +1570,19 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
   const COLORS=["#4fffb0","#7b6fff","#ffc46b","#ff6b6b","#6bf7ff"];
   // Build display list from THIS project's stages (not global PROJECT_STAGES)
   const activeStageIds=Object.keys(stages||{});
-  const activeStageList=activeStageIds.map(sid=>{
+  // Respect original insertion order stored in p.stageOrder (if present)
+  const orderedIds=p.stageOrder?.length
+    ? p.stageOrder.filter(id=>activeStageIds.includes(id))
+    : PROJECT_STAGES.map(s=>s.id).filter(id=>activeStageIds.includes(id))
+        .concat(activeStageIds.filter(id=>!PROJECT_STAGES.find(s=>s.id===id)));
+  const allCustomStages={...((p.customStages)||{})};
+  const activeStageList=orderedIds.map(sid=>{
     const global=PROJECT_STAGES.find(s=>s.id===sid);
     if(global)return global;
+    const custom=allCustomStages[sid];
+    if(custom)return custom;
     const label=sid.split(/[_-]/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
-    return {id:sid,label,icon:'📋'};
+    return {id:sid,label,icon:'📌'};
   });
   const stagesDone=activeStageList.filter(s=>stages[s.id]?.done).length;
   const stagePct=activeStageList.length?Math.round((stagesDone/activeStageList.length)*100):0;
@@ -3568,7 +3575,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
 
   const open=(p=null)=>{
     setSel(p);
-    setForm(p?{...p,budget:String(p.budget),clientContactId:String(p.clientContactId||""),contactIds:p.contactIds||[],contactRoles:p.contactRoles||{}}:blankForm);
+    setForm(p?{...p,budget:String(p.budget),clientContactId:String(p.clientContactId||""),contactIds:p.contactIds||[],contactRoles:p.contactRoles||{},selectedStages:p.stageOrder?.length?p.stageOrder:PROJECT_STAGES.map(s=>s.id).filter(id=>p.stages&&id in (p.stages||{})),customStages:p.customStages||{}}:blankForm);
     // Pre-fill client search with existing client name when editing
     if(p&&p.clientContactId){
       const c=contacts.find(x=>x.id===p.clientContactId);
@@ -3609,7 +3616,11 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
         });
         return updated;
       });
-      setProjects(prev=>prev.map(p=>p.id===sel.id?{...sel,...data}:p));
+      // Preserve existing stage timeLog data when editing
+      const existingStages2=sel?.stages&&typeof sel.stages==='object'&&!Array.isArray(sel.stages)?sel.stages:{};
+      const editStageIds=data.selectedStages?.length?data.selectedStages:Object.keys(existingStages2);
+      const editedStages=editStageIds.reduce((acc,sid)=>{acc[sid]=existingStages2[sid]||{done:false,timeLog:[]};return acc;},{});
+      setProjects(prev=>prev.map(p=>p.id===sel.id?{...sel,...data,stages:editedStages,stageOrder:editStageIds,customStages:data.customStages||{}}:p));
     } else {
       const newId=Date.now();
       const allTpls=adminSettings?._templates||DEFAULT_TEMPLATES;
@@ -3618,9 +3629,14 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
         allTpls.find(t=>t.name===(data._templateName||data.name)) ||
         DEFAULT_TEMPLATES.find(t=>t.name===data.name);
       // Build stages as object {stageId:{done,timeLog}} - ProjectDetail expects object
-      const stageIds=matchedTemplate?.stages?.length ? matchedTemplate.stages : Object.keys(defaultStages());
+      const selectedIds=data.selectedStages?.length
+        ? data.selectedStages
+        : matchedTemplate?.stages?.length
+          ? matchedTemplate.stages
+          : PROJECT_STAGES.map(s=>s.id);
+      const stageIds=selectedIds;
       const projStages=stageIds.reduce((acc,sid)=>{acc[sid]={done:false,timeLog:[]};return acc;},{});
-      const newProj={...data,id:newId,stages:projStages,materialAssignments:[],laborEntries:[],templateId:matchedTemplate?.id||null};
+      const newProj={...data,id:newId,stages:projStages,stageOrder:stageIds,customStages:data.customStages||{},materialAssignments:[],laborEntries:[],templateId:matchedTemplate?.id||null};
       setProjects(prev=>[...prev,newProj]);
       setContacts(prev=>{
         let updated=prev;
@@ -4455,6 +4471,64 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
             <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>COLOR</div>
             <input type="color" value={form.color} onChange={e=>setForm(f=>({...f,color:e.target.value}))} style={{width:48,height:40,borderRadius:8,border:"1px solid var(--border)",background:"none",cursor:"pointer"}} />
           </div>
+
+          {/* Stage customization */}
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,fontFamily:"var(--mono)",letterSpacing:"0.07em",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span>STAGES</span>
+              <span style={{fontSize:10,color:"var(--muted)"}}>Toggle stages relevant to this project</span>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+              {PROJECT_STAGES.map(s=>{
+                const active=(form.selectedStages||PROJECT_STAGES.map(x=>x.id)).includes(s.id);
+                return(
+                  <button key={s.id} type="button"
+                    onClick={()=>{
+                      const current=form.selectedStages||PROJECT_STAGES.map(x=>x.id);
+                      const next=active?current.filter(id=>id!==s.id):[...current,s.id];
+                      // Keep in PROJECT_STAGES order
+                      const ordered=PROJECT_STAGES.map(x=>x.id).filter(id=>next.includes(id));
+                      setForm(f=>({...f,selectedStages:ordered}));
+                    }}
+                    style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
+                      background:active?form.color+"22":"var(--surface2)",
+                      border:`1px solid ${active?form.color+"66":"var(--border)"}`,
+                      color:active?form.color:"var(--muted)",
+                      fontSize:11,fontWeight:active?700:400,cursor:"pointer",fontFamily:"var(--font)",transition:"all 0.15s"}}>
+                    {s.icon} {s.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Custom stage input */}
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <input id="customStageInput" placeholder="+ Add custom stage…"
+                style={{flex:1,padding:"6px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}}
+                onKeyDown={e=>{
+                  if(e.key==="Enter"&&e.target.value.trim()){
+                    const label=e.target.value.trim();
+                    const id=label.toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-");
+                    const current=form.selectedStages||PROJECT_STAGES.map(x=>x.id);
+                    if(!current.includes(id)){
+                      setForm(f=>({...f,selectedStages:[...current,id],customStages:{...(f.customStages||{}),[id]:{id,label,icon:"📌"}}}));
+                    }
+                    e.target.value="";
+                  }
+                }} />
+              <button type="button" onClick={()=>{
+                const input=document.getElementById("customStageInput");
+                const label=input?.value.trim();
+                if(!label)return;
+                const id=label.toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-");
+                const current=form.selectedStages||PROJECT_STAGES.map(x=>x.id);
+                if(!current.includes(id)){
+                  setForm(f=>({...f,selectedStages:[...current,id],customStages:{...(f.customStages||{}),[id]:{id,label,icon:"📌"}}}));
+                }
+                if(input)input.value="";
+              }} style={{padding:"6px 12px",borderRadius:7,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>Add</button>
+            </div>
+          </div>
+
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
             <Btn variant="secondary" onClick={()=>{setModal(false);setSel(null);setForm(blankForm);}}>Cancel</Btn>
             <Btn onClick={save}>Save</Btn>
