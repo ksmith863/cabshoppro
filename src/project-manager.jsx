@@ -3045,6 +3045,16 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
       {/* ══ PHOTOS TAB ══ */}
       {activeTab==="photos"&&(
         <div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
+            <button onClick={async()=>{
+              const {data:{user}}=await supabase.auth.getUser();
+              if(!user)return;
+              const {data}=await supabase.from("projects").select("*").eq("user_id",user.id);
+              if(data&&data.length>0)setProjects(data.map(row=>row.data));
+            }} style={{padding:"5px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
+              ↻ Refresh
+            </button>
+          </div>
           {(p.photos||[]).length===0?(
             <div style={{textAlign:"center",padding:"48px 20px",color:"var(--muted)",fontSize:14,background:"var(--surface2)",borderRadius:14,border:"1px dashed var(--border)"}}>
               <div style={{fontSize:32,marginBottom:8}}>📷</div>
@@ -13301,6 +13311,21 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       syncTable('chart_of_accounts', _setChartOfAccounts, SEED_CHART_OF_ACCOUNTS),
       syncAdminSettings(),
     ]).then(() => setDbLoading(false));
+
+    // Real-time subscription — refresh projects when portal uploads photos
+    const channel = supabase.channel("projects-realtime")
+      .on("postgres_changes",
+        {event:"UPDATE", schema:"public", table:"projects"},
+        async()=>{
+          // Re-sync projects to pick up client portal uploads
+          const {data:{user}} = await supabase.auth.getUser();
+          if(!user) return;
+          const {data} = await supabase.from("projects").select("*").eq("user_id", user.id);
+          if(data && data.length > 0) _setProjects(data.map(row=>row.data));
+        }
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
   }, []);
 
   // Poll for approval status updates every 30 seconds
@@ -14425,14 +14450,22 @@ function ClientPortal({token, cid}) {
       const updatedPhotos = [...(project.photos||[]), photo];
       const updatedProject = {...project, photos: updatedPhotos};
 
-      // Update in Supabase — find row where data->id matches (handle number/string)
-      const {data:projRows} = await supabase.from("projects").select("id,data").limit(1000);
+      // Update in Supabase using JSONB filter for reliability
+      const {data:projRows, error:findErr} = await supabase.from("projects")
+        .select("id,data,user_id")
+        .limit(1000);
+      if(findErr) console.warn("Find project error:", findErr);
       const row = (projRows||[]).find(r=>String(r.data?.id)===String(project.id));
       if(row){
         const {error:updateErr} = await supabase.from("projects")
           .update({data: updatedProject})
           .eq("id", row.id);
-        if(updateErr) console.warn("Project update error:", updateErr);
+        if(updateErr){
+          console.warn("Project update error:", updateErr);
+          throw new Error("Could not save photo to project.");
+        }
+      } else {
+        console.warn("Could not find project row for id:", project.id);
       }
 
       // Update local state immediately so photos show right away
