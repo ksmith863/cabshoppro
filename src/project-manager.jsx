@@ -5008,6 +5008,14 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
                 })}>📅 Schedule Event</Btn>
               )}
               <Btn variant="secondary" onClick={()=>setDetail(null)}>Close</Btn>
+              <Btn variant="secondary" onClick={async()=>{
+                const token=btoa(`portal:${c.id}:${Date.now()}`).replace(/=/g,"");
+                const url=`${window.location.origin}/?portal=${token}&cid=${c.id}`;
+                // Save token to contact
+                setContacts(prev=>prev.map(x=>x.id===c.id?{...x,portalToken:token,portalUrl:url}:x));
+                await navigator.clipboard.writeText(url);
+                alert("Portal link copied to clipboard! Share it with "+c.name+".");
+              }}>🔗 Send Portal Link</Btn>
               <Btn onClick={()=>{setDetail(null);open(c);}}>Edit</Btn>
             </div>
           </Modal>
@@ -14283,6 +14291,8 @@ export function Root() {
   const params = new URLSearchParams(window.location.search);
   const approveToken = params.get("approve");
   const approveQid = params.get("qid");
+  const portalToken = params.get("portal");
+  const portalCid = params.get("cid");
   const isSuccess = params.get("success") === "1";
   const [showOnboarding, setShowOnboarding] = useState(isSuccess);
   const [onboardingPage, setOnboardingPage] = useState("dashboard");
@@ -14315,6 +14325,11 @@ export function Root() {
     );
   }
 
+  // Show client portal if portal params present — no login required
+  if (portalToken && portalCid) {
+    return <ClientPortal token={portalToken} cid={portalCid} />;
+  }
+
   if (session === undefined) return (
     <div style={{minHeight:"100vh",background:"#0d0f14",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{color:"#4fffb0",fontSize:16,fontFamily:"'Syne',sans-serif"}}>Loading…</div>
@@ -14324,6 +14339,341 @@ export function Root() {
   if (!session) return <AuthScreen />;
   if (session && showOnboarding) return <OnboardingScreen onComplete={()=>{ setShowOnboarding(false); window.history.replaceState({}, "", "/"); }} setPage={setOnboardingPage} />;
   return <App initialPage={onboardingPage} startTourOnMount={isSuccess&&!showOnboarding} />;
+}
+
+
+// ─── Client Portal ────────────────────────────────────────────────────────────
+function ClientPortal({token, cid}) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [contact, setContact] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+  const [shop, setShop] = useState({name:"CabShop Pro", email:"", phone:"", address:"", logoUrl:""});
+  const [activeTab, setActiveTab] = useState("overview");
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const [selectedProject, setSelectedProject] = useState(null);
+
+  useEffect(()=>{
+    const load = async () => {
+      try {
+        // Load contact
+        const {data:contacts} = await supabase.from("contacts").select("data").limit(500);
+        const allContacts = (contacts||[]).map(r=>r.data);
+        const c = allContacts.find(x=>String(x.id)===String(cid));
+        if(!c){setError("Portal link is invalid or expired.");setLoading(false);return;}
+        setContact(c);
+
+        // Load shop settings (from any user's admin_settings — use the shop's)
+        const {data:settings} = await supabase.from("admin_settings").select("data").limit(1).single();
+        if(settings?.data){
+          setShop({
+            name: settings.data.companyName||"CabShop Pro",
+            email: settings.data.companyEmail||"",
+            phone: settings.data.companyPhone||"",
+            address: settings.data.companyAddress||"",
+            logoUrl: settings.data.logoUrl||"",
+            color: settings.data.brandColor||"#4fffb0",
+          });
+        }
+
+        // Load projects for this contact
+        const {data:projRows} = await supabase.from("projects").select("data").limit(500);
+        const allProjects = (projRows||[]).map(r=>r.data);
+        const contactProjects = allProjects.filter(p=>
+          String(p.clientContactId)===String(cid)||
+          (p.contactIds||[]).includes(+cid)||
+          (p.contactIds||[]).includes(String(cid))
+        );
+        setProjects(contactProjects);
+        if(contactProjects.length>0)setSelectedProject(contactProjects[0]);
+
+        // Load quotes for this contact
+        const {data:quoteRows} = await supabase.from("quotes_store").select("data").limit(500);
+        const allQuotes = (quoteRows||[]).map(r=>r.data);
+        const contactQuotes = allQuotes.filter(q=>String(q.contactId)===String(cid));
+        setQuotes(contactQuotes);
+
+        setLoading(false);
+      } catch(e) {
+        setError("Could not load your portal. Please contact us directly.");
+        setLoading(false);
+      }
+    };
+    load();
+  },[cid]);
+
+  const handlePhotoUpload = async(e, project) => {
+    const file = e.target.files?.[0]; if(!file) return;
+    setUploading(true); setUploadMsg("");
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `client-uploads/${cid}/${project.id}/${Date.now()}.${ext}`;
+      await supabase.storage.from("cabshoppro-files").upload(path, file, {contentType: file.type});
+      const {data:{publicUrl}} = supabase.storage.from("cabshoppro-files").getPublicUrl(path);
+      // Add photo to project
+      const photo = {id:Date.now(), url:publicUrl, storagePath:path,
+        caption:`Client upload — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
+        stageId:"client", date:new Date().toISOString().slice(0,10)};
+      const updatedPhotos = [...(project.photos||[]), photo];
+      // Update in projects table
+      const {data:projRows} = await supabase.from("projects").select("*").limit(500);
+      const row = (projRows||[]).find(r=>r.data?.id===project.id);
+      if(row){
+        await supabase.from("projects").update({data:{...project,photos:updatedPhotos}}).eq("id",row.id);
+      }
+      setProjects(prev=>prev.map(p=>p.id===project.id?{...p,photos:updatedPhotos}:p));
+      if(selectedProject?.id===project.id)setSelectedProject(p=>({...p,photos:updatedPhotos}));
+      setUploadMsg("Photo uploaded successfully!");
+    } catch(err) {
+      setUploadMsg("Upload failed. Please try again.");
+    }
+    setUploading(false);
+    e.target.value="";
+  };
+
+  const accentColor = shop.color||"#4fffb0";
+  const TAB_STYLE = (active) => ({
+    padding:"8px 16px", borderRadius:8, fontWeight:600, fontSize:13,
+    border:"none", cursor:"pointer", fontFamily:"Georgia,serif",
+    background: active ? accentColor : "transparent",
+    color: active ? "#000" : "#888",
+    transition:"all 0.15s",
+  });
+
+  if(loading) return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{fontSize:14,color:"#888",fontFamily:"Georgia,serif"}}>Loading your portal…</div>
+    </div>
+  );
+
+  if(error) return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{maxWidth:400,textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:16}}>⚠️</div>
+        <div style={{fontSize:16,color:"#333",fontFamily:"Georgia,serif",marginBottom:8}}>{error}</div>
+      </div>
+    </div>
+  );
+
+  const activeQuotes = quotes.filter(q=>!q.isInvoice&&["draft","sent"].includes(q.status));
+  const invoices = quotes.filter(q=>q.isInvoice&&q.status!=="void");
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f8f7f3",fontFamily:"Georgia,serif"}}>
+      {/* Header */}
+      <div style={{background:"#1a1a12",color:"#fff",padding:"16px 24px",display:"flex",alignItems:"center",gap:16}}>
+        {shop.logoUrl&&<img src={shop.logoUrl} alt="" style={{height:40,borderRadius:6,objectFit:"contain"}} />}
+        <div>
+          <div style={{fontWeight:900,fontSize:20,letterSpacing:"-0.5px"}}>{shop.name}</div>
+          <div style={{fontSize:12,color:"#aaa",marginTop:2}}>Client Portal</div>
+        </div>
+      </div>
+
+      {/* Welcome bar */}
+      <div style={{background:accentColor,padding:"12px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+        <div style={{fontWeight:700,fontSize:14,color:"#000"}}>Welcome, {contact?.name||""}!</div>
+        <div style={{fontSize:12,color:"#0008"}}>
+          {shop.email&&<span style={{marginRight:16}}>✉ {shop.email}</span>}
+          {shop.phone&&<span>📞 {shop.phone}</span>}
+        </div>
+      </div>
+
+      <div style={{maxWidth:860,margin:"0 auto",padding:"24px 16px"}}>
+        {/* Tab bar */}
+        <div style={{display:"flex",gap:4,background:"#fff",borderRadius:12,padding:4,border:"1px solid #e0e0d0",marginBottom:24,flexWrap:"wrap"}}>
+          {[["overview","🏗 Projects"],["quotes","📄 Quotes"],["invoices","🧾 Invoices"],["photos","📷 Photos"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setActiveTab(v)} style={TAB_STYLE(activeTab===v)}>{l}</button>
+          ))}
+        </div>
+
+        {/* ── OVERVIEW TAB ── */}
+        {activeTab==="overview"&&(
+          <div>
+            {projects.length===0?(
+              <div style={{textAlign:"center",padding:"48px 20px",color:"#aaa",background:"#fff",borderRadius:14,border:"1px solid #e0e0d0"}}>
+                No active projects yet.
+              </div>
+            ):projects.map(proj=>{
+              const stages = typeof proj.stages==="object"&&!Array.isArray(proj.stages)?proj.stages:{};
+              const stageKeys = Object.keys(stages);
+              const done = stageKeys.filter(k=>stages[k]?.done).length;
+              const pct = stageKeys.length>0?Math.round(done/stageKeys.length*100):0;
+              return(
+                <div key={proj.id} style={{background:"#fff",borderRadius:14,border:"1px solid #e0e0d0",padding:"20px",marginBottom:16,borderLeft:`4px solid ${proj.color||accentColor}`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                    <div style={{fontWeight:800,fontSize:17,flex:1}}>{proj.name}</div>
+                    <div style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:proj.status==="active"?"#d4f5e2":"#f0f0f0",color:proj.status==="active"?"#1a7a40":"#666",textTransform:"uppercase",letterSpacing:"0.05em"}}>{proj.status}</div>
+                  </div>
+                  {proj.desc&&<div style={{fontSize:13,color:"#666",marginBottom:12,lineHeight:1.6}}>{proj.desc}</div>}
+                  {stageKeys.length>0&&(
+                    <div style={{marginBottom:12}}>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#888",marginBottom:4}}>
+                        <span>Progress</span><span>{pct}%</span>
+                      </div>
+                      <div style={{height:6,background:"#e0e0d0",borderRadius:3,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${pct}%`,background:proj.color||accentColor,borderRadius:3,transition:"width 0.4s"}} />
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+                        {stageKeys.map(k=>(
+                          <div key={k} style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:stages[k]?.done?(proj.color||accentColor)+"33":"#f0f0f0",color:stages[k]?.done?"#1a7a40":"#999",fontWeight:stages[k]?.done?700:400}}>
+                            {stages[k]?.done?"✓ ":""}{k}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {proj.address&&<div style={{fontSize:12,color:"#888"}}>📍 {proj.address}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── QUOTES TAB ── */}
+        {activeTab==="quotes"&&(
+          <div>
+            {activeQuotes.length===0?(
+              <div style={{textAlign:"center",padding:"48px 20px",color:"#aaa",background:"#fff",borderRadius:14,border:"1px solid #e0e0d0"}}>No pending quotes.</div>
+            ):activeQuotes.map(q=>(
+              <div key={q.id} style={{background:"#fff",borderRadius:14,border:"1px solid #e0e0d0",padding:20,marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,flexWrap:"wrap",gap:8}}>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:16}}>{q.title||"Quote"}</div>
+                    <div style={{fontSize:12,color:"#888",marginTop:2}}>{q.number} · {q.date}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontWeight:900,fontSize:20}}>${(+(q.lines||[]).reduce((s,l)=>s+(+l.costPer||0)*(+l.qty||1),0)*(1+(+q.taxRate||0)/100)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                    <div style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:q.status==="approved"?"#d4f5e2":"#e8e4ff",color:q.status==="approved"?"#1a7a40":"#4a3aaa",display:"inline-block",marginTop:4,fontWeight:700,textTransform:"uppercase"}}>{q.status}</div>
+                  </div>
+                </div>
+                {q.notes&&<div style={{fontSize:12,color:"#666",marginBottom:12,lineHeight:1.6,padding:"8px 12px",background:"#f8f7f3",borderRadius:8}}>{q.notes}</div>}
+                {q.status==="sent"&&q.approvalToken&&(
+                  <a href={`${window.location.origin}/?approve=${q.approvalToken}&qid=${q.id}`}
+                    style={{display:"inline-block",padding:"10px 20px",background:accentColor,color:"#000",borderRadius:8,fontWeight:700,fontSize:13,textDecoration:"none"}}>
+                    ✍ Review & Sign Quote
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── INVOICES TAB ── */}
+        {activeTab==="invoices"&&(
+          <div>
+            {invoices.length===0?(
+              <div style={{textAlign:"center",padding:"48px 20px",color:"#aaa",background:"#fff",borderRadius:14,border:"1px solid #e0e0d0"}}>No invoices yet.</div>
+            ):invoices.map(q=>{
+              const total = (+(q.lines||[]).reduce((s,l)=>s+(+l.costPer||0)*(+l.qty||1),0)*(1+(+q.taxRate||0)/100));
+              const isPaid = q.status==="paid";
+              const isOverdue = !isPaid&&q.dueDate&&new Date(q.dueDate)<new Date();
+              return(
+                <div key={q.id} style={{background:"#fff",borderRadius:14,border:`1px solid ${isOverdue?"#f5a0a0":"#e0e0d0"}`,padding:20,marginBottom:16}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8,marginBottom:12}}>
+                    <div>
+                      <div style={{fontWeight:800,fontSize:16}}>{q.title||"Invoice"}</div>
+                      <div style={{fontSize:12,color:"#888",marginTop:2}}>{q.number} · {q.invoiceDate||q.date}{q.dueDate&&` · Due ${q.dueDate}`}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontWeight:900,fontSize:20}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                      <div style={{fontSize:11,padding:"2px 8px",borderRadius:20,display:"inline-block",marginTop:4,fontWeight:700,textTransform:"uppercase",background:isPaid?"#d4f5e2":isOverdue?"#fde8e8":"#fff3e0",color:isPaid?"#1a7a40":isOverdue?"#c0392b":"#b45309"}}>{q.status}</div>
+                    </div>
+                  </div>
+                  {!isPaid&&q.paymentLink&&(
+                    <a href={q.paymentLink} target="_blank" rel="noreferrer"
+                      style={{display:"inline-block",padding:"10px 24px",background:"#635bff",color:"#fff",borderRadius:8,fontWeight:700,fontSize:13,textDecoration:"none"}}>
+                      💳 Pay Now
+                    </a>
+                  )}
+                  {isPaid&&<div style={{fontSize:13,color:"#1a7a40",fontWeight:700}}>✓ Paid{q.paidDate?` on ${q.paidDate}`:""}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── PHOTOS TAB ── */}
+        {activeTab==="photos"&&(
+          <div>
+            {/* Project selector if multiple projects */}
+            {projects.length>1&&(
+              <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+                {projects.map(proj=>(
+                  <button key={proj.id} onClick={()=>setSelectedProject(proj)}
+                    style={{padding:"6px 14px",borderRadius:8,border:`1px solid ${selectedProject?.id===proj.id?(proj.color||accentColor):"#e0e0d0"}`,background:selectedProject?.id===proj.id?(proj.color||accentColor)+"22":"#fff",fontWeight:selectedProject?.id===proj.id?700:400,fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                    {proj.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selectedProject&&(
+              <div>
+                {/* Upload area */}
+                <div style={{background:"#fff",borderRadius:14,border:"2px dashed #e0e0d0",padding:"20px",marginBottom:16,textAlign:"center"}}>
+                  <div style={{fontSize:28,marginBottom:8}}>📷</div>
+                  <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>Share inspiration photos with {shop.name}</div>
+                  <div style={{fontSize:12,color:"#888",marginBottom:12}}>Upload design ideas, site conditions, or reference images</div>
+                  <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:8,background:accentColor,color:"#000",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                    {uploading?"Uploading…":"📁 Choose Photo"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading}
+                      onChange={e=>handlePhotoUpload(e,selectedProject)} style={{display:"none"}} />
+                  </label>
+                  <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:8,background:"#f0f0f0",color:"#333",fontWeight:700,fontSize:13,cursor:"pointer",marginLeft:8}}>
+                    📷 Camera
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" disabled={uploading}
+                      onChange={e=>handlePhotoUpload(e,selectedProject)} style={{display:"none"}} />
+                  </label>
+                  {uploadMsg&&<div style={{marginTop:8,fontSize:12,color:uploadMsg.includes("fail")?"#c0392b":"#1a7a40",fontWeight:600}}>{uploadMsg}</div>}
+                </div>
+
+                {/* Client uploaded photos */}
+                {(selectedProject.photos||[]).filter(ph=>ph.stageId==="client").length>0&&(
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",letterSpacing:"0.07em",marginBottom:8}}>YOUR UPLOADS</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+                      {(selectedProject.photos||[]).filter(ph=>ph.stageId==="client").map(ph=>(
+                        <div key={ph.id} style={{aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid #e0e0d0"}}>
+                          <img src={ph.url} alt={ph.caption||""} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Project photos from shop */}
+                {(selectedProject.photos||[]).filter(ph=>ph.stageId!=="client").length>0&&(
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",letterSpacing:"0.07em",marginBottom:8}}>PROJECT PHOTOS</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+                      {(selectedProject.photos||[]).filter(ph=>ph.stageId!=="client").map(ph=>(
+                        <div key={ph.id} style={{aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid #e0e0d0",position:"relative"}}>
+                          <img src={ph.url} alt={ph.caption||""} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          {ph.caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.5)",color:"#fff",fontSize:9,padding:"3px 5px"}}>{ph.caption}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedProject.photos||[]).length===0&&(
+                  <div style={{textAlign:"center",padding:"32px",color:"#aaa",fontSize:13}}>No photos yet. Upload your first one above!</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{marginTop:40,paddingTop:20,borderTop:"1px solid #e0e0d0",textAlign:"center",fontSize:11,color:"#aaa"}}>
+          Powered by CabShop Pro · {shop.name}
+          {shop.email&&<span> · <a href={`mailto:${shop.email}`} style={{color:"#888"}}>{shop.email}</a></span>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Client Approval Page ─────────────────────────────────────────────────────
