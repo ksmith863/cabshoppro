@@ -5095,7 +5095,6 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
                 const shortToken=Math.random().toString(36).slice(2,8)+Math.random().toString(36).slice(2,8);
                 const url=`${window.location.origin}/?portal=${shortToken}&cid=${c.id}`;
                 setContacts(prev=>prev.map(x=>x.id===c.id?{...x,portalToken:shortToken,portalUrl:url}:x));
-                // Build a nice email-ready message
                 const shopName=adminSettings?.companyName||"Us";
                 const msg=`Hi ${c.name},
 
@@ -5105,8 +5104,16 @@ ${url}
 
 Best regards,
 ${shopName}`;
-                await navigator.clipboard.writeText(msg);
-                alert("Portal message copied to clipboard! Paste it into an email or text to "+c.name+".");
+                // Try clipboard API with fallback to prompt
+                try{
+                  await navigator.clipboard.writeText(msg);
+                  alert("Portal message copied to clipboard!
+
+Paste it into an email or text to send to "+c.name+".");
+                }catch(e){
+                  // Fallback: show in a prompt so user can manually copy
+                  window.prompt("Copy this message and send to "+c.name+":",msg);
+                }
               }}>🔗 Client Portal Link</Btn>
               <Btn onClick={()=>{setDetail(null);open(c);}}>Edit</Btn>
             </div>
