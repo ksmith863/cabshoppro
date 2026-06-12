@@ -1227,7 +1227,7 @@ var projectLaborCost = (p) =>
   (p.laborEntries||[]).reduce((s,e)=>s+(e.minutes/60*e.ratePerHr),0);
 
 // Total minutes logged for a stage
-var stageMins = (stage) => (stage?.timeLog||[]).reduce((s,e)=>s+e.minutes,0);
+var stageMins = (stage) => (stage?.timeLog||[]).reduce((s,e)=>s+(+e.minutes||0),0);
 var fmtMins = (mins) => {
   if(!mins) return "0h";
   const h = Math.floor(mins/60);
@@ -1852,7 +1852,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
           ["quotes",`Quotes (${(quotes||[]).filter(q=>String(q.projectId)===String(p.id)).length})`],
           ["notes",`Notes${projNotes.length>0?` (${projNotes.length})`:""}`],
           ["changeorders",`Changes${(p.changeOrders||[]).length>0?` (${(p.changeOrders||[]).length})`:""}`],
-          ["photos",`📷 Photos${(p.photos||[]).length>0?` (${(p.photos||[]).length})`:""}`],
+          ["photos","📷 Photos"+((p.photos||[]).length>0?" ("+(p.photos||[]).length+")":"")],
           ["review","📊 Review"],
         ].map(([v,l])=>(
           <button key={v} onClick={()=>setActiveTab(v)} style={{padding:"7px 13px",borderRadius:8,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:activeTab===v?p.color:"transparent",color:activeTab===v?"#000":"var(--muted)",border:"none",cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>{l}</button>
@@ -2354,7 +2354,8 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
 
           {/* Stage rows */}
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {activeStageList.map((s,idx)=>{
+            {(activeStageList||[]).map((s,idx)=>{
+              if(!s||!s.id)return null;
               const st=stages[s.id]||{done:false,timeLog:[]};
               const mins=stageMins(st);
               const isExpanded=expandedStage===s.id;
