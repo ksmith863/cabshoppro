@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase.js";
 
 
+// DEPLOY_CHECK_v1
 // ─── Breakpoint Hook ──────────────────────────────────────────────────────────
 
 // ─── Project Templates ────────────────────────────────────────────────────────
@@ -1572,7 +1573,9 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
   const activeStageIds=Object.keys(stages||{});
   const activeStageList=activeStageIds.map(sid=>{
     const global=PROJECT_STAGES.find(s=>s.id===sid);
-    return global||{id:sid,label:sid.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),icon:'📋'};
+    if(global)return global;
+    const label=sid.split(/[_-]/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+    return {id:sid,label,icon:'📋'};
   });
   const stagesDone=activeStageList.filter(s=>stages[s.id]?.done).length;
   const stagePct=activeStageList.length?Math.round((stagesDone/activeStageList.length)*100):0;
@@ -2399,19 +2402,11 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                     </button>
 
                     {/* Camera button */}
-                    {hasFeature&&hasFeature("camera")?(
-                      <button onClick={()=>handlePhotoCapture(s.id)}
-                        title="Take or attach a photo for this stage"
-                        style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--accent2)",borderRadius:6,padding:"4px 9px",fontSize:14,cursor:"pointer",flexShrink:0}}>
-                        📷
-                      </button>
-                    ):(
-                      <button onClick={()=>alert("Photo capture is a Pro feature. Upgrade to Pro to unlock it.")}
-                        title="Upgrade to Pro to unlock photo capture"
-                        style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--muted)",borderRadius:6,padding:"4px 9px",fontSize:14,cursor:"pointer",flexShrink:0,opacity:0.5}}>
-                        🔒
-                      </button>
-                    )}
+                    <button onClick={()=>handlePhotoCapture(s.id)}
+                      title="Take or attach a photo for this stage"
+                      style={{background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--accent2)",borderRadius:6,padding:"4px 9px",fontSize:14,cursor:"pointer",flexShrink:0}}>
+                      📷
+                    </button>
                   </div>
 
                   {/* Expanded time log */}
