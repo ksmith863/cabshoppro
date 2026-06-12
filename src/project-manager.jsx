@@ -3043,8 +3043,11 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
       )}
 
       {/* ══ PHOTOS TAB ══ */}
-      {activeTab==="photos"&&(
+      {activeTab==="photos"&&(()=>{
+        const [photoLb,setPhotoLb]=useState(null);
+        return(
         <div>
+          {photoLb&&<SimpleImageLightbox url={photoLb.url} caption={photoLb.caption} onClose={()=>setPhotoLb(null)} />}
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
             <button onClick={async()=>{
               const {data:{user}}=await supabase.auth.getUser();
@@ -3080,7 +3083,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8}}>
                         {photos.map(ph=>(
                           <div key={ph.id} style={{position:"relative",aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid var(--border)",cursor:"pointer"}}
-                            onClick={()=>setPhotoLightbox&&setPhotoLightbox({url:ph.url,caption:ph.caption})}>
+                            onClick={()=>setPhotoLb({url:ph.url,caption:ph.caption})}>
                             <img src={ph.url} alt={ph.caption||""} style={{width:"100%",height:"100%",objectFit:"cover"}} />
                             <button onClick={e=>{e.stopPropagation();setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,photos:(proj.photos||[]).filter(x=>x.id!==ph.id)}:proj));}}
                               style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",borderRadius:"50%",width:20,height:20,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
@@ -3126,7 +3129,8 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {activeTab==="review"&&(()=>{
         const stages=(()=>{const r=p.stages;if(!r)return defaultStages();if(Array.isArray(r))return r.reduce((a,s)=>{a[s]={done:false,timeLog:[]};return a;},{});return typeof r==="object"?r:defaultStages();})();
