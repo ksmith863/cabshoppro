@@ -5130,9 +5130,9 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
           </div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
             <Btn variant="secondary" onClick={()=>setPortalLinkModal(null)}>Close</Btn>
-            <Btn onClick={()=>{
-              const subject="Your Client Portal — "+portalLinkModal.name;
-              const body="Hi "+portalLinkModal.name+", here is your client portal link:%0D%0A%0D%0A"+encodeURIComponent(portalLinkModal.url)+"%0D%0A%0D%0AYou can view your project progress, quotes, and invoices any time.";
+            <Btn variant="secondary" onClick={()=>{
+              const subject="Your Client Portal";
+              const body="Hi "+portalLinkModal.name+", here is your client portal link:%0D%0A%0D%0A"+encodeURIComponent(portalLinkModal.url)+"%0D%0A%0D%0AYou can view your project progress, quotes, and invoices any time. No account needed.";
               window.open("mailto:?subject="+encodeURIComponent(subject)+"&body="+body);
             }}>✉ Open in Email</Btn>
           </div>
