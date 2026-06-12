@@ -1424,6 +1424,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
   const [newTaskTitle,setNewTaskTitle]=useState("");
   const [activeTab,setActiveTab]=useState("financials"); // "financials" | "stages" | "tasks" | "documents" | "notes"
   const [photoLb,setPhotoLb]=useState(null); // lightbox for project photos tab
+  const [showPortalModal,setShowPortalModal]=useState(false);
   const [timeModal,setTimeModal]=useState(null);
   const [timeForm,setTimeForm]=useState({minutes:"",date:new Date().toISOString().slice(0,10),note:""});
   const [timerRunning,setTimerRunning]=useState(false);
@@ -3412,6 +3413,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
               alert(`✅ "${tpl.name}" saved as a template! Find it in Admin → Templates and in the New Project modal.`);
             } catch(e) { alert("Could not save template: "+e.message); }
           }}>⭐ Save as Template</Btn>}
+          {p.status!=="archived"&&<Btn variant="secondary" onClick={()=>setShowPortalModal(true)}>🔗 Client Portal</Btn>}
           {p.status!=="archived"&&<Btn onClick={onEdit}>Edit Project</Btn>}
         </div>
       </div>
@@ -3448,6 +3450,72 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
           </label>
         </div>
       )}
+
+      {/* ── Client Portal Modal ── */}
+      {showPortalModal&&(()=>{
+        // Gather all contacts linked to this project
+        const primaryContact=contacts.find(c=>c.id===p.clientContactId||c.id===+p.clientContactId);
+        const additionalContacts=(p.contactIds||[]).map(id=>contacts.find(c=>c.id===id||c.id===+id)).filter(Boolean);
+        const allProjectContacts=[...primaryContact?[{...primaryContact,role:"Primary Client"}]:[],...additionalContacts.map(c=>({...c,role:(p.contactRoles||{})[c.id]||"Contact"}))];
+        return(
+          <Modal title="Client Portal — Invite Stakeholders" onClose={()=>setShowPortalModal(false)} wide>
+            <div style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>
+              Generate a portal link for any contact on this project. They can view project progress, quotes, invoices, and upload inspiration photos — no account needed.
+            </div>
+            {allProjectContacts.length===0?(
+              <div style={{textAlign:"center",padding:"32px 20px",color:"var(--muted)",background:"var(--surface2)",borderRadius:12,border:"1px dashed var(--border)",fontSize:13}}>
+                No contacts linked to this project yet. Add a client in Edit Project first.
+              </div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {allProjectContacts.map(c=>{
+                  const token=Math.random().toString(36).slice(2,8);
+                  const url=window.location.origin+"/?portal="+token+"&cid="+c.id;
+                  return(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"var(--surface2)",borderRadius:10,border:"1px solid var(--border)"}}>
+                      <div style={{width:38,height:38,borderRadius:10,background:p.color+"33",color:p.color,fontWeight:800,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{c.avatar||c.name?.charAt(0)||"?"}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14}}>{c.name}</div>
+                        <div style={{fontSize:11,color:"var(--muted)"}}>{c.role}{c.email?" · "+c.email:""}</div>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0}}>
+                        <button onClick={()=>{
+                          navigator.clipboard.writeText(url).then(()=>{
+                            const el=document.getElementById("copy-"+c.id);
+                            if(el){el.textContent="✓ Copied";setTimeout(()=>{el.textContent="Copy Link";},2000);}
+                          }).catch(()=>{window.prompt("Copy link for "+c.name+":",url);});
+                        }} id={"copy-"+c.id}
+                          style={{padding:"6px 12px",borderRadius:7,background:"var(--accent2)22",border:"1px solid var(--accent2)44",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                          Copy Link
+                        </button>
+                        {c.email&&<button onClick={()=>{
+                          const subj=encodeURIComponent("Your Client Portal — "+p.name);
+                          const body=encodeURIComponent("Hi "+c.name+",
+
+Here is your client portal link for the "+p.name+" project:
+
+"+url+"
+
+You can view project progress, quotes, and invoices any time. No account needed.
+
+Best regards");
+                          window.open("mailto:"+c.email+"?subject="+subj+"&body="+body);
+                        }}
+                          style={{padding:"6px 12px",borderRadius:7,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
+                          ✉ Email
+                        </button>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{display:"flex",justifyContent:"flex-end",marginTop:16}}>
+              <Btn variant="secondary" onClick={()=>setShowPortalModal(false)}>Close</Btn>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* ── Log Time modal ── */}
       {timeModal&&(()=>{
