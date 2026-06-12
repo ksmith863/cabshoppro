@@ -1846,12 +1846,12 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
       <div style={{display:"flex",gap:2,background:"var(--surface2)",borderRadius:10,padding:3,border:"1px solid var(--border)",marginBottom:16,flexWrap:"wrap"}}>
         {[
           ["financials","$ Financials"],
-          ["stages",`Stages (${stagesDone}/${activeStageList.length})`],
-          ["tasks",`Tasks (${projTasks.length})`],
-          ["documents",`Docs (${projDocs.length})`],
-          ["quotes",`Quotes (${(quotes||[]).filter(q=>String(q.projectId)===String(p.id)).length})`],
-          ["notes",`Notes${projNotes.length>0?` (${projNotes.length})`:""}`],
-          ["changeorders",`Changes${(p.changeOrders||[]).length>0?` (${(p.changeOrders||[]).length})`:""}`],
+          ["stages","Stages ("+stagesDone+"/"+activeStageList.length+")"],
+          ["tasks","Tasks ("+projTasks.length+")"],
+          ["documents","Docs ("+projDocs.length+")"],
+          ["quotes","Quotes ("+(quotes||[]).filter(q=>String(q.projectId)===String(p.id)).length+")"],
+          ["notes","Notes"+(projNotes.length>0?" ("+projNotes.length+")":"")],
+          ["changeorders","Changes"+((p.changeOrders||[]).length>0?" ("+(p.changeOrders||[]).length+")":"")],
           ["photos","📷 Photos"+((p.photos||[]).length>0?" ("+(p.photos||[]).length+")":"")],
           ["review","📊 Review"],
         ].map(([v,l])=>(
