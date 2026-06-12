@@ -5090,21 +5090,11 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
                 })}>📅 Schedule Event</Btn>
               )}
               <Btn variant="secondary" onClick={()=>setDetail(null)}>Close</Btn>
-              <Btn variant="secondary" onClick={async()=>{
-                // Generate a short readable token
+              <Btn variant="secondary" onClick={()=>{
                 const shortToken=Math.random().toString(36).slice(2,8)+Math.random().toString(36).slice(2,8);
-                const url=`${window.location.origin}/?portal=${shortToken}&cid=${c.id}`;
+                const url=window.location.origin+"/?portal="+shortToken+"&cid="+c.id;
                 setContacts(prev=>prev.map(x=>x.id===c.id?{...x,portalToken:shortToken,portalUrl:url}:x));
-                const shopName=adminSettings?.companyName||"Us";
-                const msg="Hi "+c.name+",\n\nYou can view your project progress, quotes, and invoices through your client portal:\n\n"+url+"\n\nBest regards,\n"+shopName;
-                // Try clipboard API with fallback to prompt
-                try{
-                  await navigator.clipboard.writeText(msg);
-                  alert("Portal message copied to clipboard! Paste it into an email or text to send to "+c.name+".");
-                }catch(e){
-                  // Fallback: show in a prompt so user can manually copy
-                  window.prompt("Copy this message and send to "+c.name+":",msg);
-                }
+                window.prompt("Copy this portal link for "+c.name+":",url);
               }}>🔗 Client Portal Link</Btn>
               <Btn onClick={()=>{setDetail(null);open(c);}}>Edit</Btn>
             </div>
