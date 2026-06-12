@@ -14381,6 +14381,7 @@ function ClientPortal({token, cid}) {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [selectedProject, setSelectedProject] = useState(null);
+  const [portalLb, setPortalLb] = useState(null);
 
   useEffect(()=>{
     const load = async () => {
@@ -14511,6 +14512,7 @@ function ClientPortal({token, cid}) {
 
   return (
     <div style={{minHeight:"100vh",background:"#f8f7f3",fontFamily:"Georgia,serif"}}>
+      {portalLb&&<SimpleImageLightbox url={portalLb.url} caption={portalLb.caption} onClose={()=>setPortalLb(null)} />}
       {/* Header */}
       <div style={{background:"#1a1a12",color:"#fff",padding:"16px 24px",display:"flex",alignItems:"center",gap:16}}>
         {shop.logoUrl&&<img src={shop.logoUrl} alt="" style={{height:40,borderRadius:6,objectFit:"contain"}} />}
@@ -14684,7 +14686,8 @@ function ClientPortal({token, cid}) {
                     <div style={{fontSize:11,fontWeight:700,color:"#888",letterSpacing:"0.07em",marginBottom:8}}>YOUR UPLOADS</div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
                       {(selectedProject.photos||[]).filter(ph=>ph.stageId==="client").map(ph=>(
-                        <div key={ph.id} style={{aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid #e0e0d0"}}>
+                        <div key={ph.id} onClick={()=>setPortalLb({url:ph.url,caption:ph.caption})}
+                          style={{aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid #e0e0d0",cursor:"zoom-in"}}>
                           <img src={ph.url} alt={ph.caption||""}
                             style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
                             onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextSibling.style.display="flex";}}
@@ -14702,7 +14705,8 @@ function ClientPortal({token, cid}) {
                     <div style={{fontSize:11,fontWeight:700,color:"#888",letterSpacing:"0.07em",marginBottom:8}}>PROJECT PHOTOS</div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
                       {(selectedProject.photos||[]).filter(ph=>ph.stageId!=="client").map(ph=>(
-                        <div key={ph.id} style={{aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid #e0e0d0",position:"relative"}}>
+                        <div key={ph.id} onClick={()=>setPortalLb({url:ph.url,caption:ph.caption})}
+                          style={{aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid #e0e0d0",position:"relative",cursor:"zoom-in"}}>
                           <img src={ph.url} alt={ph.caption||""} style={{width:"100%",height:"100%",objectFit:"cover"}} />
                           {ph.caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.5)",color:"#fff",fontSize:9,padding:"3px 5px"}}>{ph.caption}</div>}
                         </div>
