@@ -14408,26 +14408,40 @@ function ClientPortal({token, cid}) {
     const file = e.target.files?.[0]; if(!file) return;
     setUploading(true); setUploadMsg("");
     try {
-      const ext = file.name.split(".").pop();
+      const ext = (file.name.split(".").pop()||"jpg").toLowerCase();
       const path = `client-uploads/${cid}/${project.id}/${Date.now()}.${ext}`;
-      await supabase.storage.from("cabshoppro-files").upload(path, file, {contentType: file.type});
+      const {error:upErr} = await supabase.storage.from("cabshoppro-files")
+        .upload(path, file, {contentType: file.type, upsert:false});
+      if(upErr) throw upErr;
       const {data:{publicUrl}} = supabase.storage.from("cabshoppro-files").getPublicUrl(path);
-      // Add photo to project
-      const photo = {id:Date.now(), url:publicUrl, storagePath:path,
-        caption:`Client upload — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
-        stageId:"client", date:new Date().toISOString().slice(0,10)};
+      const photo = {
+        id: Date.now(),
+        url: publicUrl,
+        storagePath: path,
+        caption: `Client upload — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,
+        stageId: "client",
+        date: new Date().toISOString().slice(0,10)
+      };
       const updatedPhotos = [...(project.photos||[]), photo];
-      // Update in projects table
-      const {data:projRows} = await supabase.from("projects").select("*").limit(500);
-      const row = (projRows||[]).find(r=>r.data?.id===project.id);
+      const updatedProject = {...project, photos: updatedPhotos};
+
+      // Update in Supabase — find row where data->id matches (handle number/string)
+      const {data:projRows} = await supabase.from("projects").select("id,data").limit(1000);
+      const row = (projRows||[]).find(r=>String(r.data?.id)===String(project.id));
       if(row){
-        await supabase.from("projects").update({data:{...project,photos:updatedPhotos}}).eq("id",row.id);
+        const {error:updateErr} = await supabase.from("projects")
+          .update({data: updatedProject})
+          .eq("id", row.id);
+        if(updateErr) console.warn("Project update error:", updateErr);
       }
-      setProjects(prev=>prev.map(p=>p.id===project.id?{...p,photos:updatedPhotos}:p));
-      if(selectedProject?.id===project.id)setSelectedProject(p=>({...p,photos:updatedPhotos}));
+
+      // Update local state immediately so photos show right away
+      setProjects(prev=>prev.map(p=>String(p.id)===String(project.id)?updatedProject:p));
+      setSelectedProject(updatedProject);
       setUploadMsg("Photo uploaded successfully!");
     } catch(err) {
-      setUploadMsg("Upload failed. Please try again.");
+      console.error("Upload error:", err);
+      setUploadMsg("Upload failed: " + (err.message||"Please try again."));
     }
     setUploading(false);
     e.target.value="";
@@ -14636,7 +14650,11 @@ function ClientPortal({token, cid}) {
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
                       {(selectedProject.photos||[]).filter(ph=>ph.stageId==="client").map(ph=>(
                         <div key={ph.id} style={{aspectRatio:"4/3",borderRadius:8,overflow:"hidden",border:"1px solid #e0e0d0"}}>
-                          <img src={ph.url} alt={ph.caption||""} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          <img src={ph.url} alt={ph.caption||""}
+                            style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
+                            onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextSibling.style.display="flex";}}
+                          />
+                          <div style={{display:"none",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",fontSize:11,color:"#aaa",background:"#f0f0f0"}}>📷</div>
                         </div>
                       ))}
                     </div>
