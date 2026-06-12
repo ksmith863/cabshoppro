@@ -5107,9 +5107,7 @@ ${shopName}`;
                 // Try clipboard API with fallback to prompt
                 try{
                   await navigator.clipboard.writeText(msg);
-                  alert("Portal message copied to clipboard!
-
-Paste it into an email or text to send to "+c.name+".");
+                  alert("Portal message copied to clipboard! Paste it into an email or text to send to "+c.name+".");
                 }catch(e){
                   // Fallback: show in a prompt so user can manually copy
                   window.prompt("Copy this message and send to "+c.name+":",msg);
