@@ -1425,6 +1425,8 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
   const [activeTab,setActiveTab]=useState("financials"); // "financials" | "stages" | "tasks" | "documents" | "notes"
   const [photoLb,setPhotoLb]=useState(null); // lightbox for project photos tab
   const [showPortalModal,setShowPortalModal]=useState(false);
+  const [contactSearch,setContactSearch]=useState("");
+  const [contactSearchOpen,setContactSearchOpen]=useState(false);
   const [timeModal,setTimeModal]=useState(null);
   const [timeForm,setTimeForm]=useState({minutes:"",date:new Date().toISOString().slice(0,10),note:""});
   const [timerRunning,setTimerRunning]=useState(false);
@@ -1823,14 +1825,61 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"flex-end",flexShrink:0}}>
                   <Badge color={ccol} style={{fontSize:10}}>{projectRole}</Badge>
-                  <div style={{display:"flex",gap:10,fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)"}}>
+                  <div style={{display:"flex",gap:10,fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",alignItems:"center"}}>
                     {c.email&&<a href={`mailto:${c.email}`} style={{color:"var(--muted)",textDecoration:"none"}} title={c.email}>✉</a>}
                     {c.phone&&<a href={`tel:${c.phone}`} style={{color:"var(--muted)",textDecoration:"none"}} title={c.phone}>✆</a>}
+                    {p.status!=="archived"&&<button onClick={()=>setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,contactIds:(proj.contactIds||[]).filter(id=>id!==cid)}:proj))}
+                      style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:14,padding:"0 2px",lineHeight:1}} title="Remove from project">×</button>}
                   </div>
                 </div>
               </div>
             );
           })}
+          {/* Add contact inline */}
+          {p.status!=="archived"&&(
+            <div style={{position:"relative",marginTop:6}}>
+              <input value={contactSearch}
+                onChange={e=>{setContactSearch(e.target.value);setContactSearchOpen(true);}}
+                onFocus={()=>setContactSearchOpen(true)}
+                onBlur={()=>setTimeout(()=>setContactSearchOpen(false),150)}
+                placeholder="+ Add contact to project…"
+                style={{width:"100%",padding:"9px 12px",borderRadius:9,background:"var(--surface)",border:"1px dashed var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)",boxSizing:"border-box"}}
+                onFocus={e=>{e.target.style.borderColor=p.color;setContactSearchOpen(true);}}
+                onBlur={e=>{e.target.style.borderColor="var(--border)";setTimeout(()=>setContactSearchOpen(false),150);}}
+              />
+              {contactSearchOpen&&contactSearch&&(()=>{
+                const alreadyIds=[p.clientContactId,...(p.contactIds||[])].map(Number).filter(Boolean);
+                const matches=(contacts||[]).filter(c=>
+                  !c.isSupplier&&
+                  !alreadyIds.includes(c.id)&&
+                  (c.name+" "+(c.company||"")+" "+(c.role||"")).toLowerCase().includes(contactSearch.toLowerCase())
+                ).slice(0,6);
+                if(!matches.length)return null;
+                return(
+                  <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,zIndex:500,boxShadow:"0 8px 24px rgba(0,0,0,0.4)",overflow:"hidden"}}>
+                    {matches.map((c,i)=>{
+                      const col=["#4fffb0","#7b6fff","#ffc46b","#ff6b6b","#6bf7ff"][i%5];
+                      return(
+                        <button key={c.id} onMouseDown={()=>{
+                          const newIds=[...(p.contactIds||[]),c.id];
+                          setProjects(prev=>prev.map(proj=>proj.id===p.id?{...proj,contactIds:newIds}:proj));
+                          setContactSearch("");setContactSearchOpen(false);
+                        }} style={{display:"flex",gap:10,alignItems:"center",width:"100%",padding:"9px 12px",background:"transparent",border:"none",borderBottom:i<matches.length-1?"1px solid var(--border)22":"none",cursor:"pointer",textAlign:"left",fontFamily:"var(--font)"}}
+                          onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          <div style={{width:30,height:30,borderRadius:7,background:col+"33",color:col,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,flexShrink:0}}>{c.avatar||c.name?.charAt(0)||"?"}</div>
+                          <div style={{minWidth:0}}>
+                            <div style={{fontWeight:600,fontSize:13}}>{c.name}</div>
+                            <div style={{fontSize:11,color:"var(--muted)"}}>{c.company||c.role||""}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       </div>
 
@@ -4478,7 +4527,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
                         }} style={{display:"flex",gap:10,alignItems:"center",width:"100%",padding:"9px 12px",background:"transparent",border:"none",borderBottom:i<matches.length-1?"1px solid var(--border)22":"none",cursor:"pointer",textAlign:"left",fontFamily:"var(--font)",transition:"background 0.1s"}}
                           onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <div style={{width:28,height:28,borderRadius:7,background:col+"33",color:col,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,flexShrink:0}}>{c.avatar}</div>
+                          <div style={{width:28,height:28,borderRadius:7,background:col+"33",color:col,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,flexShrink:0}}>{c.avatar||c.name?.charAt(0)||"?"}</div>
                           <div style={{minWidth:0}}>
                             <div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
                             <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>{c.role}{c.company?` · ${c.company}`:""}</div>
