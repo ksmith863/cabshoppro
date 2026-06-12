@@ -1572,7 +1572,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
   const activeStageIds=Object.keys(stages||{});
   const activeStageList=activeStageIds.map(sid=>{
     const global=PROJECT_STAGES.find(s=>s.id===sid);
-    return global||{id:sid,label:sid.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase()),icon:'📋'};
+    return global||{id:sid,label:sid.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),icon:'📋'};
   });
   const stagesDone=activeStageList.filter(s=>stages[s.id]?.done).length;
   const stagePct=activeStageList.length?Math.round((stagesDone/activeStageList.length)*100):0;
