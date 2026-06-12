@@ -1849,11 +1849,12 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
               />
               {contactSearchOpen&&contactSearch&&(()=>{
                 const alreadyIds=[p.clientContactId,...(p.contactIds||[])].map(Number).filter(Boolean);
-                const matches=(contacts||[]).filter(c=>
-                  !c.isSupplier&&
-                  !alreadyIds.includes(c.id)&&
-                  (c.name+" "+(c.company||"")+" "+(c.role||"")).toLowerCase().includes(contactSearch.toLowerCase())
-                ).slice(0,6);
+                const seen=new Set();
+                const matches=(contacts||[]).filter(c=>{
+                  if(c.isSupplier||alreadyIds.includes(c.id)||seen.has(c.id))return false;
+                  seen.add(c.id);
+                  return (c.name+" "+(c.company||"")+" "+(c.role||"")).toLowerCase().includes(contactSearch.toLowerCase());
+                }).slice(0,6);
                 if(!matches.length)return null;
                 return(
                   <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,zIndex:500,boxShadow:"0 8px 24px rgba(0,0,0,0.4)",overflow:"hidden"}}>
@@ -1869,7 +1870,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <div style={{width:30,height:30,borderRadius:7,background:col+"33",color:col,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,flexShrink:0}}>{c.avatar||c.name?.charAt(0)||"?"}</div>
                           <div style={{minWidth:0}}>
-                            <div style={{fontWeight:600,fontSize:13}}>{c.name}</div>
+                            <div style={{fontWeight:600,fontSize:13,color:"var(--text)"}}>{c.name}</div>
                             <div style={{fontSize:11,color:"var(--muted)"}}>{c.company||c.role||""}</div>
                           </div>
                         </button>
@@ -4529,7 +4530,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <div style={{width:28,height:28,borderRadius:7,background:col+"33",color:col,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,flexShrink:0}}>{c.avatar||c.name?.charAt(0)||"?"}</div>
                           <div style={{minWidth:0}}>
-                            <div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                            <div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"var(--text)"}}>{c.name}</div>
                             <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>{c.role}{c.company?` · ${c.company}`:""}</div>
                           </div>
                         </button>
