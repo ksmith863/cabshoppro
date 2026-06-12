@@ -13170,10 +13170,11 @@ function NotificationBell({notifications, onNavigate}) {
 
 // ─── Help Page ────────────────────────────────────────────────────────────────
 // ─── Help Page ────────────────────────────────────────────────────────────────
+// ─── Help Page ────────────────────────────────────────────────────────────────
 function HelpPage({bp}) {
   const [tab, setTab] = useState("guide");
+  const [openSection, setOpenSection] = useState("dashboard");
   const [openFaq, setOpenFaq] = useState(null);
-  const [openSection, setOpenSection] = useState(null);
 
   const tabStyle = (t) => ({
     padding:"8px 18px",borderRadius:8,cursor:"pointer",fontSize:14,fontWeight:600,
@@ -13182,132 +13183,808 @@ function HelpPage({bp}) {
     border:"none",transition:"all 0.15s",fontFamily:"var(--font)",
   });
 
+  const SectionHeader = ({icon, title}) => (
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+      <div style={{width:40,height:40,borderRadius:10,background:"var(--surface2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{icon}</div>
+      <div style={{fontSize:20,fontWeight:800,letterSpacing:"-0.5px"}}>{title}</div>
+    </div>
+  );
+
+  const Step = ({num, title, desc}) => (
+    <div style={{display:"flex",gap:14,marginBottom:16,alignItems:"flex-start"}}>
+      <div style={{width:28,height:28,borderRadius:"50%",background:"var(--accent)",color:"#000",fontWeight:800,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>{num}</div>
+      <div><div style={{fontWeight:700,fontSize:14,marginBottom:3}}>{title}</div><div style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>{desc}</div></div>
+    </div>
+  );
+
+  const Tip = ({children}) => (
+    <div style={{background:"var(--accent)11",border:"1px solid var(--accent)33",borderLeft:"3px solid var(--accent)",borderRadius:8,padding:"12px 14px",margin:"16px 0",fontSize:13,color:"var(--muted)",lineHeight:1.6}}>
+      <strong style={{color:"var(--accent)"}}>💡 Tip: </strong>{children}
+    </div>
+  );
+
+  const Table = ({rows}) => (
+    <div style={{border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",margin:"16px 0"}}>
+      {rows.map(([a,b],i)=>(
+        <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 2fr",borderBottom:i<rows.length-1?"1px solid var(--border)22":"none"}}>
+          <div style={{padding:"10px 14px",fontWeight:600,fontSize:13,background:i===0?"var(--surface2)":"transparent",borderRight:"1px solid var(--border)22"}}>{a}</div>
+          <div style={{padding:"10px 14px",fontSize:13,color:"var(--muted)",background:i===0?"var(--surface2)":"transparent"}}>{b}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // SVG Screens
+  const DashboardSVG = () => (
+    <svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="340" fill="#1a1a12"/>
+      <rect x="0" y="0" width="760" height="40" fill="#16160f"/>
+      <text x="20" y="26" fontSize="15" fontWeight="800" fill="#fff" fontFamily="Georgia,serif">CabShop Pro</text>
+      <text x="720" y="26" textAnchor="end" fontSize="11" fill="#555">🔔</text>
+      <rect x="20" y="52" width="170" height="60" rx="10" fill="#222218" stroke="#2a2a1e" strokeWidth="1"/>
+      <text x="36" y="74" fontSize="9" fill="#555" fontFamily="monospace">ACTIVE PROJECTS</text>
+      <text x="36" y="100" fontSize="28" fontWeight="800" fill="#4fffb0" fontFamily="Georgia,serif">7</text>
+      <rect x="202" y="52" width="170" height="60" rx="10" fill="#222218" stroke="#2a2a1e" strokeWidth="1"/>
+      <text x="218" y="74" fontSize="9" fill="#555" fontFamily="monospace">OUTSTANDING</text>
+      <text x="218" y="100" fontSize="22" fontWeight="800" fill="#ffc46b" fontFamily="Georgia,serif">$48,200</text>
+      <rect x="384" y="52" width="170" height="60" rx="10" fill="#222218" stroke="#2a2a1e" strokeWidth="1"/>
+      <text x="400" y="74" fontSize="9" fill="#555" fontFamily="monospace">TASKS DUE SOON</text>
+      <text x="400" y="100" fontSize="28" fontWeight="800" fill="#ff6b6b" fontFamily="Georgia,serif">4</text>
+      <rect x="566" y="52" width="174" height="60" rx="10" fill="#222218" stroke="#2a2a1e" strokeWidth="1"/>
+      <text x="582" y="74" fontSize="9" fill="#555" fontFamily="monospace">MONTH REVENUE</text>
+      <text x="582" y="100" fontSize="22" fontWeight="800" fill="#4fffb0" fontFamily="Georgia,serif">$31,500</text>
+      <text x="20" y="140" fontSize="9" fill="#555" fontFamily="monospace">ACTIVE PROJECTS</text>
+      <rect x="20" y="152" width="230" height="118" rx="10" fill="#222218" stroke="#2a2a1e" strokeWidth="1"/>
+      <rect x="20" y="152" width="4" height="118" rx="2" fill="#4fffb0"/>
+      <text x="36" y="174" fontSize="13" fontWeight="700" fill="#fff">Hartwell Kitchen</text>
+      <text x="36" y="190" fontSize="9" fill="#555">Kerry Smith · active</text>
+      <rect x="36" y="200" width="180" height="4" rx="2" fill="#333"/>
+      <rect x="36" y="200" width="126" height="4" rx="2" fill="#4fffb0"/>
+      <text x="36" y="216" fontSize="9" fill="#666" fontFamily="monospace">70% · 5/12 stages</text>
+      <text x="36" y="232" fontSize="10" fill="#aaa">Next: ⚙ CNC Routing</text>
+      <text x="228" y="260" fontSize="10" fontWeight="700" fill="#4fffb0" textAnchor="end">$28,500</text>
+      <rect x="262" y="152" width="230" height="118" rx="10" fill="#222218" stroke="#2a2a1e" strokeWidth="1"/>
+      <rect x="262" y="152" width="4" height="118" rx="2" fill="#7b6fff"/>
+      <text x="278" y="174" fontSize="13" fontWeight="700" fill="#fff">Oleander Bath</text>
+      <text x="278" y="190" fontSize="9" fill="#555">Mary Chen · active</text>
+      <rect x="278" y="200" width="180" height="4" rx="2" fill="#333"/>
+      <rect x="278" y="200" width="72" height="4" rx="2" fill="#7b6fff"/>
+      <text x="278" y="216" fontSize="9" fill="#666" fontFamily="monospace">40% · 4/12 stages</text>
+      <text x="278" y="232" fontSize="10" fill="#aaa">Next: 🔩 Joining</text>
+      <rect x="504" y="152" width="236" height="118" rx="10" fill="#222218" stroke="#2a2a1e" strokeWidth="1"/>
+      <rect x="504" y="152" width="4" height="118" rx="2" fill="#ffc46b"/>
+      <text x="520" y="174" fontSize="13" fontWeight="700" fill="#fff">Sycamore Office</text>
+      <text x="520" y="190" fontSize="9" fill="#555">James Park · active</text>
+      <rect x="520" y="200" width="180" height="4" rx="2" fill="#333"/>
+      <rect x="520" y="200" width="27" height="4" rx="2" fill="#ffc46b"/>
+      <text x="520" y="216" fontSize="9" fill="#666" fontFamily="monospace">15% · 2/12 stages</text>
+      <text x="520" y="232" fontSize="10" fill="#aaa">Next: 📦 Procurement</text>
+      <rect x="20" y="284" width="720" height="36" rx="8" fill="#1e1e14" stroke="#2a2a1e" strokeWidth="1"/>
+      <text x="36" y="298" fontSize="10" fill="#ffc46b">⚠</text>
+      <text x="52" y="298" fontSize="11" fontWeight="600" fill="#fff">Low Stock:</text>
+      <text x="120" y="298" fontSize="11" fill="#888">Pocket Hole Screws — 12 boxes remaining (min: 20)</text>
+      <text x="52" y="312" fontSize="10" fill="#4fffb0">→ Go to Inventory</text>
+    </svg>
+  );
+
+  const ProjectsSVG = () => (
+    <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="300" fill="#1a1a12"/>
+      <rect x="0" y="0" width="760" height="44" fill="#16160f"/>
+      <text x="20" y="28" fontSize="18" fontWeight="800" fill="#fff" fontFamily="Georgia,serif">Projects</text>
+      <rect x="570" y="10" width="76" height="24" rx="7" fill="#333"/>
+      <text x="608" y="26" textAnchor="middle" fontSize="10" fill="#888">🗂 Templates</text>
+      <rect x="654" y="10" width="86" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="697" y="26" textAnchor="middle" fontSize="11" fontWeight="700" fill="#4fffb0">+ New Project</text>
+      <rect x="20" y="56" width="56" height="22" rx="11" fill="#4fffb0"/>
+      <text x="48" y="71" textAnchor="middle" fontSize="10" fontWeight="700" fill="#000">Active</text>
+      <rect x="84" y="56" width="68" height="22" rx="11" fill="#222218" stroke="#333"/>
+      <text x="118" y="71" textAnchor="middle" fontSize="10" fill="#666">Archived</text>
+      <rect x="20" y="90" width="226" height="120" rx="12" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="20" y="90" width="226" height="4" rx="2" fill="#4fffb0"/>
+      <text x="36" y="112" fontSize="13" fontWeight="700" fill="#fff">Hartwell Kitchen</text>
+      <text x="36" y="128" fontSize="10" fill="#555">Kerry Smith</text>
+      <rect x="36" y="138" width="180" height="4" rx="2" fill="#333"/>
+      <rect x="36" y="138" width="126" height="4" rx="2" fill="#4fffb0"/>
+      <text x="36" y="154" fontSize="9" fill="#666" fontFamily="monospace">70% · 5/12 stages done</text>
+      <text x="36" y="170" fontSize="10" fill="#aaa">Next: ⚙ CNC Routing</text>
+      <text x="230" y="200" fontSize="10" fontWeight="700" fill="#fff" textAnchor="end">$28,500</text>
+      <rect x="258" y="90" width="226" height="120" rx="12" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="258" y="90" width="226" height="4" rx="2" fill="#7b6fff"/>
+      <text x="274" y="112" fontSize="13" fontWeight="700" fill="#fff">Oleander Bathroom</text>
+      <text x="274" y="128" fontSize="10" fill="#555">Mary Chen</text>
+      <rect x="274" y="138" width="180" height="4" rx="2" fill="#333"/>
+      <rect x="274" y="138" width="72" height="4" rx="2" fill="#7b6fff"/>
+      <text x="274" y="154" fontSize="9" fill="#666" fontFamily="monospace">40% · 4/12 stages done</text>
+      <text x="274" y="170" fontSize="10" fill="#aaa">Next: 🔩 Joining</text>
+      <text x="468" y="200" fontSize="10" fontWeight="700" fill="#fff" textAnchor="end">$14,200</text>
+      <rect x="496" y="90" width="244" height="120" rx="12" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="496" y="90" width="244" height="4" rx="2" fill="#ffc46b"/>
+      <text x="512" y="112" fontSize="13" fontWeight="700" fill="#fff">Sycamore Office</text>
+      <text x="512" y="128" fontSize="10" fill="#555">James Park</text>
+      <rect x="512" y="138" width="180" height="4" rx="2" fill="#333"/>
+      <rect x="512" y="138" width="27" height="4" rx="2" fill="#ffc46b"/>
+      <text x="512" y="154" fontSize="9" fill="#666" fontFamily="monospace">15% · 2/12 stages done</text>
+      <text x="512" y="170" fontSize="10" fill="#aaa">Next: 📦 Procurement</text>
+      <rect x="20" y="226" width="226" height="64" rx="12" fill="#1a1a14" stroke="#2a2a1e" strokeWidth="1" strokeDasharray="4,3"/>
+      <text x="133" y="262" textAnchor="middle" fontSize="22" fill="#333">+</text>
+      <text x="133" y="280" textAnchor="middle" fontSize="11" fill="#444">New Project</text>
+    </svg>
+  );
+
+  const StagesSVG = () => (
+    <svg viewBox="0 0 760 320" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="320" fill="#1a1a12"/>
+      <rect x="0" y="0" width="760" height="36" fill="#16160f"/>
+      <rect x="12" y="6" width="68" height="24" rx="7" fill="#222218"/>
+      <text x="46" y="22" textAnchor="middle" fontSize="10" fill="#666">$ Financials</text>
+      <rect x="88" y="6" width="80" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="128" y="22" textAnchor="middle" fontSize="10" fontWeight="700" fill="#4fffb0">Stages (5/12)</text>
+      <rect x="176" y="6" width="60" height="24" rx="7" fill="#222218"/>
+      <text x="206" y="22" textAnchor="middle" fontSize="10" fill="#666">Tasks (3)</text>
+      <rect x="244" y="6" width="80" height="24" rx="7" fill="#222218"/>
+      <text x="284" y="22" textAnchor="middle" fontSize="10" fill="#666">📷 Photos</text>
+      <rect x="12" y="44" width="736" height="48" rx="10" fill="#222218" stroke="#4fffb033"/>
+      <rect x="12" y="44" width="4" height="48" rx="2" fill="#4fffb0"/>
+      <rect x="24" y="56" width="20" height="20" rx="6" fill="#4fffb0"/>
+      <text x="34" y="70" textAnchor="middle" fontSize="11" fill="#000">✓</text>
+      <text x="56" y="62" fontSize="12" fontWeight="700" fill="#fff">✏️ Design</text>
+      <text x="56" y="78" fontSize="9" fill="#4fffb0">Completed · 4h 30m logged</text>
+      <rect x="700" y="54" width="36" height="24" rx="6" fill="#333"/>
+      <text x="718" y="70" textAnchor="middle" fontSize="11" fill="#888">📷</text>
+      <rect x="12" y="100" width="736" height="48" rx="10" fill="#222218" stroke="#4fffb033"/>
+      <rect x="12" y="100" width="4" height="48" rx="2" fill="#4fffb0"/>
+      <rect x="24" y="112" width="20" height="20" rx="6" fill="#4fffb0"/>
+      <text x="34" y="126" textAnchor="middle" fontSize="11" fill="#000">✓</text>
+      <text x="56" y="118" fontSize="12" fontWeight="700" fill="#fff">📦 Material Procurement</text>
+      <text x="56" y="134" fontSize="9" fill="#4fffb0">Completed · 2h 15m logged</text>
+      <rect x="12" y="156" width="736" height="90" rx="10" fill="#1e1e14" stroke="#ffc46b44"/>
+      <rect x="12" y="156" width="4" height="90" rx="2" fill="#ffc46b"/>
+      <rect x="24" y="168" width="20" height="20" rx="6" fill="#333" stroke="#555"/>
+      <text x="56" y="172" fontSize="12" fontWeight="700" fill="#fff">⚙️ CNC Routing</text>
+      <rect x="590" y="162" width="74" height="20" rx="6" fill="#ffc46b22" stroke="#ffc46b44"/>
+      <text x="627" y="176" textAnchor="middle" fontSize="9" fontWeight="700" fill="#ffc46b">IN PROGRESS</text>
+      <rect x="700" y="162" width="36" height="20" rx="6" fill="#4fffb022"/>
+      <text x="718" y="176" textAnchor="middle" fontSize="11" fill="#4fffb0">📷</text>
+      <rect x="36" y="196" width="110" height="40" rx="8" fill="#222218"/>
+      <text x="91" y="210" textAnchor="middle" fontSize="9" fill="#555" fontFamily="monospace">TIMER</text>
+      <text x="91" y="228" textAnchor="middle" fontSize="16" fontWeight="700" fill="#fff" fontFamily="monospace">00:34:12</text>
+      <rect x="156" y="200" width="56" height="28" rx="7" fill="#333"/>
+      <text x="184" y="218" textAnchor="middle" fontSize="10" fill="#aaa">▶ Start</text>
+      <rect x="220" y="200" width="80" height="28" rx="6" fill="#333"/>
+      <text x="260" y="218" textAnchor="middle" fontSize="10" fill="#888">45 min</text>
+      <rect x="308" y="200" width="160" height="28" rx="6" fill="#333"/>
+      <text x="388" y="218" textAnchor="middle" fontSize="10" fill="#555">Add a note…</text>
+      <rect x="476" y="200" width="64" height="28" rx="7" fill="#7b6fff22" stroke="#7b6fff44"/>
+      <text x="508" y="218" textAnchor="middle" fontSize="10" fill="#7b6fff">Log Time</text>
+      <rect x="12" y="254" width="736" height="40" rx="10" fill="#1a1a12" stroke="#2a2a1e"/>
+      <rect x="12" y="254" width="4" height="40" rx="2" fill="#333"/>
+      <text x="56" y="278" fontSize="12" fill="#555">🔲 Edgebanding</text>
+      <text x="56" y="290" fontSize="9" fill="#444">Not started</text>
+    </svg>
+  );
+
+  const CRMSVG = () => (
+    <svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="280" fill="#1a1a12"/>
+      <rect x="0" y="0" width="760" height="44" fill="#16160f"/>
+      <text x="20" y="28" fontSize="18" fontWeight="800" fill="#fff" fontFamily="Georgia,serif">CRM & Contacts</text>
+      <rect x="570" y="10" width="88" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="614" y="26" textAnchor="middle" fontSize="11" fontWeight="700" fill="#4fffb0">+ New Contact</text>
+      <rect x="20" y="56" width="200" height="26" rx="8" fill="#222218" stroke="#333"/>
+      <text x="36" y="73" fontSize="11" fill="#555">🔍 Search contacts…</text>
+      <rect x="232" y="56" width="48" height="26" rx="13" fill="#4fffb0"/>
+      <text x="256" y="73" textAnchor="middle" fontSize="10" fontWeight="700" fill="#000">All</text>
+      <rect x="288" y="56" width="56" height="26" rx="13" fill="#222218" stroke="#333"/>
+      <text x="316" y="73" textAnchor="middle" fontSize="10" fill="#666">Clients</text>
+      <rect x="352" y="56" width="66" height="26" rx="13" fill="#222218" stroke="#333"/>
+      <text x="385" y="73" textAnchor="middle" fontSize="10" fill="#666">Suppliers</text>
+      <rect x="20" y="96" width="226" height="104" rx="12" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="20" y="96" width="226" height="3" rx="2" fill="#4fffb0"/>
+      <circle cx="48" cy="124" r="16" fill="#4fffb022"/>
+      <text x="48" y="129" textAnchor="middle" fontSize="12" fontWeight="800" fill="#4fffb0">KS</text>
+      <text x="74" y="117" fontSize="12" fontWeight="700" fill="#fff">Kerry Smith</text>
+      <text x="74" y="132" fontSize="9" fill="#555">Gotham Woodworks</text>
+      <rect x="74" y="140" width="32" height="13" rx="6" fill="#4fffb022"/>
+      <text x="90" y="150" textAnchor="middle" fontSize="8" fill="#4fffb0">Client</text>
+      <text x="36" y="170" fontSize="9" fill="#555">✉ kerry@gothamwoodworks.com</text>
+      <text x="36" y="184" fontSize="9" fill="#555">✆ (704) 555-0100</text>
+      <text x="36" y="196" fontSize="8" fill="#4fffb0">3 active projects</text>
+      <rect x="258" y="96" width="226" height="104" rx="12" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="258" y="96" width="226" height="3" rx="2" fill="#7b6fff"/>
+      <circle cx="286" cy="124" r="16" fill="#7b6fff22"/>
+      <text x="286" y="129" textAnchor="middle" fontSize="12" fontWeight="800" fill="#7b6fff">MC</text>
+      <text x="312" y="117" fontSize="12" fontWeight="700" fill="#fff">Mary Chen</text>
+      <text x="312" y="132" fontSize="9" fill="#555">Homeowner</text>
+      <rect x="312" y="140" width="32" height="13" rx="6" fill="#4fffb022"/>
+      <text x="328" y="150" textAnchor="middle" fontSize="8" fill="#4fffb0">Client</text>
+      <text x="274" y="170" fontSize="9" fill="#555">✉ mchen@email.com</text>
+      <text x="274" y="184" fontSize="9" fill="#555">✆ (828) 555-0234</text>
+      <rect x="496" y="96" width="244" height="104" rx="12" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="496" y="96" width="244" height="3" rx="2" fill="#ffc46b"/>
+      <circle cx="524" cy="124" r="16" fill="#ffc46b22"/>
+      <text x="524" y="129" textAnchor="middle" fontSize="12" fontWeight="800" fill="#ffc46b">BF</text>
+      <text x="550" y="117" fontSize="12" fontWeight="700" fill="#fff">Bell Forest Products</text>
+      <text x="550" y="132" fontSize="9" fill="#555">Lumber Supplier</text>
+      <rect x="550" y="140" width="48" height="13" rx="6" fill="#ffc46b22"/>
+      <text x="574" y="150" textAnchor="middle" fontSize="8" fill="#ffc46b">Supplier</text>
+      <text x="512" y="170" fontSize="9" fill="#555">✉ orders@bellforest.com</text>
+      <text x="512" y="184" fontSize="9" fill="#555">✆ (800) 545-5071</text>
+      <rect x="20" y="212" width="720" height="56" rx="12" fill="#1e1e14" stroke="#2a2a1e"/>
+      <text x="36" y="232" fontSize="9" fill="#555" fontFamily="monospace">CONTACT DETAIL — JOB SITE / LOCATION</text>
+      <rect x="36" y="242" width="200" height="20" rx="6" fill="#1a2a1a"/>
+      <text x="136" y="256" textAnchor="middle" fontSize="9" fill="#4fffb044">📍 Google Maps embed</text>
+      <text x="260" y="247" fontSize="10" fontWeight="600" fill="#aaa">142 Peaceful Ridge Lane, Charlotte NC</text>
+      <text x="260" y="262" fontSize="9" fill="#4fffb0">Open in Maps ↗</text>
+    </svg>
+  );
+
+  const QuotesSVG = () => (
+    <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="360" fill="#1a1a12"/>
+      <rect x="0" y="0" width="760" height="40" fill="#16160f"/>
+      <text x="20" y="26" fontSize="13" fontWeight="700" fill="#aaa">← Quotes</text>
+      <text x="100" y="26" fontSize="13" fontWeight="700" fill="#fff">GW-2026-004 — Hartwell Kitchen</text>
+      <rect x="568" y="8" width="78" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="607" y="24" textAnchor="middle" fontSize="10" fontWeight="700" fill="#4fffb0">✉ Send Quote</text>
+      <rect x="654" y="8" width="90" height="24" rx="7" fill="#7b6fff22" stroke="#7b6fff44"/>
+      <text x="699" y="24" textAnchor="middle" fontSize="10" fontWeight="700" fill="#7b6fff">→ Invoice</text>
+      <rect x="14" y="50" width="360" height="54" rx="10" fill="#222218"/>
+      <text x="28" y="70" fontSize="9" fill="#555" fontFamily="monospace">CLIENT</text>
+      <text x="28" y="86" fontSize="12" fontWeight="700" fill="#fff">Kerry Smith</text>
+      <text x="28" y="99" fontSize="9" fill="#555">Gotham Woodworks</text>
+      <text x="210" y="70" fontSize="9" fill="#555" fontFamily="monospace">PROJECT</text>
+      <text x="210" y="86" fontSize="12" fontWeight="700" fill="#fff">Hartwell Kitchen</text>
+      <rect x="388" y="50" width="164" height="54" rx="10" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="404" y="70" fontSize="9" fill="#4fffb0" fontFamily="monospace">STATUS</text>
+      <text x="404" y="92" fontSize="18" fontWeight="800" fill="#4fffb0">APPROVED</text>
+      <rect x="14" y="118" width="736" height="22" rx="0" fill="#16160f"/>
+      <text x="28" y="133" fontSize="9" fill="#555" fontFamily="monospace">DESCRIPTION</text>
+      <text x="490" y="133" fontSize="9" fill="#555" fontFamily="monospace">QTY</text>
+      <text x="548" y="133" fontSize="9" fill="#555" fontFamily="monospace">UNIT</text>
+      <text x="616" y="133" fontSize="9" fill="#555" fontFamily="monospace">PRICE</text>
+      <text x="740" y="133" fontSize="9" fill="#555" fontFamily="monospace" textAnchor="end">TOTAL</text>
+      <rect x="14" y="140" width="2" height="42" fill="#7b6fff"/>
+      <text x="28" y="158" fontSize="12" fontWeight="600" fill="#fff">Design & Drafting</text>
+      <text x="28" y="173" fontSize="9" fill="#555">Drawings, 3D renderings, presentations</text>
+      <text x="496" y="164" fontSize="12" fill="#aaa">3</text>
+      <text x="554" y="164" fontSize="12" fill="#aaa">hr</text>
+      <text x="626" y="164" fontSize="12" fill="#aaa">$95.00</text>
+      <text x="740" y="164" fontSize="12" fontWeight="700" fill="#fff" textAnchor="end">$285.00</text>
+      <line x1="14" y1="182" x2="750" y2="182" stroke="#2a2a1e" strokeWidth="1"/>
+      <rect x="14" y="182" width="2" height="42" fill="#4fffb0"/>
+      <text x="28" y="200" fontSize="12" fontWeight="600" fill="#fff">Upper Cabinet 42"</text>
+      <text x="28" y="215" fontSize="9" fill="#555">Maple veneer, soft-close hinges, adjustable shelving</text>
+      <text x="496" y="206" fontSize="12" fill="#aaa">6</text>
+      <text x="554" y="206" fontSize="12" fill="#aaa">ea</text>
+      <text x="626" y="206" fontSize="12" fill="#aaa">$680.00</text>
+      <text x="740" y="206" fontSize="12" fontWeight="700" fill="#fff" textAnchor="end">$4,080.00</text>
+      <line x1="14" y1="224" x2="750" y2="224" stroke="#2a2a1e" strokeWidth="1"/>
+      <rect x="14" y="224" width="2" height="42" fill="#ffc46b"/>
+      <text x="28" y="242" fontSize="12" fontWeight="600" fill="#fff">Drawer Bank (3-drawer)</text>
+      <text x="28" y="257" fontSize="9" fill="#555">Dovetail boxes, undermount slides, soft-close</text>
+      <text x="496" y="248" fontSize="12" fill="#aaa">4</text>
+      <text x="554" y="248" fontSize="12" fill="#aaa">ea</text>
+      <text x="626" y="248" fontSize="12" fill="#aaa">$1,200.00</text>
+      <text x="740" y="248" fontSize="12" fontWeight="700" fill="#fff" textAnchor="end">$4,800.00</text>
+      <line x1="14" y1="266" x2="750" y2="266" stroke="#2a2a1e" strokeWidth="1"/>
+      <rect x="480" y="278" width="274" height="72" rx="10" fill="#222218"/>
+      <text x="496" y="298" fontSize="11" fill="#888">Subtotal</text>
+      <text x="740" y="298" textAnchor="end" fontSize="11" fill="#fff">$9,165.00</text>
+      <text x="496" y="316" fontSize="11" fill="#888">Tax (7%)</text>
+      <text x="740" y="316" textAnchor="end" fontSize="11" fill="#fff">$641.55</text>
+      <line x1="496" y1="326" x2="740" y2="326" stroke="#333" strokeWidth="1"/>
+      <text x="496" y="342" fontSize="13" fontWeight="800" fill="#fff">TOTAL</text>
+      <text x="740" y="342" textAnchor="end" fontSize="13" fontWeight="800" fill="#4fffb0">$9,806.55</text>
+    </svg>
+  );
+
+  const PortalSVG = () => (
+    <svg viewBox="0 0 760 320" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="320" fill="#f7f5ef"/>
+      <rect x="0" y="0" width="760" height="56" fill="#1a1a12"/>
+      <text x="20" y="24" fontSize="10" fontWeight="700" fill="#4fffb0" fontFamily="monospace">GOTHAM WOODWORKS, LLC</text>
+      <text x="20" y="44" fontSize="13" fill="#888">Client Portal</text>
+      <rect x="0" y="56" width="760" height="34" fill="#4fffb0"/>
+      <text x="20" y="78" fontSize="13" fontWeight="700" fill="#000">Welcome, Kerry Smith!</text>
+      <text x="720" y="78" textAnchor="end" fontSize="10" fill="#1a6040">✉ hello@gothamwoodworks.com</text>
+      <rect x="20" y="104" width="720" height="36" rx="10" fill="#fff" stroke="#e0e0d0"/>
+      <rect x="28" y="110" width="76" height="24" rx="8" fill="#f7f5ef"/>
+      <text x="66" y="126" textAnchor="middle" fontSize="10" fill="#888">🏗 Projects</text>
+      <rect x="112" y="110" width="68" height="24" rx="8" fill="#f7f5ef"/>
+      <text x="146" y="126" textAnchor="middle" fontSize="10" fill="#888">📄 Quotes</text>
+      <rect x="188" y="110" width="74" height="24" rx="8" fill="#f7f5ef"/>
+      <text x="225" y="126" textAnchor="middle" fontSize="10" fill="#888">🧾 Invoices</text>
+      <rect x="270" y="110" width="80" height="24" rx="8" fill="#4fffb0"/>
+      <text x="310" y="126" textAnchor="middle" fontSize="10" fontWeight="700" fill="#000">📷 Photos</text>
+      <rect x="20" y="154" width="720" height="80" rx="12" fill="#fff" stroke="#e0e0d0" strokeDasharray="5,4"/>
+      <text x="380" y="186" textAnchor="middle" fontSize="20" fill="#ccc">📷</text>
+      <text x="380" y="206" textAnchor="middle" fontSize="12" fontWeight="700" fill="#333">Share inspiration photos with Gotham Woodworks, LLC</text>
+      <text x="380" y="222" textAnchor="middle" fontSize="10" fill="#aaa">Upload design ideas, site conditions, or reference images</text>
+      <rect x="300" y="230" width="96" height="24" rx="8" fill="#4fffb0"/>
+      <text x="348" y="246" textAnchor="middle" fontSize="10" fontWeight="700" fill="#000">📁 Choose Photo</text>
+      <rect x="404" y="230" width="76" height="24" rx="8" fill="#f0f0f0"/>
+      <text x="442" y="246" textAnchor="middle" fontSize="10" fill="#666">📷 Camera</text>
+      <text x="20" y="278" fontSize="9" fill="#aaa" fontFamily="monospace">YOUR UPLOADS</text>
+      <rect x="20" y="288" width="110" height="26" rx="6" fill="#e0e0d0"/>
+      <text x="75" y="305" textAnchor="middle" fontSize="18" fill="#bbb">🏡</text>
+      <rect x="140" y="288" width="110" height="26" rx="6" fill="#d4e8d4"/>
+      <text x="195" y="305" textAnchor="middle" fontSize="18" fill="#aaa">🪵</text>
+      <rect x="260" y="288" width="110" height="26" rx="6" fill="#e8d4d4"/>
+      <text x="315" y="305" textAnchor="middle" fontSize="18" fill="#bbb">🎨</text>
+    </svg>
+  );
+
+  const CalendarSVG = () => (
+    <svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="280" fill="#1a1a12"/>
+      <rect x="0" y="0" width="760" height="40" fill="#16160f"/>
+      <text x="20" y="26" fontSize="15" fontWeight="700" fill="#fff">June 2026</text>
+      <text x="110" y="26" fontSize="16" fill="#555">‹</text>
+      <text x="128" y="26" fontSize="16" fill="#555">›</text>
+      <rect x="574" y="8" width="76" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="612" y="24" textAnchor="middle" fontSize="10" fontWeight="700" fill="#4fffb0">+ New Event</text>
+      <rect x="658" y="8" width="82" height="24" rx="7" fill="#222218"/>
+      <text x="699" y="24" textAnchor="middle" fontSize="10" fill="#888">⬇ Export .ics</text>
+      <rect x="0" y="40" width="760" height="22" fill="#16160f"/>
+      <text x="54" y="55" textAnchor="middle" fontSize="8" fill="#555" fontFamily="monospace">SUN</text>
+      <text x="162" y="55" textAnchor="middle" fontSize="8" fill="#555" fontFamily="monospace">MON</text>
+      <text x="270" y="55" textAnchor="middle" fontSize="8" fill="#555" fontFamily="monospace">TUE</text>
+      <text x="378" y="55" textAnchor="middle" fontSize="8" fill="#555" fontFamily="monospace">WED</text>
+      <text x="486" y="55" textAnchor="middle" fontSize="8" fill="#555" fontFamily="monospace">THU</text>
+      <text x="594" y="55" textAnchor="middle" fontSize="8" fill="#555" fontFamily="monospace">FRI</text>
+      <text x="702" y="55" textAnchor="middle" fontSize="8" fill="#555" fontFamily="monospace">SAT</text>
+      <line x1="108" y1="62" x2="108" y2="280" stroke="#222" strokeWidth="1"/>
+      <line x1="216" y1="62" x2="216" y2="280" stroke="#222" strokeWidth="1"/>
+      <line x1="324" y1="62" x2="324" y2="280" stroke="#222" strokeWidth="1"/>
+      <line x1="432" y1="62" x2="432" y2="280" stroke="#222" strokeWidth="1"/>
+      <line x1="540" y1="62" x2="540" y2="280" stroke="#222" strokeWidth="1"/>
+      <line x1="648" y1="62" x2="648" y2="280" stroke="#222" strokeWidth="1"/>
+      <line x1="0" y1="118" x2="760" y2="118" stroke="#222" strokeWidth="1"/>
+      <line x1="0" y1="174" x2="760" y2="174" stroke="#222" strokeWidth="1"/>
+      <line x1="0" y1="230" x2="760" y2="230" stroke="#222" strokeWidth="1"/>
+      <text x="96" y="77" textAnchor="end" fontSize="10" fill="#444">1</text>
+      <text x="204" y="77" textAnchor="end" fontSize="10" fill="#444">2</text>
+      <text x="312" y="77" textAnchor="end" fontSize="10" fill="#444">3</text>
+      <text x="420" y="77" textAnchor="end" fontSize="10" fill="#444">4</text>
+      <text x="528" y="77" textAnchor="end" fontSize="10" fill="#444">5</text>
+      <text x="636" y="77" textAnchor="end" fontSize="10" fill="#444">6</text>
+      <text x="744" y="77" textAnchor="end" fontSize="10" fill="#444">7</text>
+      <rect x="110" y="80" x2="110" height="18" rx="4" width="104" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="116" y="93" fontSize="8" fill="#4fffb0">📍 Hartwell Site Visit</text>
+      <text x="96" y="133" textAnchor="end" fontSize="10" fill="#444">8</text>
+      <text x="204" y="133" textAnchor="end" fontSize="10" fill="#444">9</text>
+      <text x="312" y="133" textAnchor="end" fontSize="10" fill="#444">10</text>
+      <text x="420" y="133" textAnchor="end" fontSize="10" fill="#444">11</text>
+      <rect x="326" y="136" width="104" height="18" rx="4" fill="#7b6fff22" stroke="#7b6fff44"/>
+      <text x="332" y="149" fontSize="8" fill="#7b6fff">🤝 Design Review</text>
+      <text x="528" y="133" textAnchor="end" fontSize="10" fill="#fff">15</text>
+      <rect x="0" y="118" width="108" height="56" rx="0" fill="#222218"/>
+      <text x="96" y="133" textAnchor="end" fontSize="10" fill="#fff">15</text>
+      <rect x="4" y="136" width="100" height="18" rx="4" fill="#4fffb0"/>
+      <text x="8" y="149" fontSize="8" fontWeight="700" fill="#000">🏠 Installation Day 1</text>
+      <rect x="4" y="156" width="100" height="14" rx="4" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="8" y="167" fontSize="8" fill="#4fffb0">🏠 Installation Day 2</text>
+      <text x="420" y="189" textAnchor="end" fontSize="10" fill="#444">18</text>
+      <rect x="326" y="192" width="104" height="18" rx="4" fill="#ffc46b22" stroke="#ffc46b44"/>
+      <text x="332" y="205" fontSize="8" fill="#ffc46b">🚚 Oleander Delivery</text>
+    </svg>
+  );
+
+  const ItemLibSVG = () => (
+    <svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",display:"block",borderRadius:10}}>
+      <rect width="760" height="280" fill="#1a1a12"/>
+      <rect x="0" y="0" width="760" height="44" fill="#16160f"/>
+      <text x="20" y="28" fontSize="16" fontWeight="800" fill="#fff" fontFamily="Georgia,serif">Material & Item Library</text>
+      <rect x="570" y="10" width="76" height="24" rx="7" fill="#222218" stroke="#333"/>
+      <text x="608" y="26" textAnchor="middle" fontSize="10" fill="#888">⋯ Actions</text>
+      <rect x="654" y="10" width="86" height="24" rx="7" fill="#4fffb022" stroke="#4fffb044"/>
+      <text x="697" y="26" textAnchor="middle" fontSize="10" fontWeight="700" fill="#4fffb0">+ New Item</text>
+      <rect x="20" y="56" width="190" height="24" rx="7" fill="#222218" stroke="#333"/>
+      <text x="36" y="72" fontSize="10" fill="#555">🔍 Search items…</text>
+      <rect x="222" y="56" width="46" height="24" rx="12" fill="#4fffb0"/>
+      <text x="245" y="72" textAnchor="middle" fontSize="9" fontWeight="700" fill="#000">All</text>
+      <rect x="276" y="56" width="64" height="24" rx="12" fill="#222218" stroke="#333"/>
+      <text x="308" y="72" textAnchor="middle" fontSize="9" fill="#666">Cabinetry</text>
+      <rect x="348" y="56" width="48" height="24" rx="12" fill="#222218" stroke="#333"/>
+      <text x="372" y="72" textAnchor="middle" fontSize="9" fill="#666">Labor</text>
+      <rect x="404" y="56" width="64" height="24" rx="12" fill="#222218" stroke="#333"/>
+      <text x="436" y="72" textAnchor="middle" fontSize="9" fill="#666">Hardware</text>
+      <rect x="20" y="92" width="170" height="110" rx="10" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="20" y="92" width="170" height="46" rx="10" fill="#2a3a2a"/>
+      <text x="105" y="119" textAnchor="middle" fontSize="26" fill="#4fffb044">🪵</text>
+      <text x="36" y="158" fontSize="11" fontWeight="700" fill="#fff">Upper Cabinet 42"</text>
+      <text x="36" y="172" fontSize="9" fill="#555">Cabinetry · ea</text>
+      <text x="36" y="188" fontSize="10" fontWeight="700" fill="#4fffb0">Sell: $680</text>
+      <text x="130" y="188" fontSize="9" fill="#555">Cost: $420</text>
+      <text x="36" y="200" fontSize="8" fill="#7b6fff">📎 Spec sheet</text>
+      <rect x="202" y="92" width="170" height="110" rx="10" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="202" y="92" width="170" height="46" rx="10" fill="#1a2a3a"/>
+      <text x="287" y="119" textAnchor="middle" fontSize="26" fill="#7b6fff44">🔧</text>
+      <text x="218" y="158" fontSize="11" fontWeight="700" fill="#fff">Design & Drafting</text>
+      <text x="218" y="172" fontSize="9" fill="#555">Labor · hr</text>
+      <text x="218" y="188" fontSize="10" fontWeight="700" fill="#4fffb0">Sell: $95</text>
+      <text x="306" y="188" fontSize="9" fill="#555">Cost: $65</text>
+      <rect x="384" y="92" width="170" height="110" rx="10" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="384" y="92" width="170" height="46" rx="10" fill="#2a2a1a"/>
+      <text x="469" y="119" textAnchor="middle" fontSize="26" fill="#ffc46b44">⚙️</text>
+      <text x="400" y="158" fontSize="11" fontWeight="700" fill="#fff">Drawer Bank 3-dr</text>
+      <text x="400" y="172" fontSize="9" fill="#555">Cabinetry · ea</text>
+      <text x="400" y="188" fontSize="10" fontWeight="700" fill="#4fffb0">Sell: $1,200</text>
+      <text x="500" y="188" fontSize="9" fill="#555">Cost: $780</text>
+      <text x="400" y="200" fontSize="8" fill="#4fffb0">↗ Product Page</text>
+      <rect x="566" y="92" width="174" height="110" rx="10" fill="#222218" stroke="#2a2a1e"/>
+      <rect x="566" y="92" width="174" height="46" rx="10" fill="#2a1a2a"/>
+      <text x="653" y="119" textAnchor="middle" fontSize="26" fill="#ff6b6b44">🖌️</text>
+      <text x="582" y="158" fontSize="11" fontWeight="700" fill="#fff">Finishing — Lacquer</text>
+      <text x="582" y="172" fontSize="9" fill="#555">Finishing · sf</text>
+      <text x="582" y="188" fontSize="10" fontWeight="700" fill="#4fffb0">Sell: $8.50</text>
+      <text x="674" y="188" fontSize="9" fill="#555">Cost: $5.20</text>
+      <text x="390" y="226" fontSize="9" fill="#555" fontFamily="monospace">IMPORT: ⋯ Actions → Import Items or Price List → upload CSV → columns auto-detected</text>
+    </svg>
+  );
+
   const sections = [
     {
       id:"dashboard", icon:"⬡", title:"Dashboard",
-      content:"Your command center. Shows active projects with progress bars, financial snapshot (active projects, outstanding invoices, month revenue), overdue tasks, low stock alerts, and approved quotes waiting to invoice. Click any project card to jump directly to that project.",
+      svg:<DashboardSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            The Dashboard is your first view every time you log in. It gives you an instant snapshot of everything happening across the shop so you can prioritize your day without digging through menus.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>WHAT YOU SEE</h4>
+          <Table rows={[
+            ["Stat tiles","Active projects count, total outstanding invoices, tasks due soon, and month-to-date revenue — at a glance across the top"],
+            ["Project cards","Every active project with a color-coded progress bar, percentage complete, stages done/total, and the next upcoming stage"],
+            ["Notifications","Low stock alerts, overdue tasks, approved quotes ready to invoice, and overdue invoices — prioritized by urgency"],
+          ]}/>
+          <Tip>Click any project card on the Dashboard to jump directly into that project's detail view — no need to navigate to the Projects page first.</Tip>
+        </div>
+      )
     },
     {
       id:"projects", icon:"◈", title:"Projects",
-      content:"Every job lives here. Click + New Project to create one — choose from 9 built-in templates (Kitchen, Bathroom, Office, Mudroom, Wine Rack, Laundry, and more) or start blank. Set the job site address (auto-fills from the linked client). Select which stages apply to this project and add custom stages. Click any project card to open the full detail view with tabs for Financials, Stages, Tasks, Docs, Quotes, Notes, Changes, Photos, and Review. Save any project as a template via ⭐ Save as Template.",
+      svg:<ProjectsSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Every job lives in Projects. Create one project per client engagement and track it from first contact all the way through final installation and payment.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>CREATING A NEW PROJECT</h4>
+          <Step num="1" title="Click + New Project" desc="Opens the project creation form. You can start from a template or from scratch."/>
+          <Step num="2" title="Choose a template (optional)" desc="9 built-in templates are available: Kitchen Remodel, Bathroom Vanity, Built-in Shelving, Home Office, Mudroom & Entryway, Wine Rack & Bar, Laundry Room, and more. Each pre-loads the relevant stages and default tasks."/>
+          <Step num="3" title="Fill in project details" desc="Name, linked client, description, start/end dates, and budget. The job site address auto-fills from the linked client's address and shows a live Google Maps preview."/>
+          <Step num="4" title="Select stages" desc="Toggle the stages relevant to this project on or off using the pill buttons. Add custom stages by typing a name and pressing Enter."/>
+          <Step num="5" title="Save" desc="The project is created and saved to your account. It appears on the Dashboard and Projects list immediately."/>
+          <Tip>Save any project as a template by clicking ⭐ Save as Template in the project header. Find and manage your templates in Admin Settings → 📐 Templates.</Tip>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>PROJECT DETAIL TABS</h4>
+          <Table rows={[
+            ["$ Financials","Budget vs actual, revenue, material costs, labor cost, and profit & loss summary"],
+            ["Stages","Production stages with time logging, completion toggles, and per-stage photos"],
+            ["Tasks","All tasks linked to this project with status and priority"],
+            ["Docs","Resources and documents attached to this project"],
+            ["Quotes","All quotes and invoices for this project"],
+            ["Notes","Internal notes with timestamp and edit history"],
+            ["Changes","Change orders — track scope changes and their cost impact"],
+            ["📷 Photos","All project photos grouped by stage including field captures"],
+            ["📊 Review","Full profitability analysis with AI insights and benchmarks"],
+          ]}/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>ADDING CONTACTS TO A PROJECT</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8}}>
+            Open any project and scroll to the <strong style={{color:"var(--text)"}}>Project Contacts</strong> section. Use the <em>"+ Add contact to project…"</em> search field to find and add any CRM contact. Click the × next to any additional contact to remove them. You can also invite contacts to the client portal directly from the <strong style={{color:"var(--text)"}}>🔗 Client Portal</strong> button in the project footer.
+          </p>
+        </div>
+      )
     },
     {
       id:"stages", icon:"⚙️", title:"Stages & Time Tracking",
-      content:"Default stage order: Design → Material Procurement → Site Visits/Consultations → Milling → Joining → CNC Routing → Edgebanding → Assembly → Finish Prep → Finishing → Delivery Prep → Installation. Each stage has a live timer (Start/Stop) and manual time entry. Log time with a note. All logged time feeds into project profitability. Each stage has a 📷 camera button to capture in-progress photos. On mobile a floating 📷 button captures directly to the project gallery.",
+      svg:<StagesSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            The Stages tab is where production happens. Mark stages complete, log time, capture photos, and see exactly where every project stands in your shop.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>DEFAULT STAGE ORDER</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            Design → Material Procurement → Site Visits/Consultations → Milling → Joining → CNC Routing → Edgebanding → Assembly → Finish Prep → Finishing → Delivery Prep → Installation
+          </p>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Each project can have a custom subset of these stages, plus any custom stages you add. The order always reflects your selection.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>LOGGING TIME</h4>
+          <Step num="▶" title="Use the Live Timer" desc="Click Start when you begin work on a stage. The timer runs in real time. Click Stop — the elapsed minutes are automatically entered in the time field. Add a note (e.g. 'routing drawer fronts') and click Log Time to save the entry."/>
+          <Step num="✎" title="Enter manually" desc="Type the number of minutes directly in the time field, add a note, and click Log Time. Use this for time you forgot to track in real time."/>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            All logged time entries appear below the timer as a history log with date, duration, and note. Delete any entry with the × button. Time totals feed directly into the project's profitability review and labor cost calculations.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>STAGE PHOTOS</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8}}>
+            Each stage has a 📷 camera button to capture in-progress photos tagged to that stage. Photos appear in the stage card and in the project's Photos tab. On phones and tablets, a floating 📷 button in the bottom-right captures site photos directly to the project gallery without navigating to a specific stage.
+          </p>
+          <Tip>Mark a stage done by clicking its checkbox. The progress bar at the top of the project updates instantly and the client portal reflects the new percentage.</Tip>
+        </div>
+      )
     },
     {
       id:"crm", icon:"👤", title:"CRM & Contacts",
-      content:"Manage clients, suppliers, and partners. Contact types: Client, Supplier, Partner. Each contact has phone (auto-formatted to (xxx) xxx-xxxx), email, website, multiple addresses (Mailing, Shipping, Billing), Google Maps embed, linked projects, and notes. Click 🔗 Client Portal Link to generate a secure portal link for any client. Search contacts by name, company, email, or phone. Bulk select and delete contacts with checkboxes.",
+      svg:<CRMSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            The CRM keeps all your clients, suppliers, and partners in one place. Every contact links to their projects, quotes, invoices, and scheduled events.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>CONTACT TYPES</h4>
+          <Table rows={[
+            ["Client","Homeowners, builders, and designers who commission work from you"],
+            ["Supplier","Lumber yards, hardware suppliers, and finishing product vendors"],
+            ["Partner","Subcontractors, architects, and designers you collaborate with"],
+          ]}/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>CREATING A CONTACT</h4>
+          <Step num="1" title="Click + New Contact" desc="Opens the contact form. Select the contact type first — this sets which fields are emphasized."/>
+          <Step num="2" title="Fill in details" desc="Name, company, phone (auto-formats to (xxx) xxx-xxxx as you type), email, website, and contact type. Add multiple addresses — Mailing, Shipping, and Billing."/>
+          <Step num="3" title="Save" desc="The contact is saved and can be linked to any project, quote, or calendar event."/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>CONTACT DETAIL</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            Click any contact card to open the detail panel. It shows all contact info, associated projects, a Google Maps embed of the job site address, and quick action buttons (email, call, schedule event). Click <strong style={{color:"var(--text)"}}>🔗 Client Portal Link</strong> to generate a unique portal link for that client.
+          </p>
+          <Tip>Use the bulk select checkboxes on contact cards to delete multiple contacts at once — useful when cleaning up test data or duplicates.</Tip>
+        </div>
+      )
     },
     {
       id:"quotes", icon:"📄", title:"Quotes & Invoices",
-      content:"Build quotes with line items pulled from your Item Library (pricing pre-filled). Set markup per line or global tax rate. Attach supporting documents (T&Cs, renderings, spec sheets). Send for client approval — client receives branded email with an approval link, can sign digitally. Once approved, convert to invoice. Generate a Stripe payment link for online payment. Quote editor remembers where you were on refresh. Bulk status changes and delete available on quote cards.",
+      svg:<QuotesSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Build professional quotes, send them for digital client approval, convert to invoices, and collect payment online — all without leaving CabShop Pro.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>CREATING A QUOTE</h4>
+          <Step num="1" title="Click + New Quote" desc="Link it to a project and client. The client's contact info pre-fills automatically."/>
+          <Step num="2" title="Add line items" desc="Type items manually or click 📚 Library to pull from your Item Library — pricing, unit, and markup pre-fill from the library. Adjust quantities and pricing per line."/>
+          <Step num="3" title="Set markup and tax" desc="Apply markup per line item or set a global tax rate. Sell price, margin percentage, and totals calculate in real time."/>
+          <Step num="4" title="Attach supporting documents" desc="In the Supporting Documents section, upload T&Cs, renderings, spec sheets, or any file. All attached documents are included as email attachments when you send the quote."/>
+          <Step num="5" title="Send for approval" desc="Click ✉ Send Quote. The client receives a branded email with the full quote and a link to review and sign digitally — no account required."/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>CLIENT APPROVAL FLOW</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            When a client opens the approval link, they see the full quote with all line items, your terms, and a digital signature pad. They sign and click Approve — you get notified and the quote status updates to Approved automatically.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>CONVERTING TO INVOICE & COLLECTING PAYMENT</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            Once a quote is approved, click <strong style={{color:"var(--text)"}}>→ Invoice</strong> to convert it. Set a due date and send. On the invoice, click <strong style={{color:"var(--text)"}}>💳 Payment Link</strong> to generate a Stripe-powered checkout page for the exact invoice amount. The link is embedded in the invoice email — clients pay by card immediately.
+          </p>
+          <Table rows={[
+            ["Draft","Not yet sent to client"],
+            ["Sent","Emailed, awaiting client approval"],
+            ["Approved","Client has signed — ready to invoice"],
+            ["Unpaid","Invoice sent, payment pending"],
+            ["Partial","Partial payment received"],
+            ["Paid","Payment received in full"],
+          ]}/>
+          <Tip>The quote editor saves your position — if you refresh the page while editing a quote, it automatically reopens to that same quote.</Tip>
+        </div>
+      )
     },
     {
       id:"tasks", icon:"✓", title:"Tasks",
-      content:"Tasks link to projects with priority (High/Medium/Low), due date, notes, and subtasks. Board view shows To Do/In Progress/Done columns with drag-and-drop. List view supports bulk select — mark done or delete multiple tasks at once. Quick-add a task from the project detail view by typing and pressing Enter.",
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Tasks keep every job on track. They can be linked to projects, assigned priorities, and tracked in a kanban board or list view.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>VIEWS</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:8}}><strong style={{color:"var(--text)"}}>Board view</strong> — columns for To Do, In Progress, and Done. Drag and drop tasks between columns to update their status.</p>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}><strong style={{color:"var(--text)"}}>List view</strong> — all tasks in a flat list, sortable by project, due date, priority, or creation date. In list view you can bulk select tasks with checkboxes and mark them done or delete them all at once.</p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>TASK FIELDS</h4>
+          <Table rows={[
+            ["Title","What needs to be done"],
+            ["Project","Links the task to a specific project"],
+            ["Priority","High (red) / Medium (yellow) / Low (grey)"],
+            ["Due Date","When it must be completed — overdue tasks appear in notifications"],
+            ["Notes","Additional detail or instructions"],
+            ["Subtasks","Break large tasks into smaller checkable steps"],
+          ]}/>
+          <Tip>Quick-add a task from any project detail view — type the task name in the Quick Add Task field and press Enter. It immediately links to that project.</Tip>
+        </div>
+      )
     },
     {
       id:"calendar", icon:"📅", title:"Calendar",
-      content:"Schedule site visits, deliveries, installations, meetings, and deadlines. Toggle task due dates into the calendar. Set events to repeat daily, weekly, biweekly, or monthly. Export all events as .ics (⬇ Export .ics button on the calendar page). From any event modal, export a single event to Google Calendar (opens new tab), Apple/iCal (.ics download — opens Calendar automatically on Mac), or Outlook/Other (.ics download).",
+      svg:<CalendarSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Schedule site visits, deliveries, installations, and client meetings. Toggle task due dates into the view for a complete picture of your week.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>CREATING AN EVENT</h4>
+          <Step num="1" title="Click + New Event or click a day" desc="Opens the event form. Clicking directly on a calendar day pre-fills the date."/>
+          <Step num="2" title="Set event details" desc="Title, type (Site Visit, Meeting, Delivery, Installation, Deadline, Other), date, start and end times. Link to a project and contact."/>
+          <Step num="3" title="Set recurrence (optional)" desc="Choose Does not repeat, Daily, Weekly, Biweekly, or Monthly. Recurring events appear on all matching dates automatically."/>
+          <Step num="4" title="Export to external calendar" desc="In the Export to Calendar section at the bottom of the form: Google Calendar opens in a new tab with the event pre-filled. Apple/iCal downloads an .ics file that opens Calendar automatically on Mac. Outlook/Other downloads an .ics file for manual import."/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>EXPORTING ALL EVENTS</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8}}>
+            Click <strong style={{color:"var(--text)"}}>⬇ Export .ics</strong> on the main calendar page to download all events as a single file. Import into Google Calendar, Apple Calendar, or Outlook in one step.
+          </p>
+        </div>
+      )
     },
     {
-      id:"finance", icon:"💰", title:"Finance",
-      content:"Log income and expense transactions against Chart of Accounts categories. Export to QuickBooks-compatible CSV (Chart of Accounts, Transactions, Invoices) from Admin Settings → QuickBooks. View the Profitability Dashboard from the sidebar for a full breakdown by project — revenue, material costs, labor hours, gross profit, and margin percentage.",
-    },
-    {
-      id:"inventory", icon:"📦", title:"Inventory",
-      content:"Track stock levels for materials and hardware. Set a minimum quantity — alerts fire when stock drops below it (shown in dashboard and notification bell). Push items from the Item Library to inventory with the + Inventory button (not shown for Labor items). Log material usage to projects.",
+      id:"finance", icon:"💰", title:"Finance & Profitability",
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Track every dollar in and out of your shop. Log transactions, manage your chart of accounts, and export to QuickBooks.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>LOGGING TRANSACTIONS</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            In the Finance page, click + Add Transaction. Enter the date, amount, type (Income or Expense), description, and assign it to a Chart of Accounts category. Transactions appear in the running ledger and feed into profitability calculations.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>PROFITABILITY DASHBOARD</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Navigate to <strong style={{color:"var(--text)"}}>Profitability</strong> in the sidebar for a full breakdown by project. Each project shows revenue, material costs, labor hours and cost, gross profit, and margin percentage. Compare projects side by side to identify your most and least profitable work.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>QUICKBOOKS EXPORT</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8}}>
+            Go to <strong style={{color:"var(--text)"}}>Admin Settings → 📊 QuickBooks</strong> to download CSV exports of your Chart of Accounts, Transactions, and Invoices. Import them into QuickBooks Online via their import tool. Full live sync is planned for a future update.
+          </p>
+        </div>
+      )
     },
     {
       id:"itemlib", icon:"📚", title:"Material & Item Library",
-      content:"Pre-built catalog of materials, labor rates, and hardware. Each item has: name, category (Cabinetry, Labor, Hardware, Cabinet Accessories, Drawers, Finishing, etc.), unit (dropdown: ea, hr, lf, sf, bf, lbs, gal…), Product #/SKU, Product URL, base cost, default markup %, default margin %, photo, and related documents (spec sheets, DWG/DXF). Import supplier price lists via ⋯ Actions → Import Items or Price List — CSV column names are auto-detected. Bulk entry mode for fast data entry.",
-    },
-    {
-      id:"media", icon:"🖼", title:"Media, Gallery & Samples",
-      content:"Three libraries: Media Library (reference images, inspiration, project assets — supports images and documents), Gallery (portfolio of completed work), Samples Library (wood species, finishes, hardware finishes for client consultations). On mobile, a floating 📷 button captures directly to Media Library without opening a dialog.",
-    },
-    {
-      id:"tools", icon:"🔧", title:"Tools & Equipment",
-      content:"Log shop equipment with purchase date, value, photos, and notes. Useful for insurance documentation and depreciation tracking. Camera button on mobile captures photos directly in the shop.",
+      svg:<ItemLibSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Your pre-built catalog of materials, labor rates, hardware, and components. Pull any item into a quote with pricing and markup already filled in — no re-entering data.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>ADDING AN ITEM</h4>
+          <Step num="1" title="Click + New Item" desc="Opens the item form."/>
+          <Step num="2" title="Fill in the details" desc="Name, category (Cabinetry, Labor, Hardware, Cabinet Accessories, Drawers, Finishing, Custom, Supplier), and unit (selected from a dropdown: ea, hr, lf, sf, bf, lbs, gal, qt, pr, set, pkg, box, sheet, and more)."/>
+          <Step num="3" title="Add Product # and URL" desc="Enter the supplier's part number in Product # / SKU for easy reordering. Paste the product page URL in Product URL — it appears as a clickable link on the item card."/>
+          <Step num="4" title="Set pricing (internal only)" desc="Base Cost is your cost — never visible to clients. Set Default Markup % or Default Margin % to auto-price when pulled into quotes. The sell price and margin calculate in real time as you type."/>
+          <Step num="5" title="Attach documents" desc="Upload spec sheets, installation guides, or DWG/DXF files in the Related Documents section. They're stored in Supabase Storage and show as 📎 links on the item card."/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>IMPORTING SUPPLIER PRICE LISTS</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            Click <strong style={{color:"var(--text)"}}>⋯ Actions → Import Items or Price List</strong> and upload any CSV file from a supplier. CabShop Pro auto-detects column names — common formats like Item, Description, Part#, Price/Cost, UOM, and Category are mapped automatically. After import, items are categorized as "Supplier" with a reminder to add your markup before quoting.
+          </p>
+          <Tip>In a quote, click the 📚 Library button on any line item to search and pull from your Item Library — pricing, markup, unit, and description all fill in automatically.</Tip>
+        </div>
+      )
     },
     {
       id:"portal", icon:"🔗", title:"Client Portal",
-      content:"Give clients a branded, no-login window into their project. Generate portal links from: (A) CRM → contact → 🔗 Client Portal Link, or (B) Project detail → 🔗 Client Portal button (shows all linked contacts, generates individual links). Client sees: Projects tab (stage progress in correct order), Quotes tab (Review & Sign link), Invoices tab (Pay Now via Stripe), Photos tab (upload inspiration photos — appear in your project Photos tab in real-time). Portal branded with your shop name, logo, and color from Admin Settings.",
+      svg:<PortalSVG />,
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            The Client Portal gives clients a branded window into their project — no account or login required. They can view progress, approve quotes, pay invoices, and share inspiration photos.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>SENDING A PORTAL LINK</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:8}}><strong style={{color:"var(--text)"}}>From a project</strong> (recommended): Open any project → click 🔗 Client Portal in the footer. A modal lists all contacts linked to the project. Each contact has a Copy Link button and an ✉ Email button (pre-fills their email with the link).</p>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}><strong style={{color:"var(--text)"}}>From a CRM contact</strong>: Open the contact → click 🔗 Client Portal Link → Copy the link or click ✉ Open in Email.</p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>WHAT CLIENTS SEE</h4>
+          <Table rows={[
+            ["🏗 Projects","Active projects with stage progress bars in the correct order. Completed stages shown in green."],
+            ["📄 Quotes","Pending quotes with a Review & Sign button linking to the digital approval page."],
+            ["🧾 Invoices","All invoices with status. Unpaid invoices show a 💳 Pay Now button for online card payment via Stripe."],
+            ["📷 Photos","Project photos from the shop, plus an upload area for clients to share inspiration images, site conditions, or design references."],
+          ]}/>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            <strong style={{color:"var(--text)"}}>Client-uploaded photos</strong> appear immediately in the project's Photos tab in CabShop Pro — real-time sync via Supabase. No manual refresh needed.
+          </p>
+          <Tip>The portal is branded with your shop name, logo, and accent color from Admin Settings → Company. Clients see your brand, not CabShop Pro.</Tip>
+        </div>
+      )
     },
     {
       id:"search", icon:"🔍", title:"Global Search",
-      content:"Press Ctrl+K (⌘K on Mac) or click 🔍 in the sidebar to search across all projects, contacts, quotes/invoices, and tasks simultaneously. Type 2+ characters to see results. Click any result to navigate directly — contacts open their detail, quotes open the editor, projects open the detail view, tasks open in list view.",
-    },
-    {
-      id:"ai", icon:"🤖", title:"AI Assistant",
-      content:"Click the chat bubble (bottom-right) to open the AI Assistant powered by Claude. Ask about pricing strategy, material quantities, CabShop Pro features, finishing tips, client communication, and more. From the 📊 Review tab of any project, click AI Analysis for a detailed profitability review with industry benchmark comparisons.",
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Find anything instantly — across projects, contacts, quotes, and tasks — from anywhere in the app.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>HOW TO USE IT</h4>
+          <Step num="1" title="Open search" desc="Press Ctrl+K (Windows) or ⌘K (Mac) from anywhere in the app. Or click the 🔍 Search button at the top of the left sidebar."/>
+          <Step num="2" title="Type your query" desc="Type at least 2 characters. Results appear instantly across all categories."/>
+          <Step num="3" title="Click a result" desc="Navigates directly to that item — contacts open their detail panel, quotes open the editor, projects open the detail view, tasks open in list view."/>
+          <Table rows={[
+            ["Projects","Name, description, address"],
+            ["Contacts","Name, company, email, phone"],
+            ["Quotes & Invoices","Title, quote number"],
+            ["Tasks","Title, description"],
+          ]}/>
+        </div>
+      )
     },
     {
       id:"admin", icon:"⚙", title:"Admin Settings",
-      content:"Company tab: shop name, logo, address, brand color, tax rate. Email tab: SendGrid API key, sender name/email for outgoing quotes and invoices. Regional: date format, currency, units. Subscription: manage your plan. Templates: view/edit project templates. Chart of Accounts: customize financial categories. QuickBooks: export CSV files.",
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Configure your shop profile, email sending, subscription, and integrations.
+          </p>
+          <Table rows={[
+            ["🏢 Company","Shop name, logo, address, phone, email, brand color, tax rate, currency"],
+            ["✉ Email","SendGrid API key, sender name and email for outgoing quotes and invoices"],
+            ["🌐 Regional","Date format, currency, and measurement units"],
+            ["💳 Subscription","View and manage your CabShop Pro plan"],
+            ["📐 Templates","View, edit, and delete project templates"],
+            ["📋 Chart of Accounts","Add and organize financial account categories"],
+            ["📊 QuickBooks","Export CSV files for QuickBooks import"],
+          ]}/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>SETTING UP EMAIL</h4>
+          <Step num="1" title="Create a free SendGrid account" desc="Go to sendgrid.com and sign up."/>
+          <Step num="2" title="Generate an API key" desc="In SendGrid: Settings → API Keys → Create API Key. Grant it Mail Send permission only."/>
+          <Step num="3" title="Paste it into CabShop Pro" desc="Admin Settings → ✉ Email → paste the API key, sender name, and sender email address. Save. All outgoing quotes and invoices now send from your shop's email address."/>
+          <Tip>Your shop logo, brand color, and company name from Admin Settings appear on all quotes, invoices, and the client portal. Fill these in before sending anything to clients.</Tip>
+        </div>
+      )
     },
   ];
 
   const faqs = [
-    {q:"How do I create a new project?", a:"Go to Projects in the sidebar and click + New Project. Choose a template or start blank, fill in details, select your stages, and click Save."},
-    {q:"How do I send a quote to a client?", a:"Open the quote in Quotes & Invoices, click ✉ Send Quote. The client receives an email with the full quote and a link to review and sign digitally."},
-    {q:"How do I accept online payments?", a:"On any invoice, click 💳 Payment Link to generate a Stripe checkout page. Include it when you email the invoice — clients can pay by card immediately."},
-    {q:"How do I invite a client to their portal?", a:"From any project, click 🔗 Client Portal in the footer — this lists all linked contacts with Copy Link and Email buttons. Or go to CRM → contact → 🔗 Client Portal Link."},
-    {q:"How do I import a supplier price list?", a:"In Item Library, click ⋯ Actions → Import Items or Price List and upload the CSV. Column names like Item, Description, Part#, Price/Cost, and UOM are detected automatically."},
-    {q:"How do I add contacts to an existing project?", a:"Open the project detail and scroll to Project Contacts. Use the '+ Add contact to project…' search field to find and add any CRM contact. Click × to remove additional contacts."},
-    {q:"How do stages work?", a:"Stages track production progress. From the Stages tab in any project, click the checkbox to mark a stage done, use the timer or manual entry to log time, and take photos with the 📷 button."},
-    {q:"Can I customize the stages for a project?", a:"Yes. When creating or editing a project, toggle stages on/off using the pill buttons. Type a custom stage name and press Enter to add it."},
-    {q:"How do I export to QuickBooks?", a:"Go to Admin Settings → 📊 QuickBooks to export Chart of Accounts, Transactions, and Invoices as CSV files. Import them into QuickBooks Online via their import tool."},
-    {q:"How do calendar exports work?", a:"Click ⬇ Export .ics on the calendar page to export all events. Or use the Export to Calendar section when creating/editing a single event to send it to Google Calendar, Apple Calendar, or Outlook."},
-    {q:"Where do project photos go?", a:"Photos taken from a stage camera button appear in that stage's photo section AND in the project's 📷 Photos tab. Photos taken with the floating camera button on mobile go to Field Captures in the Photos tab."},
-    {q:"How does global search work?", a:"Press Ctrl+K (⌘K on Mac) or click 🔍 in the sidebar. Type 2+ characters to search across projects, contacts, quotes, and tasks simultaneously."},
+    {q:"How do I create a new project?", a:"Go to Projects in the sidebar and click + New Project. Choose a template (optional), fill in project details, select your stages, and click Save. The project appears on your Dashboard and Projects list immediately."},
+    {q:"How do I send a quote to a client?", a:"Open the quote in Quotes & Invoices and click ✉ Send Quote. Your client receives a branded email with the full quote and a link to review and sign digitally. No account is required on their end."},
+    {q:"How do I accept online payments?", a:"Open any invoice and click 💳 Payment Link. This generates a Stripe checkout page for the exact invoice amount. When you email the invoice, the payment link is included automatically."},
+    {q:"How do I invite a client to their portal?", a:"From any project, click 🔗 Client Portal in the footer — this lists all linked contacts with Copy Link and Email buttons. Or go to CRM → open a contact → click 🔗 Client Portal Link."},
+    {q:"How do I import a supplier price list?", a:"In Item Library, click ⋯ Actions → Import Items or Price List and upload the CSV. Column names like Item, Description, Part#, Price/Cost, and UOM are detected and mapped automatically."},
+    {q:"How do I add contacts to an existing project?", a:"Open the project detail view and scroll to Project Contacts. Use the '+ Add contact to project…' search field to find and add any contact. Click × next to a contact to remove them."},
+    {q:"How do stages work?", a:"Open any project and click the Stages tab. Each stage has a checkbox to mark it done, a live timer (Start/Stop) or manual time entry field, and a 📷 button to add photos. All logged time feeds into the project's profitability review."},
+    {q:"Can I customize stages for a specific project?", a:"Yes. When creating or editing a project, toggle stages on or off using the pill buttons. Type a custom stage name and press Enter to add it. Each project can have a completely different stage set."},
+    {q:"How do I export to QuickBooks?", a:"Go to Admin Settings → 📊 QuickBooks. Export Chart of Accounts, Transactions, and Invoices as CSV files. Import them into QuickBooks Online via their Settings → Import Data tool."},
+    {q:"How do calendar exports work?", a:"Click ⬇ Export .ics on the calendar page to download all events as one file for bulk import. Or when creating/editing a single event, use the Export to Calendar section to send it to Google Calendar, Apple Calendar, or Outlook."},
+    {q:"Where do project photos go?", a:"Photos taken from a stage camera button are tagged to that stage and appear in the Photos tab. Photos taken with the floating 📷 button on mobile go to 'Field Captures' in the Photos tab. Client-uploaded photos appear under 'Client Uploads' in real time."},
+    {q:"How does Global Search work?", a:"Press Ctrl+K (⌘K on Mac) or click 🔍 in the sidebar. Type 2+ characters to search across all projects, contacts, quotes, and tasks simultaneously. Click any result to navigate directly to that item."},
+    {q:"How do I set up email sending?", a:"Go to Admin Settings → ✉ Email. Create a free SendGrid account, generate an API key with Mail Send permission, and paste it into the API key field along with your sender name and email address. Save and all outgoing quote/invoice emails send from your shop's address."},
+    {q:"What does the AI Assistant do?", a:"Click the chat bubble in the bottom-right corner to open it. Ask about pricing strategy, material quantities, finishing tips, client communication, or how to use any feature. From any project's 📊 Review tab, click AI Analysis for a detailed profitability breakdown with industry benchmark comparisons."},
   ];
 
   return (
-    <div style={{maxWidth:840,margin:"0 auto",padding:bp==="phone"?"16px 12px":"32px 24px"}}>
+    <div style={{maxWidth:860,margin:"0 auto",padding:bp==="phone"?"16px 12px":"32px 24px"}}>
       <div style={{marginBottom:28}}>
         <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.5px",marginBottom:6}}>Help & Guide</div>
-        <div style={{fontSize:14,color:"var(--muted)"}}>Everything you need to get the most out of CabShop Pro.</div>
+        <div style={{fontSize:14,color:"var(--muted)"}}>Complete instructions for every feature in CabShop Pro.</div>
       </div>
-
-      {/* Tabs */}
       <div style={{display:"flex",gap:8,marginBottom:28,flexWrap:"wrap"}}>
         <button style={tabStyle("guide")} onClick={()=>setTab("guide")}>📖 User Guide</button>
         <button style={tabStyle("faq")} onClick={()=>setTab("faq")}>❓ FAQ</button>
         <button style={tabStyle("contact")} onClick={()=>setTab("contact")}>✉ Contact Support</button>
       </div>
 
-      {/* ── USER GUIDE TAB ── */}
       {tab==="guide"&&(
-        <div>
-          <div style={{fontSize:13,color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>
-            Click any section below to expand it. CabShop Pro covers every aspect of running a cabinet shop — from first client contact through final installation and payment.
+        <div style={{display:"flex",gap:20,alignItems:"flex-start",flexWrap:bp==="phone"?"wrap":"nowrap"}}>
+          {/* Left nav */}
+          <div style={{width:bp==="phone"?"100%":200,flexShrink:0,position:bp==="phone"?"static":"sticky",top:20}}>
+            {sections.map(s=>(
+              <button key={s.id} onClick={()=>setOpenSection(s.id)}
+                style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:9,marginBottom:3,
+                  background:openSection===s.id?"var(--accent)18":"transparent",
+                  border:`1px solid ${openSection===s.id?"var(--accent)33":"transparent"}`,
+                  color:openSection===s.id?"var(--accent)":"var(--muted)",
+                  fontSize:12,fontWeight:openSection===s.id?700:500,cursor:"pointer",textAlign:"left",fontFamily:"var(--font)",transition:"all 0.15s"}}>
+                <span style={{fontSize:14}}>{s.icon}</span>{s.title}
+              </button>
+            ))}
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {sections.map(s=>{
-              const isOpen=openSection===s.id;
-              return(
-                <div key={s.id} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,overflow:"hidden",transition:"all 0.2s"}}>
-                  <button onClick={()=>setOpenSection(isOpen?null:s.id)}
-                    style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"14px 18px",background:"none",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"var(--font)"}}>
-                    <div style={{width:36,height:36,borderRadius:10,background:"var(--surface2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{s.icon}</div>
-                    <div style={{flex:1,fontWeight:700,fontSize:15,color:"var(--text)"}}>{s.title}</div>
-                    <div style={{fontSize:18,color:"var(--muted)",transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.2s"}}>›</div>
-                  </button>
-                  {isOpen&&(
-                    <div style={{padding:"0 18px 18px 66px",fontSize:13,color:"var(--muted)",lineHeight:1.8,borderTop:"1px solid var(--border)22",paddingTop:14}}>
-                      {s.content}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          {/* Right content */}
+          <div style={{flex:1,minWidth:0}}>
+            {sections.filter(s=>s.id===openSection).map(s=>(
+              <div key={s.id}>
+                <SectionHeader icon={s.icon} title={s.title} />
+                {s.svg&&(
+                  <div style={{borderRadius:12,overflow:"hidden",marginBottom:20,border:"1px solid var(--border)",boxShadow:"0 4px 20px rgba(0,0,0,0.3)"}}>
+                    {s.svg}
+                  </div>
+                )}
+                {s.content}
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* ── FAQ TAB ── */}
       {tab==="faq"&&(
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {faqs.map((f,i)=>{
@@ -13330,47 +14007,39 @@ function HelpPage({bp}) {
         </div>
       )}
 
-      {/* ── CONTACT TAB ── */}
       {tab==="contact"&&(
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:24}}>
             <div style={{fontWeight:700,fontSize:16,marginBottom:8}}>Get Support</div>
             <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:20}}>
-              Have a question not answered in the guide? Use the AI Assistant (chat bubble, bottom-right) for instant answers about any feature. For billing or account issues, contact us directly.
+              Use the AI Assistant for instant answers about any feature. For billing or account issues, reach us directly.
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"var(--surface2)",borderRadius:10}}>
-                <span style={{fontSize:20}}>🤖</span>
-                <div>
-                  <div style={{fontWeight:600,fontSize:14}}>AI Assistant</div>
-                  <div style={{fontSize:12,color:"var(--muted)"}}>Instant answers about any CabShop Pro feature — click the chat bubble bottom-right</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {[
+                {icon:"🤖",title:"AI Assistant",desc:"Instant answers about any CabShop Pro feature — click the chat bubble in the bottom-right corner"},
+                {icon:"✉",title:"Email Support",desc:"support@cabshoppro.com — we respond within 1 business day"},
+                {icon:"💡",title:"Feature Requests",desc:"Use the Feature Request button in the sidebar to suggest new features or improvements"},
+              ].map((item,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"var(--surface2)",borderRadius:10}}>
+                  <span style={{fontSize:20}}>{item.icon}</span>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:14}}>{item.title}</div>
+                    <div style={{fontSize:12,color:"var(--muted)"}}>{item.desc}</div>
+                  </div>
                 </div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"var(--surface2)",borderRadius:10}}>
-                <span style={{fontSize:20}}>✉</span>
-                <div>
-                  <div style={{fontWeight:600,fontSize:14}}>Email Support</div>
-                  <div style={{fontSize:12,color:"var(--muted)"}}>support@cabshoppro.com — we respond within 1 business day</div>
-                </div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"var(--surface2)",borderRadius:10}}>
-                <span style={{fontSize:20}}>💡</span>
-                <div>
-                  <div style={{fontWeight:600,fontSize:14}}>Feature Requests</div>
-                  <div style={{fontSize:12,color:"var(--muted)"}}>Use the Feature Request button in the sidebar to suggest improvements</div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
           <div style={{background:"var(--accent)18",border:"1px solid var(--accent)33",borderRadius:14,padding:20}}>
-            <div style={{fontWeight:700,fontSize:14,marginBottom:6,color:"var(--accent)"}}>🚀 Quick Tips</div>
+            <div style={{fontWeight:700,fontSize:14,marginBottom:10,color:"var(--accent)"}}>🚀 Quick Tips</div>
             <ul style={{fontSize:13,color:"var(--muted)",lineHeight:2.2,paddingLeft:18}}>
-              <li>Press <strong style={{color:"var(--text)"}}>Ctrl+K</strong> (⌘K on Mac) to search across everything</li>
-              <li>The floating 📷 button on mobile captures site photos directly to any project</li>
-              <li>Phone numbers auto-format to (xxx) xxx-xxxx as you type</li>
-              <li>Quote editor saves your position — refresh restores where you were</li>
-              <li>Stage time logs feed directly into the profitability review</li>
-              <li>Client portal links require no account — just send and they're in</li>
+              <li>Press <strong style={{color:"var(--text)"}}>Ctrl+K</strong> (⌘K Mac) to search everything instantly</li>
+              <li>The floating <strong style={{color:"var(--text)"}}>📷 button on mobile</strong> captures site photos directly to any project</li>
+              <li>Phone numbers <strong style={{color:"var(--text)"}}>auto-format</strong> to (xxx) xxx-xxxx as you type in CRM</li>
+              <li>Quote editor <strong style={{color:"var(--text)"}}>saves your position</strong> — refresh restores you to the same quote</li>
+              <li>Stage time logs <strong style={{color:"var(--text)"}}>feed directly</strong> into the project profitability review</li>
+              <li>Client portal links require <strong style={{color:"var(--text)"}}>no account</strong> — just send and they're in immediately</li>
+              <li>Use <strong style={{color:"var(--text)"}}>bulk select checkboxes</strong> on tasks, quotes, and contacts to act on multiple items at once</li>
             </ul>
           </div>
         </div>
