@@ -3490,15 +3490,7 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
                         </button>
                         {c.email&&<button onClick={()=>{
                           const subj=encodeURIComponent("Your Client Portal — "+p.name);
-                          const body=encodeURIComponent("Hi "+c.name+",
-
-Here is your client portal link for the "+p.name+" project:
-
-"+url+"
-
-You can view project progress, quotes, and invoices any time. No account needed.
-
-Best regards");
+                          const body=encodeURIComponent("Hi "+c.name+", here is your client portal link for the "+p.name+" project: "+url+". You can view project progress, quotes, and invoices any time. No account needed.");
                           window.open("mailto:"+c.email+"?subject="+subj+"&body="+body);
                         }}
                           style={{padding:"6px 12px",borderRadius:7,background:"var(--accent)22",border:"1px solid var(--accent)44",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>
