@@ -4667,6 +4667,7 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
   const [viewMode,setViewMode]=useState("card");   // "card" | "list"
   const [sortBy,setSortBy]=useState("name");       // "name" | "company" | "type"
   const [selectedContacts,setSelectedContacts]=useState(new Set());
+  const [portalLinkModal,setPortalLinkModal]=useState(null); // {name, url}
 
   // Deep link: open a specific contact from global search
   useEffect(()=>{
@@ -5091,16 +5092,52 @@ function CRM({contacts,setContacts,projects,inventory,onScheduleEvent,bp,pending
               )}
               <Btn variant="secondary" onClick={()=>setDetail(null)}>Close</Btn>
               <Btn variant="secondary" onClick={()=>{
-                const shortToken=Math.random().toString(36).slice(2,8)+Math.random().toString(36).slice(2,8);
+                const shortToken=Math.random().toString(36).slice(2,8);
                 const url=window.location.origin+"/?portal="+shortToken+"&cid="+c.id;
                 setContacts(prev=>prev.map(x=>x.id===c.id?{...x,portalToken:shortToken,portalUrl:url}:x));
-                window.prompt("Copy this portal link for "+c.name+":",url);
+                setPortalLinkModal({name:c.name,url});
               }}>🔗 Client Portal Link</Btn>
               <Btn onClick={()=>{setDetail(null);open(c);}}>Edit</Btn>
             </div>
           </Modal>
         );
       })()}
+
+      {/* ── Portal Link Modal ── */}
+      {portalLinkModal&&(
+        <Modal title="Client Portal Link" onClose={()=>setPortalLinkModal(null)}>
+          <div style={{marginBottom:12,fontSize:13,color:"var(--muted)",lineHeight:1.6}}>
+            Share this link with <strong style={{color:"var(--text)"}}>{portalLinkModal.name}</strong> so they can view their quotes, invoices, and project progress.
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center",padding:"10px 12px",background:"var(--surface2)",borderRadius:9,border:"1px solid var(--border)",marginBottom:16}}>
+            <input readOnly value={portalLinkModal.url} style={{flex:1,background:"none",border:"none",outline:"none",fontSize:12,color:"var(--text)",fontFamily:"var(--mono)"}}
+              onFocus={e=>e.target.select()} />
+            <button onClick={()=>{
+              navigator.clipboard.writeText(portalLinkModal.url).then(()=>{
+                const btn=document.getElementById("copy-portal-btn");
+                if(btn){btn.textContent="✓ Copied!";setTimeout(()=>{btn.textContent="Copy";},2000);}
+              }).catch(()=>{
+                const inp=document.querySelector(".portal-link-input");
+                if(inp){inp.select();document.execCommand("copy");}
+              });
+            }} id="copy-portal-btn"
+              style={{padding:"6px 14px",borderRadius:7,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
+              Copy
+            </button>
+          </div>
+          <div style={{fontSize:11,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>
+            💡 Tip: paste this link into an email or text message. The client does not need to create an account.
+          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn variant="secondary" onClick={()=>setPortalLinkModal(null)}>Close</Btn>
+            <Btn onClick={()=>{
+              const subject="Your Client Portal — "+portalLinkModal.name;
+              const body="Hi "+portalLinkModal.name+", here is your client portal link:%0D%0A%0D%0A"+encodeURIComponent(portalLinkModal.url)+"%0D%0A%0D%0AYou can view your project progress, quotes, and invoices any time.";
+              window.open("mailto:?subject="+encodeURIComponent(subject)+"&body="+body);
+            }}>✉ Open in Email</Btn>
+          </div>
+        </Modal>
+      )}
 
       {/* ── Add/Edit modal ── */}
       {modal&&(
