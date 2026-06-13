@@ -24,14 +24,8 @@ exports.handler = async (event) => {
     const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
     const senderName  = fromName  || process.env.SENDGRID_FROM_NAME  || "CabShop Pro";
 
-    const attachmentInstructions = attachmentHtml ? `
-      <div style="margin-top:40px;padding:16px 20px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:8px;font-family:Arial,sans-serif;font-size:12px;color:#666;line-height:1.7;">
-        <strong style="color:#333;">📎 About the attached document</strong><br/>
-        To save or print a PDF: open the attachment → Ctrl+P / ⌘+P → Save as PDF.
-      </div>` : "";
-
     const emailHtml = htmlBody
-      ? htmlBody.replace("</body>", attachmentInstructions + "</body>")
+      ? htmlBody.replace("</body>", "</body>")
       : `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
           ${body.replace(/\n/g, "<br/>")}
           <hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/>
@@ -55,15 +49,9 @@ exports.handler = async (event) => {
 
     const attachments = [];
 
-    // Main quote/invoice HTML
-    if (attachmentHtml) {
-      attachments.push({
-        content: Buffer.from(attachmentHtml, "utf-8").toString("base64"),
-        filename: attachmentName || "document.html",
-        type: "text/html",
-        disposition: "attachment"
-      });
-    }
+    // NOTE: Quote/invoice HTML is sent as the email body (htmlBody), not as an attachment
+    // Attaching .html files causes Gmail to display raw HTML code — not user-friendly
+    // The formatted quote is already visible directly in the email body
 
     // Supporting documents — URL always takes priority over docText
     if (Array.isArray(supportingDocs) && supportingDocs.length > 0) {
