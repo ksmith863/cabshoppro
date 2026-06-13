@@ -7940,8 +7940,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
     if (!body.trim())     { setError("Please enter a message."); return; }
     setSending(true); setError("");
     try {
-      // If we have an HTML document (quote/invoice), use it as the email body for best display
-      const htmlBody = attachmentHtml || null;
+      // htmlBody comes from props (formatted quote/invoice HTML)
       // Strip CC/BCC if they match TO to avoid SendGrid duplicate error
       const safeCc = cc_.trim()&&cc_.trim().toLowerCase()!==to_.trim().toLowerCase() ? cc_.trim() : null;
       const safeBcc = bcc_.trim()&&bcc_.trim().toLowerCase()!==to_.trim().toLowerCase()&&bcc_.trim().toLowerCase()!==(safeCc||"").toLowerCase() ? bcc_.trim() : null;
@@ -9482,14 +9481,12 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const approvalUrl=approvalToken?`${window.location.origin}/?approve=${approvalToken}&qid=${q.id}`:"";
 
     const bodyText="Dear "+(contact?contact.name:"")+",\n\nPlease find your quote from "+shopName+" below.\n\nQuote: "+q.number+"\nProject: "+q.title+"\nDate: "+q.date+(q.validUntil?"\nValid Until: "+q.validUntil:"")+"\n\nSubtotal: "+fmt(subtotal)+(q.taxRate?"\nSales Tax ("+q.taxRate+"%): "+fmt(quoteTax(q)):"")+"\nTOTAL: "+fmt(total)+"\n\n"+(q.notes?"Notes:\n"+q.notes+"\n\n":"")+(approvalUrl?"To review and approve this quote, click here:\n"+approvalUrl+"\n\n":"")+"Please don't hesitate to reach out with any questions.\n\nBest regards,\n"+shopName;
-    const _htmlBody=quoteHtmlString(updatedQ);
-    console.log("htmlBody length:", _htmlBody?.length, "first 100:", _htmlBody?.slice(0,100));
     setEmailComposer({
       to: contact?.email||"",
       toName: contact?.name||"",
       subject: `Quote ${q.number} — ${q.title}`,
       body: bodyText,
-      htmlBody: _htmlBody,
+      htmlBody: quoteHtmlString(updatedQ),
       fromName: adminSettings?.sendgridFromName||shopName,
       fromEmail: adminSettings?.sendgridFromEmail||shopEmail,
       userApiKey: adminSettings?.sendgridApiKey||null,
