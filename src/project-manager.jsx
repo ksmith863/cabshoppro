@@ -9397,8 +9397,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const fv=v=>"$"+Number(v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
     const sn=adminSettings?.companyName||"Gotham Woodworks";
     const logo=adminSettings?.logoUrl?"<img src='"+adminSettings.logoUrl+"' style='height:60px;object-fit:contain;margin-bottom:8px;display:block' />":'';
-    const addr=(adminSettings?.companyAddress||"").replace(/
-/g,"<br/>");
+    const addr=(adminSettings?.companyAddress||"").replace(/\n/g,"<br/>");
     const rows=(q.lines||[]).filter(l=>!l.groupId&&l.type!=="group").map(l=>{
       const cp=l.costPer||0;
       const ext=l.qty*(l.profitMargin>0&&l.profitMargin<100?cp/(1-l.profitMargin/100):l.markupFlat>0?cp+l.markupFlat/l.qty:l.markupPct>0?cp*(1+l.markupPct/100):cp);
