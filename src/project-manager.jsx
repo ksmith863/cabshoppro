@@ -15839,6 +15839,7 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
   const [declineReason, setDeclineReason] = useState("");
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [error, setError] = useState("");
+  const [lbImg, setLbImg] = useState(null);
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const lastPos = useRef({x:0,y:0});
@@ -16038,6 +16039,12 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
 
   return (
     <div style={{minHeight:"100vh",background:"#f8f7f3",...s}}>
+      {lbImg&&(
+        <div onClick={()=>setLbImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",cursor:"zoom-out"}}>
+          <span onClick={()=>setLbImg(null)} style={{position:"fixed",top:20,right:28,color:"#fff",fontSize:36,cursor:"pointer",lineHeight:1,fontWeight:300}}>×</span>
+          <img src={lbImg} alt="" style={{maxWidth:"90vw",maxHeight:"90vh",borderRadius:8,boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}} onClick={e=>e.stopPropagation()} />
+        </div>
+      )}
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap');`}</style>
 
       {/* Header */}
@@ -16112,8 +16119,13 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
                   } else if(!l.groupId) {
                     rows.push(<tr key={l.id} style={{borderBottom:"1px solid #eee"}}>
                       <td style={{padding:"10px",fontSize:13}}>
-                        <div style={{fontWeight:700}}>{l.name}</div>
-                        {l.desc&&<div style={{fontSize:11,color:"#888",marginTop:2}}>{l.desc}</div>}
+                        <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                          {l.imageUrl&&<img src={l.imageUrl} alt="" onClick={()=>setLbImg(l.imageUrl)} style={{width:60,height:44,objectFit:"cover",borderRadius:4,border:"1px solid #e0e0d0",flexShrink:0,cursor:"zoom-in",marginRight:4}} />}
+                          <div>
+                            <div style={{fontWeight:700}}>{l.name}</div>
+                            {l.desc&&<div style={{fontSize:11,color:"#888",marginTop:2}}>{l.desc}</div>}
+                          </div>
+                        </div>
                       </td>
                       <td style={{padding:"10px",textAlign:"center",fontSize:13}}>{l.qty}</td>
                       <td style={{padding:"10px",textAlign:"center",fontSize:12,color:"#888"}}>{l.unit}</td>
