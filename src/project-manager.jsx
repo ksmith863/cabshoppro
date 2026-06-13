@@ -7942,10 +7942,13 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
     try {
       // If we have an HTML document (quote/invoice), use it as the email body for best display
       const htmlBody = attachmentHtml || null;
+      // Strip CC/BCC if they match TO to avoid SendGrid duplicate error
+      const safeCc = cc_.trim()&&cc_.trim().toLowerCase()!==to_.trim().toLowerCase() ? cc_.trim() : null;
+      const safeBcc = bcc_.trim()&&bcc_.trim().toLowerCase()!==to_.trim().toLowerCase()&&bcc_.trim().toLowerCase()!==(safeCc||"").toLowerCase() ? bcc_.trim() : null;
       const res = await fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", ccEmail: cc_.trim()||null, bccEmail: bcc_.trim()||null, subject, body, htmlBody, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null, supportingDocs: supportingDocs||[], userApiKey: userApiKey||null }),
+        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", ccEmail: safeCc, bccEmail: safeBcc, subject, body, htmlBody, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null, supportingDocs: supportingDocs||[], userApiKey: userApiKey||null }),
       });
       const data = await res.json();
       if (data.success) { setSent(true); onSent&&onSent(); }
@@ -8000,7 +8003,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
               <textarea value={body} onChange={e=>setBody(e.target.value)} rows={10}
                 style={{...inp,resize:"vertical",lineHeight:1.5}} />
             </div>
-            {attachmentHtml&&<div style={{fontSize:11,color:"var(--accent2)",marginBottom:10,padding:"7px 10px",background:"var(--accent2)11",borderRadius:7,display:"flex",alignItems:"center",gap:6}}>📎 {attachmentName||"attachment.html"} will be attached</div>}
+            
             {error&&<div style={{color:"var(--accent3)",fontSize:12,marginBottom:10,padding:"8px 10px",background:"var(--accent3)11",borderRadius:7}}>{error}</div>}
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button onClick={onClose} style={{padding:"9px 18px",borderRadius:9,background:"none",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13,cursor:"pointer"}}>Cancel</button>
