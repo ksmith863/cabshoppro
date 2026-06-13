@@ -7899,8 +7899,10 @@ function SimpleImageLightbox({url, caption, onClose}) {
 // ─── Email Composer Modal ────────────────────────────────────────────────────
 // Replaces all mailto: links with a proper in-app email composer
 // that sends via the /.netlify/functions/send-email Netlify function.
-function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, supportingDocs, userApiKey, onClose }) {
+function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, supportingDocs, userApiKey, onSent, onClose }) {
   const [to_, setTo]     = useState(to||"");
+  const [cc_, setCc]     = useState("");
+  const [bcc_, setBcc]   = useState("");
   const [subject, setSub] = useState(initSubject||"");
   const [body, setBody]   = useState(initBody||"");
   const [sending, setSending] = useState(false);
@@ -7918,10 +7920,10 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
       const res = await fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", subject, body, htmlBody, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null, supportingDocs: supportingDocs||[], userApiKey: userApiKey||null }),
+        body: JSON.stringify({ toEmail: to_.trim(), toName: toName||"", ccEmail: cc_.trim()||null, bccEmail: bcc_.trim()||null, subject, body, htmlBody, fromName: fromName||"CabShop Pro", fromEmail: fromEmail||"", attachmentHtml: attachmentHtml||null, attachmentName: attachmentName||null, supportingDocs: supportingDocs||[], userApiKey: userApiKey||null }),
       });
       const data = await res.json();
-      if (data.success) { setSent(true); }
+      if (data.success) { setSent(true); onSent&&onSent(); }
       else { setError(data.error || "Failed to send. Please try again."); }
     } catch(e) { setError("Network error: " + e.message); }
     setSending(false);
@@ -7950,6 +7952,17 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TO</div>
               <input value={to_} onChange={e=>setTo(e.target.value)} placeholder="recipient@email.com" style={inp} />
+            </div>
+            {/* CC / BCC */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div>
+                <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>CC (optional)</div>
+                <input value={cc_} onChange={e=>setCc(e.target.value)} placeholder="cc@email.com" style={inp} />
+              </div>
+              <div>
+                <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>BCC (optional)</div>
+                <input value={bcc_} onChange={e=>setBcc(e.target.value)} placeholder="bcc@email.com" style={inp} />
+              </div>
             </div>
             {/* Subject */}
             <div style={{marginBottom:10}}>
@@ -9344,9 +9357,17 @@ ${q.notes?("Notes:\n"+q.notes+"\n\n"):""}Please don't hesitate to reach out with
 
 Best regards,
 ${shopName}`;
+    const isInvoiceQ=q.isInvoice;
     setEmailComposer({
       to: contact?.email||"",
       toName: contact?.name||"",
+      onSent: ()=>{
+        if(isInvoiceQ&&q.status==="draft"){
+          const updated={...q,status:"unpaid"};
+          setQuotes(prev=>prev.map(x=>x.id===q.id?updated:x));
+          setSel(s=>s?.id===q.id?{...s,status:"unpaid"}:s);
+        }
+      },
       subject: `Quote ${q.number} — ${q.title}`,
       body: bodyText,
       fromName: adminSettings?.sendgridFromName||shopName,
@@ -9355,6 +9376,13 @@ ${shopName}`;
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
       supportingDocs: (q.supportingDocs||[]).filter(d=>d.url).map(d=>({name:d.name,url:d.url})),
+      onSent: ()=>{
+        if(q.status==="draft"){
+          const updated={...q,status:"sent"};
+          setQuotes(prev=>prev.map(x=>x.id===q.id?updated:x));
+          setSel(s=>s?.id===q.id?{...s,status:"sent"}:s);
+        }
+      },
     });
   };
 
@@ -10220,12 +10248,12 @@ ${shopName}`;
               SUPPORTING DOCUMENTS
               {docs.length>0&&<Badge color="var(--accent)" style={{fontSize:10}}>{docs.length} attached</Badge>}
             </div>
-            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>Upload T&Cs, renderings, spec sheets, or any file. All documents are attached to the quote email.</div>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>Attach T&Cs, renderings, spec sheets, or any file. Choose from your Resources Library or upload directly.</div>
             {docs.length>0&&(
               <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
                 {docs.map((doc,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--accent2)33"}}>
-                    <span style={{fontSize:14}}>📎</span>
+                    <span style={{fontSize:14}}>{doc.type==="resource"?"📋":"📎"}</span>
                     <span style={{flex:1,fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
                     {doc.url&&<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)",whiteSpace:"nowrap"}}>View ↗</a>}
                     <button onClick={()=>setSel(s=>({...s,supportingDocs:docs.filter((_,j)=>j!==i)}))}
@@ -10234,8 +10262,37 @@ ${shopName}`;
                 ))}
               </div>
             )}
+            {/* From Resources Library */}
+            {(()=>{
+              const resDocs=(resources||[]).filter(r=>r.type==="document"||r.category==="Terms & Conditions"||r.fileUrl||r.url);
+              if(!resDocs.length)return null;
+              return(
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:6}}>FROM RESOURCES LIBRARY</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {resDocs.map(res=>{
+                      const isAttached=docs.some(d=>d.id===res.id);
+                      return(
+                        <button key={res.id} onClick={()=>{
+                          if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
+                          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,url:res.fileUrl||res.url||"",type:"resource"}]}));
+                        }}
+                          style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
+                            background:isAttached?"var(--accent2)22":"var(--surface2)",
+                            border:`1px solid ${isAttached?"var(--accent2)55":"var(--border)"}`,
+                            color:isAttached?"var(--accent2)":"var(--muted)",
+                            fontSize:11,fontWeight:isAttached?700:400,cursor:"pointer",fontFamily:"var(--font)"}}>
+                          📋 {res.name}{isAttached?" ✓":""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+            {/* Upload from computer */}
             <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
-              📎 Upload Document or Image
+              📎 Upload from Computer
               <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.dwg,.dxf,image/jpeg,image/png,image/webp" onChange={async e=>{
                 const file=e.target.files?.[0];if(!file)return;
                 e.target.value="";

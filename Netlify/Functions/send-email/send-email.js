@@ -7,7 +7,7 @@ exports.handler = async (event) => {
 
   try {
     const {
-      toEmail, toName, subject, body, htmlBody,
+      toEmail, toName, ccEmail, bccEmail, subject, body, htmlBody,
       fromName, fromEmail, attachmentHtml, attachmentName,
       supportingDocs, userApiKey
     } = JSON.parse(event.body || "{}");
@@ -39,7 +39,11 @@ exports.handler = async (event) => {
          </div>`;
 
     const payload = {
-      personalizations: [{ to: [{ email: toEmail, name: toName || "" }] }],
+      personalizations: [{
+        to: [{ email: toEmail, name: toName || "" }],
+        ...(ccEmail ? { cc: [{ email: ccEmail }] } : {}),
+        ...(bccEmail ? { bcc: [{ email: bccEmail }] } : {}),
+      }],
       from: { email: senderEmail, name: senderName },
       reply_to: { email: senderEmail, name: senderName },
       subject,
