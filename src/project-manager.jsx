@@ -10384,63 +10384,62 @@ ${shopName}`;
       </div>
 
       {/* Action bar */}
-      <div style={{display:"flex",gap:10,justifyContent:"space-between",alignItems:"center",padding:"14px 0"}}>
-        <div style={{display:"flex",gap:8}}>
-          {quotes.find(q=>q.id===sel.id)&&<Btn variant="danger" small onClick={()=>deleteQuote(sel.id)}>Delete</Btn>}
-          {/* Convert to Invoice — only for non-invoice quotes that are approved or sent */}
-          {!isInv&&(sel.status==="approved"||sel.status==="sent")&&!sel.linkedInvoiceId&&(
-            <Btn variant="purple" small onClick={()=>{saveQuote();convertToInvoice(sel);}}>
-              ⇒ Convert to Invoice
-            </Btn>
+      <div style={{marginTop:8}}>
+        {/* Mode indicator strip */}
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:"10px 10px 0 0",background:isInv?"#635bff22":"var(--surface2)",borderBottom:"2px solid "+(isInv?"#635bff":"var(--border)")}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:isInv?"#635bff":"var(--accent)",flexShrink:0}}/>
+          <div style={{fontSize:11,fontWeight:700,fontFamily:"var(--mono)",letterSpacing:"0.08em",color:isInv?"#635bff":"var(--accent)"}}>
+            {isInv?"INVOICE MODE — actions below apply to this invoice":"QUOTE MODE — actions below apply to this quote"}
+          </div>
+          {isInv&&sel.status!=="paid"&&(
+            <div style={{marginLeft:"auto"}}>
+              <Btn variant="secondary" small onClick={()=>setSel(s=>({...s,status:"paid",paidDate:new Date().toISOString().slice(0,10)}))}>✓ Mark Paid</Btn>
+            </div>
           )}
-          {/* Approval link copy — shown when quote is sent and has a token */}
-          {!isInv&&sel.status==="sent"&&sel.approvalToken&&(
-            <Btn variant="secondary" small onClick={()=>{
-              const url=`${window.location.origin}/?approve=${sel.approvalToken}&qid=${sel.id}`;
-              navigator.clipboard?.writeText(url).then(()=>alert("Approval link copied!")).catch(()=>alert("Approval link:\n"+url));
-            }}>🔗 Copy Link</Btn>
-          )}
-          {/* Signature confirmation badge */}
           {!isInv&&sel.signature&&(
-            <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:8,background:"var(--accent)18",border:"1px solid var(--accent)44",fontSize:11,color:"var(--accent)",fontFamily:"var(--mono)"}}>
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:7,background:"var(--accent)18",border:"1px solid var(--accent)44",fontSize:11,color:"var(--accent)",fontFamily:"var(--mono)"}}>
               ✍ Signed: {sel.signature.name} · {sel.signature.date}
             </div>
           )}
-          {/* Mark Paid shortcut for invoices */}
-          {isInv&&sel.status!=="paid"&&(
-            <Btn variant="secondary" small onClick={()=>setSel(s=>({...s,status:"paid",paidDate:new Date().toISOString().slice(0,10)}))}>
-              ✓ Mark Paid
-            </Btn>
-          )}
         </div>
-        <div style={{display:"flex",gap:10}}>
-          {isInv
-            ?<>
+        {/* Buttons */}
+        <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:isInv?"#635bff11":"var(--surface)",borderRadius:"0 0 10px 10px",border:"1px solid "+(isInv?"#635bff33":"var(--border)"),borderTop:"none"}}>
+          <div style={{display:"flex",gap:8}}>
+            {quotes.find(q=>q.id===sel.id)&&<Btn variant="danger" small onClick={()=>deleteQuote(sel.id)}>Delete</Btn>}
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+            {isInv?<>
               <Btn variant="secondary" onClick={()=>emailInvoice({...sel,paymentLink:sel.paymentLink||paymentLink||null})}>✉ Send Invoice</Btn>
               <Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ Save as PDF</Btn>
               {sel.status!=="paid"&&(
-                <Btn variant="secondary" onClick={()=>generatePaymentLink(sel)}
-                  style={{background:"#635bff22",borderColor:"#635bff44",color:"#635bff"}}>
+                <Btn onClick={()=>generatePaymentLink(sel)} style={{background:"#635bff",borderColor:"#635bff",color:"#fff",fontWeight:700}}>
                   {paymentLinkLoading?"Generating…":"💳 Payment Link"}
                 </Btn>
               )}
               {paymentLink&&(
-                <div style={{display:"flex",gap:6,alignItems:"center",padding:"8px 12px",background:"#635bff11",border:"1px solid #635bff33",borderRadius:9,fontSize:12}}>
-                  <span style={{color:"#635bff",fontWeight:700}}>Link ready:</span>
-                  <a href={paymentLink} target="_blank" rel="noreferrer" style={{color:"#635bff",fontFamily:"var(--mono)",fontSize:11,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{paymentLink}</a>
-                  <button onClick={()=>{navigator.clipboard.writeText(paymentLink);}} style={{background:"none",border:"1px solid #635bff44",borderRadius:5,color:"#635bff",fontSize:11,cursor:"pointer",padding:"2px 7px",fontFamily:"var(--font)",fontWeight:600}}>Copy</button>
+                <div style={{display:"flex",gap:6,alignItems:"center",padding:"6px 10px",background:"#635bff11",border:"1px solid #635bff33",borderRadius:8,fontSize:11}}>
+                  <a href={paymentLink} target="_blank" rel="noreferrer" style={{color:"#635bff",fontFamily:"var(--mono)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{paymentLink}</a>
+                  <button onClick={()=>navigator.clipboard.writeText(paymentLink)} style={{background:"none",border:"1px solid #635bff44",borderRadius:5,color:"#635bff",fontSize:10,cursor:"pointer",padding:"2px 6px",fontFamily:"var(--font)",fontWeight:600}}>Copy</button>
                 </div>
               )}
-            </>
-            :<>
+              <Btn onClick={saveQuote} style={{background:"#635bff",borderColor:"#635bff",color:"#fff",fontWeight:700}}>Save Invoice</Btn>
+            </>:<>
               <Btn variant="secondary" onClick={()=>emailQuote(sel)}>✉ Send via Email</Btn>
               <Btn variant="secondary" onClick={()=>printQuote(sel)}>⎙ Save as PDF</Btn>
-              {sel.status!=="approved"&&sel.status!=="declined"&&(
-                <Btn variant="purple" onClick={()=>sendForApproval(sel)}>✍ Send for Approval</Btn>
+              {sel.approvalToken&&(
+                <Btn variant="secondary" onClick={()=>{
+                  const url=`${window.location.origin}/?approve=${sel.approvalToken}&qid=${sel.id}`;
+                  navigator.clipboard?.writeText(url).then(()=>alert("Approval link copied!")).catch(()=>alert("Link: "+url));
+                }}>🔗 Copy Link</Btn>
               )}
-            </>
-          }
-          <Btn onClick={saveQuote}>Save {isInv?"Invoice":"Quote"}</Btn>
+              {!sel.linkedInvoiceId&&(
+                <Btn onClick={()=>{saveQuote();convertToInvoice(sel);}} style={{background:"#635bff",borderColor:"#635bff",color:"#fff",fontWeight:700}}>
+                  ⇒ Convert to Invoice
+                </Btn>
+              )}
+              <Btn onClick={saveQuote}>Save Quote</Btn>
+            </>}
+          </div>
         </div>
       </div>
     {emailComposer&&<EmailComposerModal {...emailComposer} onClose={()=>setEmailComposer(null)} />}
