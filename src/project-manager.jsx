@@ -9375,12 +9375,12 @@ ${shopName}`;
       userApiKey: adminSettings?.sendgridApiKey||null,
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).filter(d=>d.url).map(d=>({name:d.name,url:d.url})),
+      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null})),
       onSent: ()=>{
-        if(q.status==="draft"){
+        if(q.status==="draft"||q.status==="Draft"){
           const updated={...q,status:"sent"};
           setQuotes(prev=>prev.map(x=>x.id===q.id?updated:x));
-          setSel(s=>s?.id===q.id?{...s,status:"sent"}:s);
+          if(sel?.id===q.id)setSel({...sel,...updated});
         }
       },
     });
@@ -9634,7 +9634,7 @@ ${shopName}`;
       toName: contact?.name||"",
       attachmentHtml: invoiceHtml(q),
       attachmentName: `Invoice-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).filter(d=>d.url).map(d=>({name:d.name,url:d.url})),
+      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null})),
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
       fromName: adminSettings?.sendgridFromName||shopName,
@@ -10275,7 +10275,7 @@ ${shopName}`;
                       return(
                         <button key={res.id} onClick={()=>{
                           if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
-                          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,url:res.fileUrl||res.url||"",type:"resource"}]}));
+                          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,url:res.fileUrl||res.url||"",docText:res.fullText||res.desc||"",type:"resource"}]}));
                         }}
                           style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
                             background:isAttached?"var(--accent2)22":"var(--surface2)",

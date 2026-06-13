@@ -70,8 +70,8 @@ exports.handler = async (event) => {
       for (const doc of supportingDocs) {
         try {
           if (doc.docText) {
-            // T&C / resource doc — send as plain text (.txt) which every email client opens correctly
-            const textContent = `${doc.name}\n${"=".repeat(doc.name.length)}\n\n${doc.docText}`;
+            // Text-based doc (T&C from Resources) — attach as plain text
+            const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length, 60))}\n\n${doc.docText}`;
             attachments.push({
               content: Buffer.from(textContent, "utf-8").toString("base64"),
               filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".txt",
