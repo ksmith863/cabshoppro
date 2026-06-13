@@ -9360,6 +9360,17 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
   ${(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return'<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>'+allDocs.map(d=>d.url?'<div style="margin-bottom:6px"><a href="'+d.url+'" style="font-size:12px;color:#635bff;text-decoration:none;">📎 '+d.name+' ↗</a></div>':'<div style="margin-bottom:6px;font-size:12px;color:#555;font-style:italic;">📋 '+d.name+' — see attached file</div>').join('')+'</div>';})()}
 
+  <!-- Approval button — only for quotes with approval token -->
+  ${q.approvalToken&&!q.isInvoice?`
+  <div style="margin-top:32px;padding:28px 32px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:12px;text-align:center">
+    <div style="font-size:14px;color:#555;margin-bottom:16px;">Ready to move forward? Review and approve this quote online.</div>
+    <a href="${window.location.origin}/?approve=${q.approvalToken}&qid=${q.id}"
+      style="display:inline-block;padding:14px 36px;background:#1a1a12;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.03em;">
+      ✍ Review &amp; Approve Quote
+    </a>
+    <div style="font-size:11px;color:#aaa;margin-top:12px;">You can also decline the quote at the same link.</div>
+  </div>`:""}
+
   <!-- Footer -->
   <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center">
     <div>
@@ -9379,16 +9390,41 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   };
 
   // ── Email quote ──
-  const emailQuote=(q)=>{
+  const emailQuote=async(q)=>{
     const contact=contacts.find(c=>c.id===q.contactId);
     const subtotal=quoteSubtotal(q);
     const total=quoteTotal(q);
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
     const shopEmail=adminSettings?.companyEmail||"";
+    const isInvoiceQ=q.isInvoice;
+
+    // Generate approval token for quotes (not invoices)
+    let approvalToken=q.approvalToken;
+    let updatedQ=q;
+    if(!isInvoiceQ){
+      if(!approvalToken){
+        approvalToken=btoa(`${q.id}:${Date.now()}:cabshoppro`).replace(/=/g,"");
+        const expiryDate=new Date(Date.now()+30*24*60*60*1000).toISOString();
+        updatedQ={...q,approvalToken,approvalExpiry:expiryDate,status:"sent"};
+        // Persist to Supabase so approval page can save back
+        try{
+          const {data:{user}}=await supabase.auth.getUser();
+          await supabase.from("quotes_store").upsert({
+            user_id:user.id, quote_id:String(q.id),
+            data:{...updatedQ,ownerId:user.id},
+            updated_at:new Date().toISOString(),
+          },{onConflict:"user_id,quote_id"});
+        }catch(e){console.error("Quote save error:",e);}
+        setQuotes(prev=>prev.map(x=>x.id===q.id?updatedQ:x));
+        setSel(s=>s?.id===q.id?{...s,...updatedQ}:s);
+      }
+    }
+    const approvalUrl=approvalToken?`${window.location.origin}/?approve=${approvalToken}&qid=${q.id}`:"";
+
     const bodyText=
 `Dear ${contact?contact.name:""},
 
-Please find your quote from ${shopName} attached to this email.
+Please find your quote from ${shopName} below.
 
 Quote: ${q.number}
 Project: ${q.title}
@@ -9397,11 +9433,10 @@ Date: ${q.date}${q.validUntil?("\nValid Until: "+q.validUntil):""}
 Subtotal: ${fmt(subtotal)}${q.taxRate?("\nSales Tax ("+q.taxRate+"%): "+fmt(quoteTax(q))):""}
 TOTAL: ${fmt(total)}
 
-${q.notes?("Notes:\n"+q.notes+"\n\n"):""}Please don't hesitate to reach out with any questions.
+${q.notes?("Notes:\n"+q.notes+"\n\n"):""}${approvalUrl?("To review and approve this quote, click here:\n"+approvalUrl+"\n\n"):""}Please don't hesitate to reach out with any questions.
 
 Best regards,
 ${shopName}`;
-    const isInvoiceQ=q.isInvoice;
     setEmailComposer({
       to: contact?.email||"",
       toName: contact?.name||"",
