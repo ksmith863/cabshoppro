@@ -9481,32 +9481,10 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     }
     const approvalUrl=approvalToken?`${window.location.origin}/?approve=${approvalToken}&qid=${q.id}`:"";
 
-    const bodyText=
-`Dear ${contact?contact.name:""},
-
-Please find your quote from ${shopName} below.
-
-Quote: ${q.number}
-Project: ${q.title}
-Date: ${q.date}${q.validUntil?("\nValid Until: "+q.validUntil):""}
-
-Subtotal: ${fmt(subtotal)}${q.taxRate?("\nSales Tax ("+q.taxRate+"%): "+fmt(quoteTax(q))):""}
-TOTAL: ${fmt(total)}
-
-${q.notes?("Notes:\n"+q.notes+"\n\n"):""}${approvalUrl?("To review and approve this quote, click here:\n"+approvalUrl+"\n\n"):""}Please don't hesitate to reach out with any questions.
-
-Best regards,
-${shopName}`;
+    const bodyText="Dear "+(contact?contact.name:"")+",\n\nPlease find your quote from "+shopName+" below.\n\nQuote: "+q.number+"\nProject: "+q.title+"\nDate: "+q.date+(q.validUntil?"\nValid Until: "+q.validUntil:"")+"\n\nSubtotal: "+fmt(subtotal)+(q.taxRate?"\nSales Tax ("+q.taxRate+"%): "+fmt(quoteTax(q)):"")+"\nTOTAL: "+fmt(total)+"\n\n"+(q.notes?"Notes:\n"+q.notes+"\n\n":"")+(approvalUrl?"To review and approve this quote, click here:\n"+approvalUrl+"\n\n":"")+"Please don't hesitate to reach out with any questions.\n\nBest regards,\n"+shopName;
     setEmailComposer({
       to: contact?.email||"",
       toName: contact?.name||"",
-      onSent: ()=>{
-        if(isInvoiceQ&&q.status==="draft"){
-          const updated={...q,status:"unpaid"};
-          setQuotes(prev=>prev.map(x=>x.id===q.id?updated:x));
-          setSel(s=>s?.id===q.id?{...s,status:"unpaid"}:s);
-        }
-      },
       subject: `Quote ${q.number} — ${q.title}`,
       body: bodyText,
       htmlBody: quoteHtmlString(updatedQ),
@@ -9516,15 +9494,12 @@ ${shopName}`;
       supportingDocs: (q.supportingDocs||[]).map(d=>({
         name:d.name,
         url:d.url||null,
-        // Only send docText if there's no URL — URL always takes priority
         docText:(!d.url&&d.docText)||null
       })),
       onSent: ()=>{
-        if(q.status==="draft"||q.status==="Draft"){
-          const updated={...q,status:"sent"};
-          setQuotes(prev=>prev.map(x=>x.id===q.id?updated:x));
-          if(sel?.id===q.id)setSel({...sel,...updated});
-        }
+        const upd={...q,status:isInvoiceQ?"unpaid":"sent"};
+        setQuotes(prev=>prev.map(x=>x.id===q.id?upd:x));
+        if(sel?.id===q.id)setSel(s=>({...s,...upd}));
       },
     });
   };
