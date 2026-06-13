@@ -9183,7 +9183,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const total=quoteTotal(q);
     const lineRows=q.lines.map(l=>{
       const ext=lineExtPrice(l);
-      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" class="zoomable" onclick="openImg('${l.imageUrl}')" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
       return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top">${imgHtml?`<div style="display:flex;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div>`:`<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div>`}</td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
     }).join("");
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
@@ -9278,7 +9278,20 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Georgia',serif;background:#fff;color:#1a1a1a;padding:0}
   @media print{body{padding:0}@page{margin:20mm 18mm}}
-</style></head><body>
+  .zoomable{cursor:zoom-in;transition:opacity 0.15s}
+  .zoomable:hover{opacity:0.85}
+  #img-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out}
+  #img-overlay.active{display:flex}
+  #img-overlay img{max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6)}
+  #img-overlay-close{position:fixed;top:20px;right:28px;color:#fff;font-size:36px;cursor:pointer;line-height:1;font-family:sans-serif;font-weight:300}
+</style>
+<script>
+  function openImg(src){var o=document.getElementById('img-overlay');document.getElementById('img-lightbox-img').src=src;o.classList.add('active');}
+  function closeImg(){document.getElementById('img-overlay').classList.remove('active');}
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeImg();});
+</script>
+</head><body>
+<div id="img-overlay" onclick="closeImg()"><span id="img-overlay-close">×</span><img id="img-lightbox-img" src="" /></div>
 <div style="max-width:820px;margin:0 auto;padding:36px 40px">
 
   <!-- Header -->
