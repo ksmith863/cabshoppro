@@ -9056,10 +9056,12 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   const [paymentLinkLoading,setPaymentLinkLoading]=useState(false);
   const [paymentLink,setPaymentLink]=useState(null);
 
-  const generatePaymentLink=async(q)=>{
+  const generatePaymentLink=async(q, silent=false)=>{
+    // If link already exists, just return it
+    if(q.paymentLink)return q.paymentLink;
     const total=quoteTotal(q);
-    if(!total||total<=0){alert("Invoice total must be greater than $0.");return;}
-    setPaymentLinkLoading(true);
+    if(!total||total<=0){if(!silent)alert("Invoice total must be greater than $0.");return null;}
+    if(!silent)setPaymentLinkLoading(true);
     setPaymentLink(null);
     try{
       const contact=contacts.find(c=>c.id===q.contactId);
@@ -9079,17 +9081,19 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       const data=await res.json();
       if(data.url){
         setPaymentLink(data.url);
-        // Save link on the invoice immediately in both sel and quotes
         const updated={...q,paymentLink:data.url};
         setSel(updated);
         setQuotes(prev=>prev.map(x=>x.id===q.id?updated:x));
+        if(!silent)setPaymentLinkLoading(false);
+        return data.url;
       }else{
-        alert("Could not generate payment link: "+(data.error||"Unknown error"));
+        if(!silent)alert("Could not generate payment link: "+(data.error||"Unknown error"));
       }
     }catch(e){
-      alert("Connection error: "+e.message);
+      if(!silent)alert("Connection error: "+e.message);
     }
-    setPaymentLinkLoading(false);
+    if(!silent)setPaymentLinkLoading(false);
+    return null;
   };
   const saveQuote=()=>{
     if(!sel)return;
@@ -10409,17 +10413,20 @@ ${shopName}`;
           </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
             {isInv?<>
-              <Btn variant="secondary" onClick={()=>emailInvoice({...sel,paymentLink:sel.paymentLink||paymentLink||null})}>✉ Send Invoice</Btn>
+              <Btn variant="secondary" onClick={async()=>{
+                // Auto-generate payment link if not already present
+                let link=sel.paymentLink||paymentLink||null;
+                if(!link&&sel.status!=="paid"){
+                  link=await generatePaymentLink(sel,true);
+                }
+                emailInvoice({...sel,paymentLink:link});
+              }}>✉ Send Invoice</Btn>
               <Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ Save as PDF</Btn>
-              {sel.status!=="paid"&&(
-                <Btn onClick={()=>generatePaymentLink(sel)} style={{background:"#635bff",borderColor:"#635bff",color:"#fff",fontWeight:700}}>
-                  {paymentLinkLoading?"Generating…":"💳 Payment Link"}
-                </Btn>
-              )}
-              {paymentLink&&(
+              {(sel.paymentLink||paymentLink)&&(
                 <div style={{display:"flex",gap:6,alignItems:"center",padding:"6px 10px",background:"#635bff11",border:"1px solid #635bff33",borderRadius:8,fontSize:11}}>
-                  <a href={paymentLink} target="_blank" rel="noreferrer" style={{color:"#635bff",fontFamily:"var(--mono)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{paymentLink}</a>
-                  <button onClick={()=>navigator.clipboard.writeText(paymentLink)} style={{background:"none",border:"1px solid #635bff44",borderRadius:5,color:"#635bff",fontSize:10,cursor:"pointer",padding:"2px 6px",fontFamily:"var(--font)",fontWeight:600}}>Copy</button>
+                  <span style={{color:"#635bff",fontWeight:700,fontSize:10,fontFamily:"var(--mono)"}}>PAY LINK:</span>
+                  <a href={sel.paymentLink||paymentLink} target="_blank" rel="noreferrer" style={{color:"#635bff",fontFamily:"var(--mono)",fontSize:10,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.paymentLink||paymentLink}</a>
+                  <button onClick={()=>navigator.clipboard.writeText(sel.paymentLink||paymentLink)} style={{background:"none",border:"1px solid #635bff44",borderRadius:5,color:"#635bff",fontSize:10,cursor:"pointer",padding:"2px 6px",fontFamily:"var(--font)",fontWeight:600}}>Copy</button>
                 </div>
               )}
               <Btn onClick={saveQuote} style={{background:"#635bff",borderColor:"#635bff",color:"#fff",fontWeight:700}}>Save Invoice</Btn>
