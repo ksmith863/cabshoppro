@@ -65,21 +65,12 @@ exports.handler = async (event) => {
       });
     }
 
-    // Supporting documents
+    // Supporting documents — URL always takes priority over docText
     if (Array.isArray(supportingDocs) && supportingDocs.length > 0) {
       for (const doc of supportingDocs) {
         try {
-          if (doc.docText) {
-            // Text-based doc (T&C from Resources) — attach as plain text
-            const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length, 60))}\n\n${doc.docText}`;
-            attachments.push({
-              content: Buffer.from(textContent, "utf-8").toString("base64"),
-              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".txt",
-              type: "text/plain",
-              disposition: "attachment"
-            });
-          } else if (doc.url && !doc.url.startsWith("data:")) {
-            // Uploaded file — fetch and attach
+          if (doc.url && !doc.url.startsWith("data:")) {
+            // Has a real file URL — fetch and attach as original format
             const res = await fetch(doc.url);
             if (res.ok) {
               const buffer = await res.arrayBuffer();
@@ -103,6 +94,15 @@ exports.handler = async (event) => {
                 disposition: "attachment"
               });
             }
+          } else if (doc.docText) {
+            // No file URL — fall back to plain text only as last resort
+            const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length, 60))}\n\n${doc.docText}`;
+            attachments.push({
+              content: Buffer.from(textContent, "utf-8").toString("base64"),
+              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".txt",
+              type: "text/plain",
+              disposition: "attachment"
+            });
           }
         } catch (docErr) {
           console.warn("Could not attach doc:", doc.name, docErr.message);

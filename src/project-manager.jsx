@@ -10314,8 +10314,21 @@ ${shopName}`;
                               <input type="file" accept=".pdf,.doc,.docx" onChange={async e=>{
                                 const file=e.target.files?.[0];if(!file)return;
                                 e.target.value="";
-                                const {url}=await uploadImageToStorage(file,"resources");
+                                const {url,storagePath}=await uploadImageToStorage(file,"resources");
+                                // Update the resource record
                                 setResources(prev=>prev.map(r=>r.id===res.id?{...r,fileUrl:url,fileName:file.name,url}:r));
+                                // Immediately attach to the quote with the fresh URL
+                                setSel(s=>{
+                                  const alreadyAttached=(s.supportingDocs||[]).some(d=>d.id===res.id);
+                                  const filtered=(s.supportingDocs||[]).filter(d=>d.id!==res.id);
+                                  return {...s,supportingDocs:[...filtered,{
+                                    id:res.id,
+                                    name:file.name,
+                                    url:url,
+                                    docText:null,
+                                    type:"resource"
+                                  }]};
+                                });
                               }} style={{display:"none"}} />
                             </label>
                           )}
