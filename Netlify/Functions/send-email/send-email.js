@@ -6,11 +6,15 @@ exports.handler = async (event) => {
   }
 
   try {
+    const parsed = JSON.parse(event.body || "{}");
     const {
       toEmail, toName, ccEmail, bccEmail, subject, body, htmlBody,
-      fromName, fromEmail, attachmentHtml, attachmentName,
-      supportingDocs, userApiKey
-    } = JSON.parse(event.body || "{}");
+      fromName, fromEmail, supportingDocs, userApiKey
+    } = parsed;
+
+    // Debug: log what we received
+    console.log("htmlBody present:", !!htmlBody, "length:", htmlBody?.length);
+    console.log("body present:", !!body);
 
     if (!toEmail || !subject || !body) {
       return { statusCode: 400, body: JSON.stringify({ error: "toEmail, subject, and body are required" }) };
@@ -24,13 +28,7 @@ exports.handler = async (event) => {
     const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
     const senderName  = fromName  || process.env.SENDGRID_FROM_NAME  || "CabShop Pro";
 
-    // If htmlBody is provided (formatted quote/invoice), use it directly
-    // Otherwise wrap plain text in a simple HTML envelope
-    const emailHtml = htmlBody || `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
-        ${body.replace(/\n/g, "<br/>")}
-        <hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/>
-        <p style="font-size:11px;color:#aaa;margin-top:8px;">Sent via CabShop Pro</p>
-       </div>`;
+    const emailHtml = htmlBody || `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">${body.replace(/\n/g,"<br/>")}<hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/><p style="font-size:11px;color:#aaa;margin-top:8px;">Sent via CabShop Pro</p></div>`;
 
     const payload = {
       personalizations: [{
@@ -41,18 +39,11 @@ exports.handler = async (event) => {
       from: { email: senderEmail, name: senderName },
       reply_to: { email: senderEmail, name: senderName },
       subject,
-      // Send HTML only when htmlBody is provided — avoids email clients showing plain text fallback
-      content: htmlBody
-        ? [{ type: "text/html", value: emailHtml }]
-        : [
-            { type: "text/plain", value: body },
-            { type: "text/html",  value: emailHtml }
-          ]
+      content: [{ type: "text/html", value: emailHtml }]
     };
 
     const attachments = [];
 
-    // Supporting documents — URL always takes priority over docText
     if (Array.isArray(supportingDocs) && supportingDocs.length > 0) {
       for (const doc of supportingDocs) {
         try {
@@ -81,15 +72,15 @@ exports.handler = async (event) => {
               });
             }
           } else if (doc.docText) {
-            const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length, 60))}\n\n${doc.docText}`;
+            const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length,60))}\n\n${doc.docText}`;
             attachments.push({
-              content: Buffer.from(textContent, "utf-8").toString("base64"),
-              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".txt",
+              content: Buffer.from(textContent,"utf-8").toString("base64"),
+              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g,"").trim()+".txt",
               type: "text/plain",
               disposition: "attachment"
             });
           }
-        } catch (docErr) {
+        } catch(docErr) {
           console.warn("Could not attach doc:", doc.name, docErr.message);
         }
       }
