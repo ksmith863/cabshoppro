@@ -9449,11 +9449,10 @@ ${shopName}`;
       },
       subject: `Quote ${q.number} — ${q.title}`,
       body: bodyText,
+      htmlBody: quoteHtml(updatedQ),
       fromName: adminSettings?.sendgridFromName||shopName,
       fromEmail: adminSettings?.sendgridFromEmail||shopEmail,
       userApiKey: adminSettings?.sendgridApiKey||null,
-      attachmentHtml: quoteHtml(q),
-      attachmentName: `Quote-${q.number}.html`,
       supportingDocs: (q.supportingDocs||[]).map(d=>({
         name:d.name,
         url:d.url||null,
