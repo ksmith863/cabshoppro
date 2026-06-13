@@ -7485,6 +7485,8 @@ function ResourceLibrary({resources,setResources,projects,bp}) {
       tags:form.tags?form.tags.split(",").map(s=>s.trim()).filter(Boolean):[],
       projectIds:(form.projectIds||[]).map(Number).filter(Boolean),
       addedDate:form.addedDate||new Date().toISOString().slice(0,10),
+      fileUrl:form.fileUrl||"",
+      fileName:form.fileName||"",
     };
     sel?setResources(prev=>prev.map(r=>r.id===sel.id?{...sel,...data}:r)):setResources(prev=>[...prev,{...data,id:Date.now()}]);
     setModal(false);setSel(null);
@@ -7601,6 +7603,29 @@ function ResourceLibrary({resources,setResources,projects,bp}) {
           </div>
           <Input label="Description" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} type="textarea" voice />
           <Input label={form.type==="link"?"URL / Link":"File Link / Path (optional)"} value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} placeholder={form.type==="link"?"https://pinterest.com/board/…":"https:// or /shared-drive/…"} />
+          {/* File upload — stores in Supabase so it can be attached to quotes */}
+          {form.type!=="link"&&(
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:6}}>UPLOAD FILE (PDF, WORD, ETC.)</div>
+              {form.fileUrl&&(
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--accent5)33",marginBottom:8}}>
+                  <span style={{fontSize:16}}>📎</span>
+                  <a href={form.fileUrl} target="_blank" rel="noreferrer" style={{fontSize:12,color:"var(--accent5)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{form.fileName||"Uploaded file"}</a>
+                  <button onClick={()=>setForm(f=>({...f,fileUrl:"",fileName:""}))} style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14}}>×</button>
+                </div>
+              )}
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
+                📎 {form.fileUrl?"Replace File":"Upload File"}
+                <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg" onChange={async e=>{
+                  const file=e.target.files?.[0];if(!file)return;
+                  e.target.value="";
+                  const {url}=await uploadImageToStorage(file,"resources");
+                  setForm(f=>({...f,fileUrl:url,fileName:file.name,url:url}));
+                }} style={{display:"none"}} />
+              </label>
+              <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Upload your T&C, spec sheets, or any document. When attached to a quote, the original file is sent as an email attachment.</div>
+            </div>
+          )}
 
           {/* Project assignment */}
           <div style={{marginBottom:14}}>
@@ -10275,7 +10300,15 @@ ${shopName}`;
                       return(
                         <button key={res.id} onClick={()=>{
                           if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
-                          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,url:res.fileUrl||res.url||"",docText:res.fullText||res.desc||"",type:"resource"}]}));
+                          // Use uploaded file URL if available, otherwise fall back to text
+          const attachUrl=res.fileUrl||res.url||"";
+          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{
+            id:res.id,
+            name:res.fileName||res.name,
+            url:attachUrl,
+            docText:attachUrl?"":res.fullText||res.desc||"",
+            type:"resource"
+          }]}));
                         }}
                           style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
                             background:isAttached?"var(--accent2)22":"var(--surface2)",
