@@ -10272,106 +10272,96 @@ ${shopName}`;
       {/* Supporting Documents */}
       {(()=>{
         const docs=sel.supportingDocs||[];
+        const resDocs=(resources||[]).filter(r=>r.category==="Terms & Conditions"||r.fileUrl||r.url);
         return(
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginBottom:16}}>
             <div style={{fontWeight:700,fontSize:13,marginBottom:4,color:"var(--accent2)",display:"flex",alignItems:"center",gap:8}}>
               SUPPORTING DOCUMENTS
-              {docs.length>0&&<Badge color="var(--accent)" style={{fontSize:10}}>{docs.length} attached</Badge>}
+              {docs.length>0&&<span style={{background:"var(--accent)",color:"#000",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>{docs.length}</span>}
             </div>
-            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>Attach T&Cs, renderings, spec sheets, or any file. Choose from your Resources Library or upload directly.</div>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>Attach T&Cs, renderings, or spec sheets. Files are sent as email attachments.</div>
+
+            {/* Attached docs list */}
             {docs.length>0&&(
               <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
                 {docs.map((doc,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"var(--surface2)",borderRadius:8,border:"1px solid var(--accent2)33"}}>
-                    <span style={{fontSize:14}}>{doc.type==="resource"?"📋":"📎"}</span>
-                    <span style={{flex:1,fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
+                    <span style={{fontSize:14}}>📎</span>
+                    <span style={{flex:1,fontSize:12,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
                     {doc.url&&<a href={doc.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent2)",whiteSpace:"nowrap"}}>View ↗</a>}
                     <button onClick={()=>setSel(s=>({...s,supportingDocs:docs.filter((_,j)=>j!==i)}))}
-                      style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>×</button>
+                      style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:16,padding:"0 2px",lineHeight:1}}>×</button>
                   </div>
                 ))}
               </div>
             )}
-            {/* From Resources Library */}
-            {(()=>{
-              const resDocs=(resources||[]).filter(r=>r.category==="Terms & Conditions"||r.type==="document"||r.fileUrl||r.url);
-              if(!resDocs.length)return null;
-              return(
-                <div style={{marginBottom:10}}>
-                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:8}}>FROM RESOURCES LIBRARY</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {resDocs.map(res=>{
-                      const fileUrl=res.fileUrl||res.url||"";
-                      const isAttached=docs.some(d=>d.id===res.id);
-                      const hasFile=!!fileUrl;
-                      return(
-                        <div key={res.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--surface2)",borderRadius:8,border:`1px solid ${isAttached?"var(--accent2)44":"var(--border)"}`}}>
-                          <span style={{fontSize:13}}>{hasFile?"📎":"📋"}</span>
-                          <span style={{flex:1,fontSize:12,fontWeight:600,color:"var(--text)"}}>{res.name}</span>
-                          {!hasFile&&(
-                            <label title="Upload the actual PDF or Word file for this document" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:6,background:"var(--accent3)22",border:"1px solid var(--accent3)44",color:"var(--accent3)",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
-                              ⚠ Upload file
-                              <input type="file" accept=".pdf,.doc,.docx" onChange={async e=>{
-                                const file=e.target.files?.[0];if(!file)return;
+
+            {/* Resources library docs */}
+            {resDocs.length>0&&(
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:6}}>FROM RESOURCES LIBRARY</div>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  {resDocs.map(res=>{
+                    const isAttached=docs.some(d=>d.id===res.id);
+                    const fileUrl=res.fileUrl||res.url||"";
+                    return(
+                      <div key={res.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"var(--surface2)",borderRadius:8}}>
+                        <span style={{fontSize:12}}>📋</span>
+                        <span style={{flex:1,fontSize:12,color:"var(--text)"}}>{res.name}</span>
+                        {fileUrl
+                          ? <button onClick={()=>{
+                              if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
+                              setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{id:res.id,name:res.name,url:fileUrl,docText:null,type:"resource"}]}));
+                            }} style={{padding:"3px 10px",borderRadius:6,background:isAttached?"var(--accent2)22":"var(--surface)",border:`1px solid ${isAttached?"var(--accent2)":"var(--border)"}`,color:isAttached?"var(--accent2)":"var(--muted)",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
+                              {isAttached?"✓ Attached":"+ Attach"}
+                            </button>
+                          : <label style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:6,background:"var(--surface)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
+                              📁 Upload PDF/Word
+                              <input type="file" accept=".pdf,.doc,.docx" style={{display:"none"}} onChange={async e=>{
+                                const file=e.target.files?.[0];
+                                if(!file)return;
                                 e.target.value="";
-                                const {url,storagePath}=await uploadImageToStorage(file,"resources");
-                                // Update the resource record
-                                setResources(prev=>prev.map(r=>r.id===res.id?{...r,fileUrl:url,fileName:file.name,url}:r));
-                                // Immediately attach to the quote with the fresh URL
-                                setSel(s=>{
-                                  const alreadyAttached=(s.supportingDocs||[]).some(d=>d.id===res.id);
-                                  const filtered=(s.supportingDocs||[]).filter(d=>d.id!==res.id);
-                                  return {...s,supportingDocs:[...filtered,{
-                                    id:res.id,
-                                    name:file.name,
-                                    url:url,
-                                    docText:null,
-                                    type:"resource"
-                                  }]};
-                                });
-                              }} style={{display:"none"}} />
+                                try{
+                                  const ext=file.name.split(".").pop().toLowerCase();
+                                  const path=`resources/${res.id}/${Date.now()}.${ext}`;
+                                  const {error:upErr}=await supabase.storage.from("cabshoppro-files").upload(path,file,{contentType:file.type});
+                                  if(upErr)throw upErr;
+                                  const {data:{publicUrl}}=supabase.storage.from("cabshoppro-files").getPublicUrl(path);
+                                  setResources(prev=>prev.map(r=>r.id===res.id?{...r,fileUrl:publicUrl,fileName:file.name,url:publicUrl}:r));
+                                  // Immediately attach with the real URL
+                                  setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]).filter(d=>d.id!==res.id),{id:res.id,name:file.name,url:publicUrl,docText:null,type:"resource"}]}));
+                                }catch(err){alert("Upload failed: "+err.message);}
+                              }}/>
                             </label>
-                          )}
-                          <button onClick={()=>{
-                            if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
-                            // Re-read the resource at click time to get latest fileUrl after upload
-                            const currentRes=(resources||[]).find(r=>r.id===res.id)||res;
-                            const currentUrl=currentRes.fileUrl||currentRes.url||"";
-                            setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{
-                              id:res.id,
-                              name:currentRes.fileName||currentRes.name,
-                              url:currentUrl||null,
-                              docText:currentUrl?null:(currentRes.fullText||currentRes.desc||null),
-                              type:"resource"
-                            }]}));
-                          }} style={{padding:"3px 10px",borderRadius:6,
-                            background:isAttached?"var(--accent2)22":"var(--surface)",
-                            border:`1px solid ${isAttached?"var(--accent2)":"var(--border)"}`,
-                            color:isAttached?"var(--accent2)":"var(--muted)",
-                            fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
-                            {isAttached?"✓ Attached":"+ Attach"}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        }
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+              </div>
+            )}
+
             {/* Upload from computer */}
             <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
               📎 Upload from Computer
-              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.dwg,.dxf,image/jpeg,image/png,image/webp" onChange={async e=>{
+              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.dwg,.dxf,image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={async e=>{
                 const file=e.target.files?.[0];if(!file)return;
                 e.target.value="";
-                const {url,storagePath}=await uploadImageToStorage(file,"quote-docs");
-                setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{name:file.name,url,storagePath,type:"upload"}]}));
-              }} style={{display:"none"}} />
+                try{
+                  const ext=file.name.split(".").pop().toLowerCase();
+                  const path=`quote-docs/${Date.now()}.${ext}`;
+                  const {error:upErr}=await supabase.storage.from("cabshoppro-files").upload(path,file,{contentType:file.type});
+                  if(upErr)throw upErr;
+                  const {data:{publicUrl}}=supabase.storage.from("cabshoppro-files").getPublicUrl(path);
+                  setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{name:file.name,url:publicUrl,docText:null,type:"upload"}]}));
+                }catch(err){alert("Upload failed: "+err.message);}
+              }}/>
             </label>
           </div>
         );
       })()}
 
+      {/* Notes */}
       {/* Notes */}
       <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginBottom:16}}>
         <div style={{fontWeight:700,fontSize:13,marginBottom:10,color:"var(--accent2)"}}>NOTES & TERMS</div>
