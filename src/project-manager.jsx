@@ -9389,6 +9389,83 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     setTimeout(()=>w.print(),400);
   };
 
+  // Returns just the HTML string for emailing
+  const quoteHtmlString=(q)=>{
+    const orig=quoteHtml;
+    // Re-use the same logic but return html instead of printing
+    // Build inline since quoteHtml opens a window
+    const contact=contacts.find(c=>c.id===q.contactId);
+    const project=projects.find(p=>String(p.id)===String(q.projectId));
+    const subtotal=quoteSubtotal(q);
+    const tax=quoteTax(q);
+    const total=quoteTotal(q);
+    const fmt=v=>"$"+Number(v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+    const shopName=adminSettings?.companyName||"Gotham Woodworks";
+    const shopAddress=adminSettings?.companyAddress||"";
+    const shopPhone=adminSettings?.companyPhone||"";
+    const shopEmail2=adminSettings?.companyEmail||"";
+    const LOGO_BLACK=adminSettings?.logoUrl||"";
+    const lineRows=(q.lines||[]).filter(l=>!l.groupId&&l.type!=="group").map(l=>{
+      const ext=l.qty*(l.profitMargin>0&&l.profitMargin<100?l.costPer/(1-l.profitMargin/100):l.markupFlat>0?l.costPer+l.markupFlat/l.qty:l.markupPct>0?l.costPer*(1+l.markupPct/100):l.costPer||0);
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
+      return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top">${imgHtml?`<div style="display:flex;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div>`:`<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div>`}</td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
+    }).join("");
+    const supportingDocsHtml=(()=>{const allDocs=[(q.attachedTandC?{...q.attachedTandC}:null),...(q.supportingDocs||[])].filter(Boolean);if(!allDocs.length)return"";return'<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px">SUPPORTING DOCUMENTS</div>'+allDocs.map(d=>d.url?'<div style="margin-bottom:6px"><a href="'+d.url+'" style="font-size:12px;color:#635bff;text-decoration:none;">📎 '+d.name+' ↗</a></div>':'<div style="margin-bottom:6px;font-size:12px;color:#555;font-style:italic;">📋 '+d.name+' — see attached file</div>').join('')+'</div>';})();
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${q.number}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Georgia',serif;background:#fff;color:#1a1a1a;padding:0}@media print{body{padding:0}@page{margin:20mm 18mm}}</style>
+</head><body>
+<div style="max-width:820px;margin:0 auto;padding:36px 40px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
+    <div>${LOGO_BLACK?`<img src="${LOGO_BLACK}" style="height:60px;object-fit:contain;margin-bottom:8px;display:block" />`:""}
+      <div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>
+      <div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddress}</div>
+      <div style="font-size:11px;color:#888">${shopPhone}</div>
+      <div style="font-size:11px;color:#888">${shopEmail2}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">${q.isInvoice?"INVOICE":"QUOTE"}</div>
+      <div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div>
+      <div style="font-size:12px;color:#888;margin-top:6px">Date: ${q.date}</div>
+      ${q.validUntil?("<div style="font-size:12px;color:#888">Valid until: "+q.validUntil+"</div>"):""}
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PREPARED FOR</div>
+      <div style="font-weight:700;font-size:15px">${contact?.name||""}</div>
+      <div style="color:#555;font-size:13px;margin-top:2px">${contact?.company||""}</div>
+      <div style="color:#888;font-size:12px;margin-top:4px">${contact?.email||""}</div>
+      <div style="color:#888;font-size:12px">${contact?.phone||""}</div>
+    </div>
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PROJECT</div>
+      <div style="font-weight:700;font-size:15px">${project?.name||q.title||""}</div>
+    </div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+    <thead><tr style="background:#1a1a12;color:#fff">
+      <th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th>
+      <th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th>
+      <th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th>
+      <th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:110px">PRICE</th>
+    </tr></thead>
+    <tbody>${lineRows}</tbody>
+  </table>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:28px">
+    <div style="width:260px">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Subtotal</span><span style="font-weight:600">${fmt(subtotal)}</span></div>
+      ${q.taxRate?('<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px"><span style="color:#666">Sales Tax ('+q.taxRate+'%)</span><span style="font-weight:600">'+fmt(tax)+'</span></div>'):""}
+      <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:900"><span>TOTAL</span><span>${fmt(total)}</span></div>
+    </div>
+  </div>
+  ${q.notes?('<div style="background:#f8f7f3;border-left:4px solid #1a1a12;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0"><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:6px">NOTES &amp; TERMS</div><div style="font-size:13px;color:#444;line-height:1.7">'+q.notes+'</div></div>'):""}
+  ${supportingDocsHtml}
+  ${q.approvalToken&&!q.isInvoice?`<div style="margin-top:32px;padding:28px 32px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:12px;text-align:center"><div style="font-size:14px;color:#555;margin-bottom:16px;">Ready to move forward? Review and approve this quote online.</div><a href="${window.location.origin}/?approve=${q.approvalToken}&qid=${q.id}" style="display:inline-block;padding:14px 36px;background:#1a1a12;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;">✍ Review &amp; Approve Quote</a></div>`:""}
+  <div style="border-top:2px solid #1a1a12;padding-top:16px;display:flex;justify-content:space-between;align-items:center;margin-top:28px">
+    <div><div style="font-weight:700;font-size:13px">${shopName}</div></div>
+    <div style="font-size:11px;color:#aaa;font-style:italic">Thank you for the opportunity to serve you.</div>
+  </div>
+</div></body></html>`;
+  };
+
   // ── Email quote ──
   const emailQuote=async(q)=>{
     const contact=contacts.find(c=>c.id===q.contactId);
@@ -9449,7 +9526,7 @@ ${shopName}`;
       },
       subject: `Quote ${q.number} — ${q.title}`,
       body: bodyText,
-      htmlBody: quoteHtml(updatedQ),
+      htmlBody: quoteHtmlString(updatedQ),
       fromName: adminSettings?.sendgridFromName||shopName,
       fromEmail: adminSettings?.sendgridFromEmail||shopEmail,
       userApiKey: adminSettings?.sendgridApiKey||null,
