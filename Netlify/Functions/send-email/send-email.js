@@ -24,13 +24,13 @@ exports.handler = async (event) => {
     const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
     const senderName  = fromName  || process.env.SENDGRID_FROM_NAME  || "CabShop Pro";
 
-    const emailHtml = htmlBody
-      ? htmlBody.replace("</body>", "</body>")
-      : `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
-          ${body.replace(/\n/g, "<br/>")}
-          <hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/>
-          <p style="font-size:11px;color:#aaa;margin-top:8px;">Sent via CabShop Pro</p>
-         </div>`;
+    // If htmlBody is provided (formatted quote/invoice), use it directly
+    // Otherwise wrap plain text in a simple HTML envelope
+    const emailHtml = htmlBody || `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
+        ${body.replace(/\n/g, "<br/>")}
+        <hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/>
+        <p style="font-size:11px;color:#aaa;margin-top:8px;">Sent via CabShop Pro</p>
+       </div>`;
 
     const payload = {
       personalizations: [{
@@ -41,24 +41,22 @@ exports.handler = async (event) => {
       from: { email: senderEmail, name: senderName },
       reply_to: { email: senderEmail, name: senderName },
       subject,
-      content: [
-        { type: "text/plain", value: body },
-        { type: "text/html",  value: emailHtml }
-      ]
+      // Send HTML only when htmlBody is provided — avoids email clients showing plain text fallback
+      content: htmlBody
+        ? [{ type: "text/html", value: emailHtml }]
+        : [
+            { type: "text/plain", value: body },
+            { type: "text/html",  value: emailHtml }
+          ]
     };
 
     const attachments = [];
-
-    // NOTE: Quote/invoice HTML is sent as the email body (htmlBody), not as an attachment
-    // Attaching .html files causes Gmail to display raw HTML code — not user-friendly
-    // The formatted quote is already visible directly in the email body
 
     // Supporting documents — URL always takes priority over docText
     if (Array.isArray(supportingDocs) && supportingDocs.length > 0) {
       for (const doc of supportingDocs) {
         try {
           if (doc.url && !doc.url.startsWith("data:")) {
-            // Has a real file URL — fetch and attach as original format
             const res = await fetch(doc.url);
             if (res.ok) {
               const buffer = await res.arrayBuffer();
@@ -83,7 +81,6 @@ exports.handler = async (event) => {
               });
             }
           } else if (doc.docText) {
-            // No file URL — fall back to plain text only as last resort
             const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length, 60))}\n\n${doc.docText}`;
             attachments.push({
               content: Buffer.from(textContent, "utf-8").toString("base64"),
