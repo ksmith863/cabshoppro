@@ -8926,7 +8926,7 @@ var statusColor = s => ({
   unpaid:"var(--accent4)", partial:"var(--accent2)", paid:"var(--accent)", void:"var(--muted)"
 })[s]||"var(--muted)";
 
-function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,resources,bp,pendingQuote,onClearPendingQuote,adminSettings}) {
+function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,resources,setResources,bp,pendingQuote,onClearPendingQuote,adminSettings}) {
   // ── Views: list | edit | itemLib ──
   const [view,setView]=useState(()=>{try{return localStorage.getItem("csp_quotes_view")||"list";}catch{return "list";}});
   const [sel,setSel]=useState(null);     // quote being edited/viewed — restored below
@@ -10327,6 +10327,8 @@ ${shopName}`;
                                   const {error:upErr}=await supabase.storage.from("cabshoppro-files").upload(path,file,{contentType:file.type});
                                   if(upErr)throw upErr;
                                   const {data:{publicUrl}}=supabase.storage.from("cabshoppro-files").getPublicUrl(path);
+                                  // Persist the file URL back to the resource record
+                                  setResources(prev=>prev.map(r=>r.id===res.id?{...r,fileUrl:publicUrl,fileName:file.name,url:publicUrl}:r));
                                   // Attach directly with the real URL
                                   setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]).filter(d=>d.id!==res.id),{id:res.id,name:file.name,url:publicUrl,docText:null,type:"resource"}]}));
                                 }catch(err){alert("Upload failed: "+err.message);}
@@ -14553,7 +14555,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "profitability": return <ProfitabilityDashboard projects={projects} transactions={transactions} quotes={quotes} contacts={contacts} bp={bp}/>;
       case "help":       return <HelpPage bp={bp}/>;
       case "financetracker": return <Finance {...p} quotes={quotes}/>;
-      case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings}/>;
+      case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} setResources={p.setResources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings}/>;
       case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} bp={bp}/>;
       case "inventory":  return <Inventory  {...p} contacts={contacts} tasks={tasks} setTasks={p.setTasks}/>;
       case "resources":  return null; // group header — collapses to documents
