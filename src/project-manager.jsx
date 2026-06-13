@@ -9183,7 +9183,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const total=quoteTotal(q);
     const lineRows=q.lines.map(l=>{
       const ext=lineExtPrice(l);
-      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:"";
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
       return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top"><div style="display:flex;gap:16px;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div></td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
     }).join("");
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
@@ -9219,7 +9219,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const isOverdue=!isPaid&&q.dueDate&&new Date(q.dueDate)<new Date();
     const lineRows=q.lines.map(l=>{
       const ext=lineExtPrice(l);
-      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:`<div style="width:52px;height:40px;"></div>`;
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:`<div style="width:52px;height:40px;"></div>`;
       return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top"><div style="display:flex;gap:16px;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div></td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px">${fmt(l.costPer||0)}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
     }).join("");
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
@@ -9256,7 +9256,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
     const lineRows=q.lines.map(l=>{
       const ext=lineExtPrice(l);
-      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:"";
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
       return `<tr style="border-bottom:1px solid #eee">
         <td style="padding:10px 8px;vertical-align:top">
           <div style="display:flex;gap:16px;align-items:flex-start">
@@ -9519,7 +9519,7 @@ ${shopName}`;
     const lineRows=q.lines.map(l=>{
       const ext=lineExtPrice(l);
       const imgHtml=l.imageUrl
-        ?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`
+        ?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`
         :`<div style="width:52px;height:40px;"></div>`;
       return `<tr style="border-bottom:1px solid #eee">
         <td style="padding:10px 8px;vertical-align:top">
