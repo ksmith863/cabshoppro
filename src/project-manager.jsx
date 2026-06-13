@@ -10425,13 +10425,7 @@ ${shopName}`;
                 emailInvoice({...sel,paymentLink:link});
               }}>✉ Send Invoice</Btn>
               <Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ Save as PDF</Btn>
-              {(sel.paymentLink||paymentLink)&&(
-                <div style={{display:"flex",gap:6,alignItems:"center",padding:"6px 10px",background:"#635bff11",border:"1px solid #635bff33",borderRadius:8,fontSize:11}}>
-                  <span style={{color:"#635bff",fontWeight:700,fontSize:10,fontFamily:"var(--mono)"}}>PAY LINK:</span>
-                  <a href={sel.paymentLink||paymentLink} target="_blank" rel="noreferrer" style={{color:"#635bff",fontFamily:"var(--mono)",fontSize:10,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.paymentLink||paymentLink}</a>
-                  <button onClick={()=>navigator.clipboard.writeText(sel.paymentLink||paymentLink)} style={{background:"none",border:"1px solid #635bff44",borderRadius:5,color:"#635bff",fontSize:10,cursor:"pointer",padding:"2px 6px",fontFamily:"var(--font)",fontWeight:600}}>Copy</button>
-                </div>
-              )}
+
               <Btn onClick={saveQuote} style={{background:"#635bff",borderColor:"#635bff",color:"#fff",fontWeight:700}}>Save Invoice</Btn>
             </>:<>
               <Btn variant="secondary" onClick={()=>emailQuote(sel)}>✉ Send via Email</Btn>
