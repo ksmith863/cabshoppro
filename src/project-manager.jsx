@@ -9400,7 +9400,12 @@ ${shopName}`;
       userApiKey: adminSettings?.sendgridApiKey||null,
       attachmentHtml: quoteHtml(q),
       attachmentName: `Quote-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null})),
+      supportingDocs: (q.supportingDocs||[]).map(d=>({
+        name:d.name,
+        url:d.url||null,
+        // Only send docText if there's no URL — URL always takes priority
+        docText:(!d.url&&d.docText)||null
+      })),
       onSent: ()=>{
         if(q.status==="draft"||q.status==="Draft"){
           const updated={...q,status:"sent"};
@@ -9659,7 +9664,7 @@ ${shopName}`;
       toName: contact?.name||"",
       attachmentHtml: invoiceHtml(q),
       attachmentName: `Invoice-${q.number}.html`,
-      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:d.docText||null})),
+      supportingDocs: (q.supportingDocs||[]).map(d=>({name:d.name,url:d.url||null,docText:(!d.url&&d.docText)||null})),
       subject: `Invoice ${q.number} — ${q.title}${isOverdue?" [OVERDUE]":""}`,
       body: bodyText,
       fromName: adminSettings?.sendgridFromName||shopName,
@@ -10300,13 +10305,13 @@ ${shopName}`;
                       return(
                         <button key={res.id} onClick={()=>{
                           if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
-                          // Use uploaded file URL if available, otherwise fall back to text
-          const attachUrl=res.fileUrl||res.url||"";
+                          const attachUrl=res.fileUrl||res.url||"";
           setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{
             id:res.id,
             name:res.fileName||res.name,
-            url:attachUrl,
-            docText:attachUrl?"":res.fullText||res.desc||"",
+            url:attachUrl||null,
+            // Only use docText if there's genuinely no file URL
+            docText:attachUrl?null:(res.fullText||null),
             type:"resource"
           }]}));
                         }}
