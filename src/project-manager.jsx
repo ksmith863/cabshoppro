@@ -10321,11 +10321,14 @@ ${shopName}`;
                           )}
                           <button onClick={()=>{
                             if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
+                            // Re-read the resource at click time to get latest fileUrl after upload
+                            const currentRes=(resources||[]).find(r=>r.id===res.id)||res;
+                            const currentUrl=currentRes.fileUrl||currentRes.url||"";
                             setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{
                               id:res.id,
-                              name:res.fileName||res.name,
-                              url:fileUrl||null,
-                              docText:fileUrl?null:(res.fullText||res.desc||null),
+                              name:currentRes.fileName||currentRes.name,
+                              url:currentUrl||null,
+                              docText:currentUrl?null:(currentRes.fullText||currentRes.desc||null),
                               type:"resource"
                             }]}));
                           }} style={{padding:"3px 10px",borderRadius:6,
