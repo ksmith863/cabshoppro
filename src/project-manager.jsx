@@ -7924,7 +7924,7 @@ function SimpleImageLightbox({url, caption, onClose}) {
 // ─── Email Composer Modal ────────────────────────────────────────────────────
 // Replaces all mailto: links with a proper in-app email composer
 // that sends via the /.netlify/functions/send-email Netlify function.
-function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, fromName, fromEmail, attachmentHtml, attachmentName, supportingDocs, userApiKey, onSent, onClose }) {
+function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, htmlBody, fromName, fromEmail, attachmentHtml, attachmentName, supportingDocs, userApiKey, onSent, onClose }) {
   const [to_, setTo]     = useState(to||"");
   const [cc_, setCc]     = useState("");
   const [bcc_, setBcc]   = useState("");
