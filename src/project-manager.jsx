@@ -9183,7 +9183,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const total=quoteTotal(q);
     const lineRows=q.lines.map(l=>{
       const ext=lineExtPrice(l);
-      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:`<div style="width:60px;height:44px;background:#f5f4f0;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aaa">no img</div>`;
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:"";
       return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top"><div style="display:flex;gap:10px;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div></td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
     }).join("");
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
@@ -9195,7 +9195,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 <div style="max-width:820px;margin:0 auto;padding:36px 40px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
     <div><div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
-    <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">QUOTE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div><div style="font-size:12px;color:#888;margin-top:6px">Date: ${q.date}</div>${q.validUntil?`<div style="font-size:12px;color:#888">Valid until: ${q.validUntil}</div>`:""}<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:${q.status==="approved"?"#d4f5e2":q.status==="sent"?"#e8e4ff":q.status==="declined"?"#fde8e8":"#f0f0f0"};color:${q.status==="approved"?"#1a7a40":q.status==="sent"?"#4a3aaa":q.status==="declined"?"#c0392b":"#666"}">${q.status.toUpperCase()}</div></div>
+    <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">QUOTE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div><div style="font-size:12px;color:#888;margin-top:6px">Date: ${q.date}</div>${q.validUntil?`<div style="font-size:12px;color:#888">Valid until: ${q.validUntil}</div>`:""}</div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
     <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PREPARED FOR</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?contact.phone:""}</div></div>
@@ -9231,7 +9231,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 <div style="max-width:820px;margin:0 auto;padding:36px 40px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
     <div><div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
-    <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">INVOICE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div>${q.sourceQuoteNumber?`<div style="font-size:11px;color:#aaa;margin-top:2px">from Quote ${q.sourceQuoteNumber}</div>`:""}<div style="font-size:12px;color:#888;margin-top:6px">Invoice Date: ${q.invoiceDate||q.date}</div>${q.dueDate?`<div style="font-size:12px;color:${isOverdue?"#c0392b":"#888"}">Due: ${q.dueDate}${isOverdue?" — OVERDUE":""}</div>`:""}<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:${isPaid?"#d4f5e2":isOverdue?"#fde8e8":"#fff3e0"};color:${isPaid?"#1a7a40":isOverdue?"#c0392b":"#b45309"}">${q.status.toUpperCase()}</div></div>
+    <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">INVOICE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div>${q.sourceQuoteNumber?`<div style="font-size:11px;color:#aaa;margin-top:2px">from Quote ${q.sourceQuoteNumber}</div>`:""}<div style="font-size:12px;color:#888;margin-top:6px">Invoice Date: ${q.invoiceDate||q.date}</div>${q.dueDate?`<div style="font-size:12px;color:${isOverdue?"#c0392b":"#888"}">Due: ${q.dueDate}${isOverdue?" — OVERDUE":""}</div>`:""}${isPaid?'<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:#d4f5e2;color:#1a7a40">PAID</div>':isOverdue?'<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:#fde8e8;color:#c0392b">OVERDUE</div>':''}</div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
     <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">BILL TO</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?contact.phone:""}</div></div>
@@ -9256,7 +9256,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 
     const lineRows=q.lines.map(l=>{
       const ext=lineExtPrice(l);
-      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:`<div style="width:60px;height:44px;background:#f5f4f0;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aaa">no img</div>`;
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0" />`:"";
       return `<tr style="border-bottom:1px solid #eee">
         <td style="padding:10px 8px;vertical-align:top">
           <div style="display:flex;gap:10px;align-items:flex-start">
@@ -9291,7 +9291,6 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       <div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div>
       <div style="font-size:12px;color:#888;margin-top:6px">Date: ${q.date}</div>
       ${q.validUntil?("<div style=\"font-size:12px;color:#888\">Valid until: "+q.validUntil+"</div>"):""}
-      <div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:${q.status==="approved"?"#d4f5e2":q.status==="sent"?"#e8e4ff":q.status==="declined"?"#fde8e8":"#f0f0f0"};color:${q.status==="approved"?"#1a7a40":q.status==="sent"?"#4a3aaa":q.status==="declined"?"#c0392b":"#666"}">${q.status.toUpperCase()}</div>
     </div>
   </div>
 
