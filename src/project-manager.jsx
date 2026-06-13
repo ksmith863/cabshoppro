@@ -7942,6 +7942,7 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
     try {
       // If we have an HTML document (quote/invoice), use it as the email body for best display
       const htmlBody = attachmentHtml || null;
+      console.log("supportingDocs being sent:", JSON.stringify(supportingDocs||[]));
       const res = await fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
