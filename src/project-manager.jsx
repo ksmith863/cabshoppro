@@ -13871,7 +13871,19 @@ function HelpPage({bp}) {
           ]}/>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>ADDING CONTACTS TO A PROJECT</h4>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8}}>
-            Open any project and scroll to the <strong style={{color:"var(--text)"}}>Project Contacts</strong> section. Use the <em>"+ Add contact to project…"</em> search field to find and add any CRM contact. Click the × next to any additional contact to remove them. You can also invite contacts to the client portal directly from the <strong style={{color:"var(--text)"}}>🔗 Client Portal</strong> button in the project footer.
+            Open any project and scroll to the <strong style={{color:"var(--text)"}}>Project Contacts</strong> section. Use the <em>"+ Add contact to project…"</em> search field to find and add any CRM contact. Click the × next to any additional contact to remove them.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>CLIENT PORTAL FROM A PROJECT</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            Click <strong style={{color:"var(--text)"}}>🔗 Client Portal</strong> in the project footer to open a modal listing all linked contacts. Each contact has a Copy Link button and an ✉ Email button — the most efficient way to invite multiple stakeholders at once.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>STAGE CUSTOMIZATION</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            When creating or editing a project, toggle stages on/off using the pill buttons. Type a custom stage name and press Enter to add it. Each project can have a completely different stage set.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>PHOTOS TAB</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8}}>
+            The 📷 Photos tab shows all project photos grouped by stage. Click any photo to enlarge. Use Upload Photo or Take Photo (mobile) to add photos. Client uploads from the portal appear under Client Uploads in real time.
           </p>
         </div>
       )
@@ -13927,7 +13939,7 @@ function HelpPage({bp}) {
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
             Click any contact card to open the detail panel. It shows all contact info, associated projects, a Google Maps embed of the job site address, and quick action buttons (email, call, schedule event). Click <strong style={{color:"var(--text)"}}>🔗 Client Portal Link</strong> to generate a unique portal link for that client.
           </p>
-          <Tip>Use the bulk select checkboxes on contact cards to delete multiple contacts at once — useful when cleaning up test data or duplicates.</Tip>
+          <Tip>Phone numbers auto-format to (xxx) xxx-xxxx as you type — no need to add formatting manually. Use the bulk select checkboxes on contact cards to delete multiple contacts at once.</Tip>
         </div>
       )
     },
@@ -13944,18 +13956,33 @@ function HelpPage({bp}) {
           <Step num="2" title="Add line items" desc="Type items manually or click 📚 Library to pull from your Item Library — pricing, unit, and markup pre-fill from the library. Adjust quantities and pricing per line."/>
           <Step num="3" title="Set markup and tax" desc="Apply markup per line item or set a global tax rate. Sell price, margin percentage, and totals calculate in real time."/>
           <Step num="4" title="Attach supporting documents" desc="In the Supporting Documents section, upload T&Cs, renderings, spec sheets, or any file. All attached documents are included as email attachments when you send the quote."/>
-          <Step num="5" title="Send for approval" desc="Click ✉ Send Quote. The client receives a branded email with the full quote and a link to review and sign digitally — no account required."/>
+          <Step num="5" title="Send via Email" desc="Click ✉ Send via Email. The client receives a beautifully formatted HTML email with the full quote and a prominent Review & Approve button. The approval link is generated automatically — no extra steps needed."/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>ACTION BAR — QUOTE MODE vs INVOICE MODE</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            The action bar at the bottom of the quote editor shows a colored mode indicator. A <strong style={{color:"var(--accent)"}}>green dot</strong> means Quote Mode. A <strong style={{color:"#635bff"}}>purple dot</strong> means Invoice Mode. The available actions change accordingly.
+          </p>
+          <Table rows={[
+            ["Quote Mode actions","✉ Send via Email · ⎙ Save as PDF · 🔗 Copy Link · ⇒ Convert to Invoice · Save Quote"],
+            ["Invoice Mode actions","✉ Send Invoice · ⎙ Save as PDF · Save Invoice · ✓ Mark Paid"],
+          ]}/>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>CLIENT APPROVAL FLOW</h4>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
-            When a client opens the approval link, they see the full quote with all line items, your terms, and a digital signature pad. They sign and click Approve — you get notified and the quote status updates to Approved automatically.
+            When a client receives the quote email, they see the full formatted quote with a <strong style={{color:"var(--text)"}}>✍ Review & Approve Quote</strong> button at the bottom. Clicking it opens the approval page where they review line items (with clickable image zoom), draw their signature, and click Approve. The quote status updates to Approved automatically and you receive a notification.
           </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>CONVERTING TO INVOICE & COLLECTING PAYMENT</h4>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
-            Once a quote is approved, click <strong style={{color:"var(--text)"}}>→ Invoice</strong> to convert it. Set a due date and send. On the invoice, click <strong style={{color:"var(--text)"}}>💳 Payment Link</strong> to generate a Stripe-powered checkout page for the exact invoice amount. The link is embedded in the invoice email — clients pay by card immediately.
+            Once a quote is approved, click <strong style={{color:"#635bff"}}>⇒ Convert to Invoice</strong>. The action bar switches to Invoice Mode (purple). Click <strong style={{color:"#635bff"}}>✉ Send Invoice</strong> — a Stripe payment link is automatically generated and embedded in the invoice email. The client clicks Pay Now to pay by card immediately.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>SUPPORTING DOCUMENTS</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            In the Supporting Documents section, attach files two ways: click <strong style={{color:"var(--text)"}}>+ Attach</strong> next to any document in your Resources Library (T&Cs, spec sheets), or click <strong style={{color:"var(--text)"}}>📎 Upload from Computer</strong> to upload a PDF or Word file directly. All attached documents are sent as email attachments with the quote.
+          </p>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            For Resources Library documents to attach as proper formatted files (PDF/Word), make sure to upload the actual file to the resource record first. Documents without an uploaded file will attach as plain text.
           </p>
           <Table rows={[
             ["Draft","Not yet sent to client"],
-            ["Sent","Emailed, awaiting client approval"],
+            ["Sent","Emailed to client, approval link active"],
             ["Approved","Client has signed — ready to invoice"],
             ["Unpaid","Invoice sent, payment pending"],
             ["Partial","Partial payment received"],
@@ -14061,8 +14088,8 @@ function HelpPage({bp}) {
             The Client Portal gives clients a branded window into their project — no account or login required. They can view progress, approve quotes, pay invoices, and share inspiration photos.
           </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>SENDING A PORTAL LINK</h4>
-          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:8}}><strong style={{color:"var(--text)"}}>From a project</strong> (recommended): Open any project → click 🔗 Client Portal in the footer. A modal lists all contacts linked to the project. Each contact has a Copy Link button and an ✉ Email button (pre-fills their email with the link).</p>
-          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}><strong style={{color:"var(--text)"}}>From a CRM contact</strong>: Open the contact → click 🔗 Client Portal Link → Copy the link or click ✉ Open in Email.</p>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:8}}><strong style={{color:"var(--text)"}}>From a project</strong> (recommended): Open any project → click <strong style={{color:"var(--text)"}}>🔗 Client Portal</strong> in the project footer. A modal lists every contact linked to the project. Each has a Copy Link button and an ✉ Email button that pre-fills their email address. This is the best way to invite multiple stakeholders at once.</p>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}><strong style={{color:"var(--text)"}}>From a CRM contact</strong>: Open the contact → click 🔗 Client Portal Link → a modal shows the link with Copy and Open in Email buttons.</p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>WHAT CLIENTS SEE</h4>
           <Table rows={[
             ["🏗 Projects","Active projects with stage progress bars in the correct order. Completed stages shown in green."],
@@ -14125,17 +14152,18 @@ function HelpPage({bp}) {
 
   const faqs = [
     {q:"How do I create a new project?", a:"Go to Projects in the sidebar and click + New Project. Choose a template (optional), fill in project details, select your stages, and click Save. The project appears on your Dashboard and Projects list immediately."},
-    {q:"How do I send a quote to a client?", a:"Open the quote in Quotes & Invoices and click ✉ Send Quote. Your client receives a branded email with the full quote and a link to review and sign digitally. No account is required on their end."},
-    {q:"How do I accept online payments?", a:"Open any invoice and click 💳 Payment Link. This generates a Stripe checkout page for the exact invoice amount. When you email the invoice, the payment link is included automatically."},
-    {q:"How do I invite a client to their portal?", a:"From any project, click 🔗 Client Portal in the footer — this lists all linked contacts with Copy Link and Email buttons. Or go to CRM → open a contact → click 🔗 Client Portal Link."},
+    {q:"How do I send a quote to a client?", a:"Open the quote and click ✉ Send via Email. The client receives a fully formatted HTML email showing the complete quote with a Review & Approve button at the bottom. Clicking it opens the approval page where they can sign digitally. No account required."},
+    {q:"How do I accept online payments?", a:"Click ✉ Send Invoice on any invoice — a Stripe payment link is automatically generated and embedded in the email. The client sees a Pay Now button. You can also click ✓ Mark Paid manually once you receive payment by other means."},
+    {q:"How do I invite a client to their portal?", a:"From any project, click 🔗 Client Portal in the footer — a modal lists all linked contacts with Copy Link and Email buttons. This is the best approach as you can invite multiple stakeholders at once. Alternatively, go to CRM → open a contact → click 🔗 Client Portal Link."},
     {q:"How do I import a supplier price list?", a:"In Item Library, click ⋯ Actions → Import Items or Price List and upload the CSV. Column names like Item, Description, Part#, Price/Cost, and UOM are detected and mapped automatically."},
     {q:"How do I add contacts to an existing project?", a:"Open the project detail view and scroll to Project Contacts. Use the '+ Add contact to project…' search field to find and add any contact. Click × next to a contact to remove them."},
     {q:"How do stages work?", a:"Open any project and click the Stages tab. Each stage has a checkbox to mark it done, a live timer (Start/Stop) or manual time entry field, and a 📷 button to add photos. All logged time feeds into the project's profitability review."},
-    {q:"Can I customize stages for a specific project?", a:"Yes. When creating or editing a project, toggle stages on or off using the pill buttons. Type a custom stage name and press Enter to add it. Each project can have a completely different stage set."},
+    {q:"Can I customize stages for a specific project?", a:"Yes. When creating or editing a project, the Stages section shows all 12 default stages as toggle pills — click any to include or exclude. Type a custom stage name and press Enter to add your own. The stage order and selection is saved per project and reflected in the client portal."},
     {q:"How do I export to QuickBooks?", a:"Go to Admin Settings → 📊 QuickBooks. Export Chart of Accounts, Transactions, and Invoices as CSV files. Import them into QuickBooks Online via their Settings → Import Data tool."},
     {q:"How do calendar exports work?", a:"Click ⬇ Export .ics on the calendar page to download all events as one file for bulk import. Or when creating/editing a single event, use the Export to Calendar section to send it to Google Calendar, Apple Calendar, or Outlook."},
     {q:"Where do project photos go?", a:"Photos taken from a stage camera button are tagged to that stage and appear in the Photos tab. Photos taken with the floating 📷 button on mobile go to 'Field Captures' in the Photos tab. Client-uploaded photos appear under 'Client Uploads' in real time."},
     {q:"How does Global Search work?", a:"Press Ctrl+K (⌘K on Mac) or click 🔍 in the sidebar. Type 2+ characters to search across all projects, contacts, quotes, and tasks simultaneously. Click any result to navigate directly to that item."},
+    {q:"How does the quote approval notification work?", a:"When a client approves a quote, the quote status updates to Approved automatically and a notification appears in your dashboard bell — 'Quote Approved: GW-XXXX is ready to invoice'. Open the quote and click ⇒ Convert to Invoice to proceed."},
     {q:"How do I set up email sending?", a:"Go to Admin Settings → ✉ Email. Create a free SendGrid account, generate an API key with Mail Send permission, and paste it into the API key field along with your sender name and email address. Save and all outgoing quote/invoice emails send from your shop's address."},
     {q:"What does the AI Assistant do?", a:"Click the chat bubble in the bottom-right corner to open it. Ask about pricing strategy, material quantities, finishing tips, client communication, or how to use any feature. From any project's 📊 Review tab, click AI Analysis for a detailed profitability breakdown with industry benchmark comparisons."},
   ];
