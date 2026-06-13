@@ -13340,7 +13340,7 @@ function NotificationBell({notifications, onNavigate}) {
         {unread.length>0&&<span style={{position:"absolute",top:0,right:0,background:"var(--accent3)",color:"#fff",borderRadius:"50%",fontSize:9,fontWeight:800,width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center"}}>{Math.min(unread.length,9)}</span>}
       </button>
       {open&&(
-        <div className="scalein" style={{position:"absolute",top:"calc(100% + 8px)",right:0,width:320,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.4)",zIndex:2000,overflow:"hidden"}}>
+        <div className="scalein" style={{position:"absolute",top:"calc(100% + 8px)",left:0,width:320,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.4)",zIndex:2000,overflow:"hidden"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{fontWeight:700,fontSize:14}}>Notifications {unread.length>0&&<span style={{color:"var(--accent3)",fontSize:12}}>({unread.length})</span>}</div>
             {unread.length>0&&<button onClick={()=>setDismissed(new Set(notifications.map(n=>n.id)))} style={{background:"none",border:"none",color:"var(--muted)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)"}}>Dismiss all</button>}
