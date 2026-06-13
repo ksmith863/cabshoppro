@@ -9425,7 +9425,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       +"<div style='font-weight:700;font-size:15px'>"+(ct?.name||"")+"</div>"
       +"<div style='color:#555;font-size:13px;margin-top:2px'>"+(ct?.company||"")+"</div>"
       +"<div style='color:#888;font-size:12px;margin-top:4px'>"+(ct?.email||"")+"</div>"
-      +"<div style='color:#888;font-size:12px'>"+(ct?.phone||"")+"</div></div>"
+      +"<div style='color:#888;font-size:12px'>"+fmtPhone(ct?.phone||"")+"</div></div>"
       +"<div><div style='font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px'>PROJECT</div>"
       +"<div style='font-weight:700;font-size:15px'>"+(pj?.name||q.title||"")+"</div></div></div>"
       +"<table style='width:100%;border-collapse:collapse;margin-bottom:24px'>"
