@@ -10327,8 +10327,7 @@ ${shopName}`;
                                   const {error:upErr}=await supabase.storage.from("cabshoppro-files").upload(path,file,{contentType:file.type});
                                   if(upErr)throw upErr;
                                   const {data:{publicUrl}}=supabase.storage.from("cabshoppro-files").getPublicUrl(path);
-                                  setResources(prev=>prev.map(r=>r.id===res.id?{...r,fileUrl:publicUrl,fileName:file.name,url:publicUrl}:r));
-                                  // Immediately attach with the real URL
+                                  // Attach directly with the real URL
                                   setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]).filter(d=>d.id!==res.id),{id:res.id,name:file.name,url:publicUrl,docText:null,type:"resource"}]}));
                                 }catch(err){alert("Upload failed: "+err.message);}
                               }}/>
