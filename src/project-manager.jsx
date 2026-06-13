@@ -7942,7 +7942,6 @@ function EmailComposerModal({ to, toName, subject: initSubject, body: initBody, 
     try {
       // If we have an HTML document (quote/invoice), use it as the email body for best display
       const htmlBody = attachmentHtml || null;
-      console.log("supportingDocs being sent:", JSON.stringify(supportingDocs||[]));
       const res = await fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -10295,34 +10294,48 @@ ${shopName}`;
             )}
             {/* From Resources Library */}
             {(()=>{
-              const resDocs=(resources||[]).filter(r=>r.type==="document"||r.category==="Terms & Conditions"||r.fileUrl||r.url);
+              const resDocs=(resources||[]).filter(r=>r.category==="Terms & Conditions"||r.type==="document"||r.fileUrl||r.url);
               if(!resDocs.length)return null;
               return(
                 <div style={{marginBottom:10}}>
-                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:6}}>FROM RESOURCES LIBRARY</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:8}}>FROM RESOURCES LIBRARY</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {resDocs.map(res=>{
+                      const fileUrl=res.fileUrl||res.url||"";
                       const isAttached=docs.some(d=>d.id===res.id);
+                      const hasFile=!!fileUrl;
                       return(
-                        <button key={res.id} onClick={()=>{
-                          if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
-                          const attachUrl=res.fileUrl||res.url||"";
-          setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{
-            id:res.id,
-            name:res.fileName||res.name,
-            url:attachUrl||null,
-            // Only use docText if there's genuinely no file URL
-            docText:attachUrl?null:(res.fullText||null),
-            type:"resource"
-          }]}));
-                        }}
-                          style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
-                            background:isAttached?"var(--accent2)22":"var(--surface2)",
-                            border:`1px solid ${isAttached?"var(--accent2)55":"var(--border)"}`,
+                        <div key={res.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--surface2)",borderRadius:8,border:`1px solid ${isAttached?"var(--accent2)44":"var(--border)"}`}}>
+                          <span style={{fontSize:13}}>{hasFile?"📎":"📋"}</span>
+                          <span style={{flex:1,fontSize:12,fontWeight:600,color:"var(--text)"}}>{res.name}</span>
+                          {!hasFile&&(
+                            <label title="Upload the actual PDF or Word file for this document" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:6,background:"var(--accent3)22",border:"1px solid var(--accent3)44",color:"var(--accent3)",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
+                              ⚠ Upload file
+                              <input type="file" accept=".pdf,.doc,.docx" onChange={async e=>{
+                                const file=e.target.files?.[0];if(!file)return;
+                                e.target.value="";
+                                const {url}=await uploadImageToStorage(file,"resources");
+                                setResources(prev=>prev.map(r=>r.id===res.id?{...r,fileUrl:url,fileName:file.name,url}:r));
+                              }} style={{display:"none"}} />
+                            </label>
+                          )}
+                          <button onClick={()=>{
+                            if(isAttached){setSel(s=>({...s,supportingDocs:docs.filter(d=>d.id!==res.id)}));return;}
+                            setSel(s=>({...s,supportingDocs:[...(s.supportingDocs||[]),{
+                              id:res.id,
+                              name:res.fileName||res.name,
+                              url:fileUrl||null,
+                              docText:fileUrl?null:(res.fullText||res.desc||null),
+                              type:"resource"
+                            }]}));
+                          }} style={{padding:"3px 10px",borderRadius:6,
+                            background:isAttached?"var(--accent2)22":"var(--surface)",
+                            border:`1px solid ${isAttached?"var(--accent2)":"var(--border)"}`,
                             color:isAttached?"var(--accent2)":"var(--muted)",
-                            fontSize:11,fontWeight:isAttached?700:400,cursor:"pointer",fontFamily:"var(--font)"}}>
-                          📋 {res.name}{isAttached?" ✓":""}
-                        </button>
+                            fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>
+                            {isAttached?"✓ Attached":"+ Attach"}
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
