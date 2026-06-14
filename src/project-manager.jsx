@@ -11749,6 +11749,9 @@ function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pending
 // ─── Admin Page ───────────────────────────────────────────────────────────────
 function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,setChartOfAccounts,bp}) {
   const [activeTab,setActiveTab]=useState("company");
+  const [betaFeedback,setBetaFeedback]=useState([]);
+  const [betaLoading,setBetaLoading]=useState(false);
+  const [betaLoaded,setBetaLoaded]=useState(false);
   const [newUser,setNewUser]=useState({name:"",email:"",role:"editor"});
   const [logoPreview,setLogoPreview]=useState(settings.logoUrl||"");
   const [qbConnected,setQbConnected]=useState(false);
@@ -11820,6 +11823,15 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
     catch{return DEFAULT_TEMPLATES;}
   });
   // Sync templates from adminSettings when it loads from Supabase
+  useEffect(()=>{
+    if(activeTab==="beta"&&!betaLoaded){
+      setBetaLoading(true);
+      supabase.from("beta_feedback").select("*").order("created_at",{ascending:false}).limit(200)
+        .then(({data})=>{setBetaFeedback(data||[]);setBetaLoading(false);setBetaLoaded(true);})
+        .catch(()=>setBetaLoading(false));
+    }
+  },[activeTab,betaLoaded]);
+
   useEffect(()=>{
     try{
       if(settings?._templates && Array.isArray(settings._templates)){
@@ -12569,13 +12581,6 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
         );
       })()}
       {activeTab==="beta"&&(()=>{
-        const [betaFeedback,setBetaFeedback]=useState([]);
-        const [betaLoading,setBetaLoading]=useState(true);
-        useEffect(()=>{
-          supabase.from("beta_feedback").select("*").order("created_at",{ascending:false}).limit(200)
-            .then(({data})=>{setBetaFeedback(data||[]);setBetaLoading(false);})
-            .catch(()=>setBetaLoading(false));
-        },[]);
         const typeColor={feedback:"var(--accent2)",bug:"var(--accent3)",question:"var(--accent)"};
         const uniqueUsers=[...new Set(betaFeedback.map(f=>f.user_email).filter(Boolean))];
         return(
