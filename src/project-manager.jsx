@@ -15743,14 +15743,6 @@ export function Root() {
   }, []);
 
   // Show client approval page if approval params present — no login required
-  // Welcome modal and feedback button — shown when logged in
-  const betaOverlays = session ? (
-    <>
-      {showWelcome&&<WelcomeBetaModal onClose={()=>setShowWelcome(false)} />}
-      <FeedbackButton />
-    </>
-  ) : null;
-
   if (approveToken && approveQid) {
     return (
       <ClientApprovalPage
