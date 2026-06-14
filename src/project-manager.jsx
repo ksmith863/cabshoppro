@@ -11813,6 +11813,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
     ["templates","📐 Templates"],
     ["coa","📋 Chart of Accounts"],
     ["quickbooks","📊 QuickBooks"],
+    ["beta","🧪 Beta"],
   ];
   const [custTemplates,setCustTemplates]=useState(()=>{
     try{return (settings?._templates && Array.isArray(settings._templates)) ? settings._templates : DEFAULT_TEMPLATES;}
@@ -12564,6 +12565,54 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
                 {exportMsg}
               </div>
             )}
+          </div>
+        );
+      })()}
+      {activeTab==="beta"&&(()=>{
+        const [betaFeedback,setBetaFeedback]=useState([]);
+        const [betaLoading,setBetaLoading]=useState(true);
+        useEffect(()=>{
+          supabase.from("beta_feedback").select("*").order("created_at",{ascending:false}).limit(200)
+            .then(({data})=>{setBetaFeedback(data||[]);setBetaLoading(false);})
+            .catch(()=>setBetaLoading(false));
+        },[]);
+        const typeColor={feedback:"var(--accent2)",bug:"var(--accent3)",question:"var(--accent)"};
+        const uniqueUsers=[...new Set(betaFeedback.map(f=>f.user_email).filter(Boolean))];
+        return(
+          <div>
+            <div style={{fontWeight:800,fontSize:20,marginBottom:4}}>🧪 Beta Dashboard</div>
+            <div style={{fontSize:13,color:"var(--muted)",marginBottom:20}}>Monitor beta tester activity and feedback.</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12,marginBottom:20}}>
+              {[["Total Feedback",betaFeedback.length,"var(--accent)"],["Bugs",betaFeedback.filter(f=>f.type==="bug").length,"var(--accent3)"],["Ideas",betaFeedback.filter(f=>f.type==="feedback").length,"var(--accent2)"],["Beta Testers",uniqueUsers.length,"var(--accent4)"]].map(([l,v,c])=>(
+                <div key={l} style={{background:"var(--surface2)",borderRadius:12,padding:"14px 16px",border:"1px solid var(--border)"}}>
+                  <div style={{fontSize:22,fontWeight:800,color:c}}>{betaLoading?"…":v}</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2,fontFamily:"var(--mono)"}}>{l.toUpperCase()}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+              <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>🔑 Active Beta Codes</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {["CABINET2026","WOODSHOP26","GWBETA","CABPRO26","SHOPTEST"].map(code=>(
+                  <span key={code} style={{padding:"5px 10px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",fontFamily:"var(--mono)",fontSize:12,fontWeight:600,letterSpacing:"0.08em"}}>{code}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>Recent Feedback</div>
+            {betaLoading?<div style={{padding:24,textAlign:"center",color:"var(--muted)"}}>Loading…</div>
+            :betaFeedback.length===0?<div style={{padding:24,textAlign:"center",color:"var(--muted)",background:"var(--surface2)",borderRadius:12,fontSize:13}}>No feedback yet.</div>
+            :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {betaFeedback.map((f,i)=>(
+                <div key={i} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,padding:"12px 14px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+                    <span style={{padding:"2px 8px",borderRadius:20,fontSize:10,fontWeight:700,fontFamily:"var(--mono)",background:(typeColor[f.type]||"var(--muted)")+"22",color:typeColor[f.type]||"var(--muted)",textTransform:"uppercase"}}>{f.type}</span>
+                    <span style={{fontSize:11,color:"var(--muted)"}}>{f.user_email||"anon"}</span>
+                    <span style={{fontSize:11,color:"var(--muted)",marginLeft:"auto"}}>{new Date(f.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</span>
+                  </div>
+                  <div style={{fontSize:13,color:"var(--text)",lineHeight:1.6}}>{f.message}</div>
+                </div>
+              ))}
+            </div>}
           </div>
         );
       })()}
@@ -14349,6 +14398,143 @@ function GlobalSearch({projects,contacts,quotes,tasks,onNavigate,onClose}) {
   );
 }
 
+// ─── Welcome Modal ───────────────────────────────────────────────────────────
+function WelcomeBetaModal({onClose, userName}) {
+  const [step, setStep] = useState(0);
+  const steps = [
+    {
+      icon:"🎉",
+      title:"Welcome to CabShop Pro Beta!",
+      body:"Thank you for joining our beta program. You have full access to every feature — explore freely and let us know what you think.",
+    },
+    {
+      icon:"◈",
+      title:"Start with Projects",
+      body:"Create a project for each client job. Track it through every stage from Design to Installation. Add your client, set your stages, and log time as you work.",
+    },
+    {
+      icon:"📄",
+      title:"Quotes → Invoices → Payment",
+      body:"Build a quote, email it to your client with one click. They get a Review & Approve button. Once approved, convert to invoice and collect payment online via Stripe.",
+    },
+    {
+      icon:"🔗",
+      title:"Client Portal",
+      body:"Every client gets their own portal link — no login needed. They can see project progress, approve quotes, pay invoices, and share inspiration photos.",
+    },
+    {
+      icon:"💬",
+      title:"Your feedback matters",
+      body:"Use the feedback button (bottom-right corner, next to the AI chat) to share thoughts, report bugs, or request features. We read every submission.",
+    },
+  ];
+  const s = steps[step];
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:20,padding:"36px 32px",maxWidth:480,width:"100%",textAlign:"center",boxShadow:"0 24px 64px rgba(0,0,0,0.5)"}}>
+        <div style={{fontSize:48,marginBottom:16}}>{s.icon}</div>
+        <div style={{fontWeight:800,fontSize:22,marginBottom:12,letterSpacing:"-0.5px"}}>{s.title}</div>
+        <div style={{fontSize:14,color:"var(--muted)",lineHeight:1.8,marginBottom:28}}>{s.body}</div>
+        {/* Step dots */}
+        <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:24}}>
+          {steps.map((_,i)=>(
+            <div key={i} style={{width:i===step?24:8,height:8,borderRadius:4,background:i===step?"var(--accent)":"var(--border)",transition:"all 0.2s",cursor:"pointer"}} onClick={()=>setStep(i)}/>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,padding:"12px",borderRadius:10,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"var(--font)"}}>← Back</button>}
+          {step<steps.length-1
+            ?<button onClick={()=>setStep(s=>s+1)} style={{flex:2,padding:"12px",borderRadius:10,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"var(--font)"}}>Next →</button>
+            :<button onClick={onClose} style={{flex:2,padding:"12px",borderRadius:10,background:"var(--accent)",border:"none",color:"#000",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"var(--font)"}}>Let's go! →</button>
+          }
+        </div>
+        <button onClick={onClose} style={{marginTop:14,background:"none",border:"none",color:"var(--muted)",fontSize:12,cursor:"pointer",fontFamily:"var(--font)"}}>Skip intro</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Feedback Button ──────────────────────────────────────────────────────────
+function FeedbackButton() {
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState("feedback");
+  const [msg, setMsg] = useState("");
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const send = async () => {
+    if (!msg.trim()) return;
+    setSending(true);
+    try {
+      const {data:{user}} = await supabase.auth.getUser();
+      await supabase.from("beta_feedback").insert({
+        user_id: user?.id||"anon",
+        user_email: user?.email||"",
+        type,
+        message: msg.trim(),
+        created_at: new Date().toISOString(),
+        url: window.location.href,
+      });
+      setSent(true);
+      setTimeout(()=>{setOpen(false);setSent(false);setMsg("");setType("feedback");},2000);
+    } catch(e) {
+      // Fallback: try email
+      console.error("Feedback error:", e);
+      setSent(true);
+    }
+    setSending(false);
+  };
+
+  return (
+    <>
+      {/* Floating button */}
+      <button onClick={()=>setOpen(o=>!o)}
+        title="Send feedback"
+        style={{position:"fixed",bottom:80,right:18,zIndex:8000,width:44,height:44,borderRadius:"50%",
+          background:"var(--accent2)",border:"none",color:"#fff",fontSize:18,cursor:"pointer",
+          boxShadow:"0 4px 16px rgba(123,111,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+        💬
+      </button>
+
+      {/* Feedback modal */}
+      {open&&(
+        <div style={{position:"fixed",bottom:134,right:18,zIndex:8001,width:300,background:"var(--surface)",
+          border:"1px solid var(--border)",borderRadius:16,padding:20,boxShadow:"0 8px 32px rgba(0,0,0,0.4)"}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span>💬 Send Feedback</span>
+            <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:18,padding:0}}>×</button>
+          </div>
+          {sent?(
+            <div style={{textAlign:"center",padding:"20px 0",color:"var(--accent)",fontWeight:600,fontSize:14}}>✓ Sent! Thank you.</div>
+          ):(
+            <>
+              <div style={{display:"flex",gap:6,marginBottom:12}}>
+                {[["feedback","💡 Idea"],["bug","🐛 Bug"],["question","❓ Question"]].map(([v,l])=>(
+                  <button key={v} onClick={()=>setType(v)} style={{flex:1,padding:"6px 4px",borderRadius:7,fontSize:11,fontWeight:600,
+                    background:type===v?"var(--accent2)":"var(--surface2)",
+                    border:`1px solid ${type===v?"var(--accent2)":"var(--border)"}`,
+                    color:type===v?"#fff":"var(--muted)",cursor:"pointer",fontFamily:"var(--font)"}}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <textarea value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Tell us what you think, what's broken, or what you'd love to see..."
+                rows={4} style={{width:"100%",padding:"10px 12px",borderRadius:9,background:"var(--surface2)",border:"1px solid var(--border)",
+                  color:"var(--text)",fontSize:12,resize:"vertical",outline:"none",fontFamily:"var(--font)",boxSizing:"border-box",marginBottom:10}} />
+              <button onClick={send} disabled={!msg.trim()||sending}
+                style={{width:"100%",padding:"10px",borderRadius:9,background:"var(--accent2)",border:"none",
+                  color:"#fff",fontWeight:700,fontSize:13,cursor:msg.trim()&&!sending?"pointer":"not-allowed",
+                  opacity:msg.trim()&&!sending?1:0.6,fontFamily:"var(--font)"}}>
+                {sending?"Sending…":"Send Feedback"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── App Root ─────────────────────────────────────────────────────────────────
 export default function App({initialPage="dashboard", startTourOnMount=false}) {
   const bp = useBreakpoint();
@@ -14384,6 +14570,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   }, []);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [dbLoading,setDbLoading]=useState(true);
+  const [showWelcome,setShowWelcome]=useState(false);
 
   // ── Supabase data sync helpers ──
   const syncTable = async (table, setter, seedData) => {
@@ -14496,7 +14683,18 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       syncQuotesFromDB(),
       syncTable('chart_of_accounts', _setChartOfAccounts, SEED_CHART_OF_ACCOUNTS),
       syncAdminSettings(),
-    ]).then(() => setDbLoading(false));
+    ]).then(async () => {
+      setDbLoading(false);
+      // Show welcome modal on first login (check localStorage)
+      const {data:{user}} = await supabase.auth.getUser();
+      if(user){
+        const key = "csp_welcomed_"+user.id;
+        if(!localStorage.getItem(key)){
+          setShowWelcome(true);
+          localStorage.setItem(key,"1");
+        }
+      }
+    });
 
     // Real-time subscription — refresh projects when portal uploads photos
     const channel = supabase.channel("projects-realtime")
@@ -14700,6 +14898,8 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
         {bp==="phone" && <BottomNav active={page} setActive={setPage} />}
       </div>
       <CabShopChatbot hasFeature={hasFeature} />
+      <FeedbackButton />
+      {showWelcome&&<WelcomeBetaModal onClose={()=>setShowWelcome(false)} />}
       {tourActive&&<ProductTour onClose={()=>setTourActive(false)} setPage={setPage} />}
       {showSearch&&<GlobalSearch
         projects={projects} contacts={contacts} quotes={quotes} tasks={tasks}
@@ -15407,11 +15607,16 @@ function AuthScreen() {
     setLoading(false);
   };
 
+  const [betaCode, setBetaCode] = useState("");
+  const VALID_BETA_CODES = ["CABINET2026","WOODSHOP26","GWBETA","CABPRO26","SHOPTEST"];
+
   const handleSignup = async () => {
     if (!email || !password) { setError("Please enter your email and password."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (!betaCode.trim()) { setError("A beta access code is required to create an account."); return; }
+    if (!VALID_BETA_CODES.includes(betaCode.trim().toUpperCase())) { setError("Invalid beta access code. Please contact us to get access."); return; }
     setLoading(true); setError("");
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({ email, password, options: { data: { betaCode: betaCode.trim().toUpperCase() } } });
     if (error) setError(error.message);
     else setMessage("Account created! Please check your email to confirm your account.");
     setLoading(false);
@@ -15473,6 +15678,14 @@ function AuthScreen() {
                 onKeyDown={e=>e.key==="Enter"&&(mode==="login"?handleLogin():handleSignup())} />
             </>
           )}
+          {mode==="signup"&&(
+            <>
+              <div style={{marginBottom:4,fontSize:11,color:"#6b7590",letterSpacing:"0.07em"}}>BETA ACCESS CODE</div>
+              <input type="text" value={betaCode} onChange={e=>setBetaCode(e.target.value.toUpperCase())} placeholder="e.g. CABINET2026" style={{...inp,letterSpacing:"0.12em",fontFamily:"monospace"}}
+                onKeyDown={e=>e.key==="Enter"&&handleSignup()} />
+              <div style={{fontSize:11,color:"#6b7590",marginBottom:12,marginTop:-8}}>No code? <a href="mailto:hello@gothamwoodworks.com" style={{color:"#4fffb0",textDecoration:"none"}}>Request beta access →</a></div>
+            </>
+          )}
           <button onClick={mode==="login"?handleLogin:mode==="signup"?handleSignup:handleReset} disabled={loading}
             style={{width:"100%",padding:"13px",borderRadius:10,background:"#4fffb0",border:"none",color:"#000",fontWeight:700,fontSize:15,
               cursor:loading?"not-allowed":"pointer",fontFamily:"'Syne',sans-serif",opacity:loading?0.7:1,marginTop:4}}>
@@ -15525,6 +15738,14 @@ export function Root() {
   }, []);
 
   // Show client approval page if approval params present — no login required
+  // Welcome modal and feedback button — shown when logged in
+  const betaOverlays = session ? (
+    <>
+      {showWelcome&&<WelcomeBetaModal onClose={()=>setShowWelcome(false)} />}
+      <FeedbackButton />
+    </>
+  ) : null;
+
   if (approveToken && approveQid) {
     return (
       <ClientApprovalPage
