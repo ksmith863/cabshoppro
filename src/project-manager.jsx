@@ -10733,6 +10733,7 @@ function LibActionsMenu({libSubView,setLibSubView,exportItemsCSV,csvImportRef,im
 }
 
 function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,bp}) {
+  const fmt=n=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};
   const [libModal,setLibModal]=useState(false);
   const [libForm,setLibForm]=useState(blankLibForm);
