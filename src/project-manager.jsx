@@ -8937,7 +8937,8 @@ function SamplesLibrary({samples,setSamples,bp}) {
 
 
 // ─── Quote Builder ────────────────────────────────────────────────────────────
-var QB_CATS = ["All","Labor","Cabinetry","Cabinet Accessories","Drawers","Doors","Surfaces","Finishing","Hardware","Custom","Supplier"];
+var QB_CATS_DEFAULT = ["All","Labor","Cabinetry","Cabinet Accessories","Drawers","Doors","Surfaces","Finishing","Hardware","Materials","Custom","Supplier"];
+var QB_CATS = QB_CATS_DEFAULT; // will be overridden by user custom categories if set
 var UNIT_OPTIONS = ["ea","hr","lf","sf","bf","lbs","gal","qt","pr","set","pkg","box","sheet","stick","roll"];
 var QUOTE_STATUSES = ["draft","sent","approved","declined","expired"];
 var INVOICE_STATUSES = ["unpaid","partial","paid","void"];
@@ -9849,7 +9850,7 @@ ${shopName}`;
                       <input className="bulk-name-input" value={row.name} onChange={e=>updateRow("name",e.target.value)} onKeyDown={addRowIfLast}
                         placeholder={`Item ${idx+1}…`} style={{...inp2,fontWeight:row.name?600:400}} />
                       <select value={row.category} onChange={e=>updateRow("category",e.target.value)} style={inp2}>
-                        {QB_CATS.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}
+                        {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(c=><option key={c} value={c}>{c}</option>)}
                       </select>
                       <input value={row.desc} onChange={e=>updateRow("desc",e.target.value)} placeholder="Description…" style={inp2} />
                       <input value={row.unit} onChange={e=>updateRow("unit",e.target.value)} placeholder="ea" style={inp2} />
@@ -9891,10 +9892,10 @@ ${shopName}`;
           <span style={{fontSize:12,color:"var(--muted)",alignSelf:"center",fontFamily:"var(--mono)"}}>{quoteItems.length} items in library</span>
         </div>
         <div style={{display:"flex",gap:7,marginBottom:18,flexWrap:"wrap"}}>
-          {QB_CATS.map(c=><button key={c} onClick={()=>setLibCat(c)} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:libCat===c?"var(--accent2)":"var(--surface2)",color:libCat===c?"#fff":"var(--muted)",border:`1px solid ${libCat===c?"var(--accent2)":"var(--border)"}`,cursor:"pointer"}}>{c}</button>)}
+          {[...new Set([...QB_CATS_DEFAULT,...(adminSettings?.customItemCategories||[])])].map(c=><button key={c} onClick={()=>setLibCat(c)} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:libCat===c?"var(--accent2)":"var(--surface2)",color:libCat===c?"#fff":"var(--muted)",border:`1px solid ${libCat===c?"var(--accent2)":"var(--border)"}`,cursor:"pointer"}}>{c}</button>)}
         </div>
 
-        {QB_CATS.filter(c=>c!=="All").map(cat=>{
+        {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>{
           const items=filteredLibItems.filter(i=>i.category===cat);
           if(!items.length)return null;
           return(<div key={cat} style={{marginBottom:24}}>
@@ -9965,9 +9966,31 @@ ${shopName}`;
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>CATEGORY</div>
-              <select value={libForm.category} onChange={e=>setLibForm(f=>({...f,category:e.target.value}))} style={inp}>
-                {QB_CATS.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}
-              </select>
+              {(()=>{
+                const customCats=adminSettings?.customItemCategories||[];
+                const allCats=[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...customCats])];
+                return(
+                  <div style={{display:"flex",gap:6}}>
+                    <select value={allCats.includes(libForm.category)?libForm.category:"custom_new"}
+                      onChange={e=>{
+                        if(e.target.value==="custom_new"){
+                          const name=window.prompt("Enter new category name:");
+                          if(name&&name.trim()){
+                            const trimmed=name.trim();
+                            const updated=[...customCats.filter(c=>c!==trimmed),trimmed];
+                            setAdminSettings&&setAdminSettings(s=>({...s,customItemCategories:updated}));
+                            setLibForm(f=>({...f,category:trimmed}));
+                          }
+                        } else {
+                          setLibForm(f=>({...f,category:e.target.value}));
+                        }
+                      }} style={{...inp,flex:1}}>
+                      {allCats.map(c=><option key={c} value={c}>{c}</option>)}
+                      <option value="custom_new">＋ Add new category…</option>
+                    </select>
+                  </div>
+                );
+              })()}
             </div>
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>UNIT</div>
@@ -10759,7 +10782,7 @@ function LibActionsMenu({libSubView,setLibSubView,exportItemsCSV,csvImportRef,im
   );
 }
 
-function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,bp}) {
+function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,adminSettings,setAdminSettings,bp}) {
   const fmt=n=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};
   const [libModal,setLibModal]=useState(false);
@@ -10969,7 +10992,7 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                         onKeyDown={e=>{if(e.key==="Enter"){setBulkRows(prev=>[...prev,blankBulkRow()]);setTimeout(()=>{const ins=document.querySelectorAll(".bulk-name-input");if(ins[idx+1])ins[idx+1].focus();},50);}}}
                         placeholder={`Item ${idx+1}…`} style={{...inp2,fontWeight:row.name?600:400}} />
                       <select value={row.category} onChange={e=>updateRow("category",e.target.value)} style={inp2}>
-                        {QB_CATS.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}
+                        {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(c=><option key={c} value={c}>{c}</option>)}
                       </select>
                       <input value={row.desc} onChange={e=>updateRow("desc",e.target.value)} placeholder="Description…" style={inp2} />
                       <input value={row.unit} onChange={e=>updateRow("unit",e.target.value)} placeholder="ea" style={inp2} />
@@ -11137,9 +11160,31 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>CATEGORY</div>
-              <select value={libForm.category} onChange={e=>setLibForm(f=>({...f,category:e.target.value}))} style={inp}>
-                {QB_CATS.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}
-              </select>
+              {(()=>{
+                const customCats=adminSettings?.customItemCategories||[];
+                const allCats=[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...customCats])];
+                return(
+                  <div style={{display:"flex",gap:6}}>
+                    <select value={allCats.includes(libForm.category)?libForm.category:"custom_new"}
+                      onChange={e=>{
+                        if(e.target.value==="custom_new"){
+                          const name=window.prompt("Enter new category name:");
+                          if(name&&name.trim()){
+                            const trimmed=name.trim();
+                            const updated=[...customCats.filter(c=>c!==trimmed),trimmed];
+                            setAdminSettings&&setAdminSettings(s=>({...s,customItemCategories:updated}));
+                            setLibForm(f=>({...f,category:trimmed}));
+                          }
+                        } else {
+                          setLibForm(f=>({...f,category:e.target.value}));
+                        }
+                      }} style={{...inp,flex:1}}>
+                      {allCats.map(c=><option key={c} value={c}>{c}</option>)}
+                      <option value="custom_new">＋ Add new category…</option>
+                    </select>
+                  </div>
+                );
+              })()}
             </div>
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>UNIT</div>
@@ -11960,6 +12005,44 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
               </div>
               <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.5}}>Upload your logo to have it appear on quotes, invoices, and PDFs. PNG or SVG with transparent background recommended.</div>
             </div>
+          </div>
+        </div>
+        {/* Custom Item Categories */}
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginTop:16}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>📂 Item Library Categories</div>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Add custom categories to organize your materials and items. Default categories are built-in and cannot be removed.</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+            {QB_CATS_DEFAULT.filter(c=>c!=="All").map(cat=>(
+              <div key={cat} style={{padding:"4px 12px",borderRadius:20,background:"var(--surface2)",border:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>{cat}</div>
+            ))}
+            {(settings.customItemCategories||[]).map(cat=>(
+              <div key={cat} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:20,background:"var(--accent2)22",border:"1px solid var(--accent2)44",fontSize:12}}>
+                <span style={{color:"var(--accent2)",fontWeight:600}}>{cat}</span>
+                <button onClick={()=>upd("customItemCategories",(settings.customItemCategories||[]).filter(c=>c!==cat))}
+                  style={{background:"none",border:"none",color:"var(--accent3)",cursor:"pointer",fontSize:14,padding:"0 0 0 2px",lineHeight:1}}>×</button>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <input id="adminNewCatInput" placeholder="New category name (e.g. Sheet Goods, Lumber)…"
+              style={{flex:1,padding:"8px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,fontFamily:"var(--font)",outline:"none"}}
+              onKeyDown={e=>{
+                if(e.key==="Enter"){
+                  const val=e.target.value.trim();
+                  if(!val)return;
+                  const existing=[...QB_CATS_DEFAULT,...(settings.customItemCategories||[])];
+                  if(!existing.includes(val)){upd("customItemCategories",[...(settings.customItemCategories||[]),val]);e.target.value="";}
+                  else alert(`"${val}" already exists.`);
+                }
+              }} />
+            <button onClick={()=>{
+              const inp=document.getElementById("adminNewCatInput");
+              const val=inp?.value?.trim();
+              if(!val)return;
+              const existing=[...QB_CATS_DEFAULT,...(settings.customItemCategories||[])];
+              if(!existing.includes(val)){upd("customItemCategories",[...(settings.customItemCategories||[]),val]);if(inp)inp.value="";}
+              else alert(`"${val}" already exists.`);
+            }} style={{padding:"8px 16px",borderRadius:8,background:"var(--accent2)",border:"none",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>+ Add</button>
           </div>
         </div>
       )}
@@ -14912,7 +14995,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "help":       return <HelpPage bp={bp}/>;
       case "financetracker": return <Finance {...p} quotes={quotes}/>;
       case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} setResources={p.setResources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings}/>;
-      case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} bp={bp}/>;
+      case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} adminSettings={adminSettings} setAdminSettings={setAdminSettings} bp={bp}/>;
       case "inventory":  return <Inventory  {...p} contacts={contacts} tasks={tasks} setTasks={p.setTasks}/>;
       case "resources":  return null; // group header — collapses to documents
       case "documents":  return <ResourceLibrary {...p}/>;
