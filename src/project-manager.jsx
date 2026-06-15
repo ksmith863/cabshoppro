@@ -9228,10 +9228,12 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const total=quoteTotal(q);
     const isPaid=q.status==="paid";
     const isOverdue=!isPaid&&q.dueDate&&new Date(q.dueDate)<new Date();
-    const lineRows=q.lines.map(l=>{
+    const lineRows=(q.lines||[]).map(l=>{
+      if(l.type==="group")return `<tr><td colspan="5" style="padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12">${l.name||""}</td></tr>`;
       const ext=lineExtPrice(l);
-      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:`<div style="width:52px;height:40px;"></div>`;
-      return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top">${imgHtml?`<div style="display:flex;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div>`:`<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div>`}</td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px">${fmt(l.costPer||0)}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
+      const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
+      const cell=imgHtml?`<div style="display:flex;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div>`:`<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div>`;
+      return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top">${cell}</td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px">${fmt(l.costPer||0)}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
     }).join("");
     const shopName=adminSettings?.companyName||"Gotham Woodworks";
     const shopAddr=adminSettings?.companyAddress||"";
@@ -9265,19 +9267,13 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const tax=quoteTax(q);
     const total=quoteTotal(q);
 
-    const lineRows=q.lines.map(l=>{
+    const lineRows=(q.lines||[]).map(l=>{
+      if(l.type==="group")return `<tr><td colspan="4" style="padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12">${l.name||""}</td></tr>`;
       const ext=lineExtPrice(l);
       const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
+      const cell=imgHtml?`<div style="display:flex;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div>`:`<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div>`;
       return `<tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 8px;vertical-align:top">
-          <div style="display:flex;gap:16px;align-items:flex-start">
-            ${imgHtml}
-            <div>
-              <div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div>
-              <div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div>
-            </div>
-          </div>
-        </td>
+        <td style="padding:10px 8px;vertical-align:top">${cell}</td>
         <td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td>
         <td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td>
         <td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td>
@@ -9621,21 +9617,15 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const isPaid=q.status==="paid";
     const isOverdue=!isPaid&&q.dueDate&&new Date(q.dueDate)<new Date();
 
-    const lineRows=q.lines.map(l=>{
+    const lineRows=(q.lines||[]).map(l=>{
+      if(l.type==="group")return `<tr><td colspan="4" style="padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12">${l.name||""}</td></tr>`;
       const ext=lineExtPrice(l);
       const imgHtml=l.imageUrl
         ?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`
-        :`<div style="width:52px;height:40px;"></div>`;
+        :"";
+      const cell=imgHtml?`<div style="display:flex;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div>`:`<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div>`;
       return `<tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 8px;vertical-align:top">
-          <div style="display:flex;gap:16px;align-items:flex-start">
-            ${imgHtml}
-            <div>
-              <div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div>
-              <div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div>
-            </div>
-          </div>
-        </td>
+        <td style="padding:10px 8px;vertical-align:top">${cell}</td>
         <td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td>
         <td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td>
         <td style="padding:10px 8px;text-align:right;font-size:13px">${fmt(l.costPer||0)}</td>
