@@ -3424,15 +3424,33 @@ function ProjectDetail({p,projects,setProjects,contacts,transactions,tasks,setTa
 
       {/* Footer buttons */}
       <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"center",marginTop:20,paddingTop:14,borderTop:"1px solid var(--border)"}}>
-        <div>
-          {p.status!=="archived"?(
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {p.status!=="archived"&&p.status!=="cancelled"&&(
             <Btn variant="secondary" small onClick={()=>onArchive&&onArchive(p)}>📦 Archive</Btn>
-          ):(
+          )}
+          {p.status==="archived"&&(
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <span style={{fontSize:12,color:"#7a7a8a",fontFamily:"var(--mono)"}}>📦 Archived {p.archivedAt||""}</span>
               <Btn variant="secondary" small onClick={()=>onUnarchive&&onUnarchive(p.id)}>Restore</Btn>
             </div>
           )}
+          {p.status!=="cancelled"&&p.status!=="archived"&&(
+            <Btn variant="secondary" small onClick={()=>{
+              if(window.confirm(`Mark "${p.name}" as cancelled?`)){
+                setProjects(prev=>prev.map(x=>x.id===p.id?{...x,status:"cancelled"}:x));
+                onClose&&onClose();
+              }
+            }}>🚫 Cancel Project</Btn>
+          )}
+          {p.status==="cancelled"&&(
+            <Btn variant="secondary" small onClick={()=>setProjects(prev=>prev.map(x=>x.id===p.id?{...x,status:"active"}:x))}>↩ Reactivate</Btn>
+          )}
+          <Btn variant="danger" small onClick={()=>{
+            if(window.confirm(`Permanently delete "${p.name}"? This cannot be undone.`)){
+              setProjects(prev=>prev.filter(x=>x.id!==p.id));
+              onClose&&onClose();
+            }
+          }}>🗑 Delete</Btn>
         </div>
         <div style={{display:"flex",gap:8}}>
           <Btn variant="secondary" onClick={onClose}>Close</Btn>
@@ -3801,6 +3819,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
   const visibleProjects=projects.filter(p=>{
     if(statusFilter==="all") return true;
     if(statusFilter==="active") return p.status==="active"||p.status==="paused"; // active view shows active + paused
+    if(statusFilter==="cancelled") return p.status==="cancelled";
     return p.status===statusFilter;
   });
 
@@ -4069,6 +4088,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
           ["active",   "Active",   projects.filter(p=>p.status==="active"||p.status==="paused").length],
           ["completed","Completed",projects.filter(p=>p.status==="completed").length],
           ["archived", "Archived", projects.filter(p=>p.status==="archived").length],
+          ["cancelled","Cancelled",projects.filter(p=>p.status==="cancelled").length],
           ["all",      "All",      projects.length],
         ].map(([val,label,count])=>(
           <button key={val} onClick={()=>setStatusFilter(val)}
@@ -9913,6 +9933,13 @@ ${shopName}`;
                         </div>
                       )}
                     </div>
+                    <button title="Duplicate item" onClick={()=>{
+                      const newItem={...item,id:`qi${Date.now()}`,name:item.name+" (copy)"};
+                      setQuoteItems(prev=>[...prev,newItem]);
+                      setLibSel(newItem);
+                      setLibForm({...newItem,basePrice:String(newItem.basePrice),defaultMarkupPct:String(newItem.defaultMarkupPct||""),defaultMarginPct:String(newItem.defaultMarginPct||""),productNum:newItem.productNum||"",productUrl:newItem.productUrl||"",documents:newItem.documents||[]});
+                      setLibModal(true);
+                    }} style={{background:"none",border:"none",color:"var(--muted)",fontSize:14,cursor:"pointer",padding:"2px 5px"}}>⧉</button>
                     <button onClick={()=>{setLibSel(item);setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[]});setLibModal(true);}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
                     <button onClick={()=>deleteLibItem(item.id)} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:14,cursor:"pointer",padding:"2px 5px",opacity:0.6}}>×</button>
                   </div>
