@@ -10282,7 +10282,7 @@ ${shopName}`;
                         else updateLine(line.id,"itemId",e.target.value);
                       }} style={{...inp,fontSize:11,padding:"5px 8px",marginBottom:0}}>
                         <option value="">— Pull from library or enter custom —</option>
-                        {QB_CATS.filter(c=>c!=="All").map(cat=>(
+                        {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>(
                           <optgroup key={cat} label={cat}>
                             {quoteItems.filter(i=>i.category===cat).map(i=>(
                               <option key={i.id} value={i.id}>{i.name} (${i.basePrice}/{i.unit})</option>
@@ -11025,10 +11025,10 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
           <span style={{fontSize:12,color:"var(--muted)",fontFamily:"var(--mono)"}}>{quoteItems.length} items</span>
         </div>
         <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
-          {QB_CATS.map(c=><button key={c} onClick={()=>setLibCat(c)} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:libCat===c?"var(--accent2)":"var(--surface2)",color:libCat===c?"#fff":"var(--muted)",border:`1px solid ${libCat===c?"var(--accent2)":"var(--border)"}`,cursor:"pointer"}}>{c}</button>)}
+          {[...new Set([...QB_CATS_DEFAULT,...(adminSettings?.customItemCategories||[])])].map(c=><button key={c} onClick={()=>setLibCat(c)} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:libCat===c?"var(--accent2)":"var(--surface2)",color:libCat===c?"#fff":"var(--muted)",border:`1px solid ${libCat===c?"var(--accent2)":"var(--border)"}`,cursor:"pointer"}}>{c}</button>)}
         </div>
 
-        {QB_CATS.filter(c=>c!=="All").map(cat=>{
+        {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>{
           const items=filteredLibItems.filter(i=>i.category===cat);
           if(!items.length)return null;
           return(
@@ -11294,6 +11294,7 @@ var defaultAdminSettings={
   companyEmail:"hello@gothamwoodworks.com",
   companyWebsite:"https://www.gothamwoodworks.com",
   logoUrl:"", // uploaded logo URL or base64
+  customItemCategories:[], // user-defined item library categories
   // Regional
   currency:"USD",
   currencySymbol:"$",
