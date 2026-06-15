@@ -9187,7 +9187,10 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const subtotal=quoteSubtotal(q);
     const tax=quoteTax(q);
     const total=quoteTotal(q);
-    const lineRows=q.lines.map(l=>{
+    const lineRows=(q.lines||[]).map(l=>{
+      if(l.type==="group"){
+        return `<tr><td colspan="4" style="padding:14px 8px 6px 0;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12">${l.name||""}</td></tr>`;
+      }
       const ext=lineExtPrice(l);
       const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" class="zoomable" onclick="openImg('${l.imageUrl}')" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
       return `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 8px;vertical-align:top">${imgHtml?`<div style="display:flex;align-items:flex-start">${imgHtml}<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div></div>`:`<div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${l.name||"—"}</div><div style="font-size:11px;color:#666;line-height:1.5">${l.desc||""}</div></div>`}</td><td style="padding:10px 8px;text-align:center;font-size:13px">${l.qty}</td><td style="padding:10px 8px;text-align:center;font-size:12px;color:#666">${l.unit}</td><td style="padding:10px 8px;text-align:right;font-size:13px;font-weight:700">${fmt(ext)}</td></tr>`;
@@ -9196,11 +9199,13 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const shopAddr=adminSettings?.companyAddress||"";
     const shopEmail=adminSettings?.companyEmail||"";
     const shopPhone=adminSettings?.companyPhone||"";
+    const shopLogo=adminSettings?.logoUrl||"";
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${q.number}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Georgia',serif;background:#fff;color:#1a1a1a;padding:0}@media print{body{padding:0}@page{margin:20mm 18mm}}</style></head><body>
 <div style="max-width:820px;margin:0 auto;padding:36px 40px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
-    <div><div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
+    <div>${shopLogo?`<img src="${shopLogo}" style="height:56px;object-fit:contain;margin-bottom:8px;display:block" />`:""}
+      <div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
     <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">QUOTE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div><div style="font-size:12px;color:#888;margin-top:6px">Date: ${q.date}</div>${q.validUntil?`<div style="font-size:12px;color:#888">Valid until: ${q.validUntil}</div>`:""}</div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
@@ -9397,13 +9402,25 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const sn=adminSettings?.companyName||"Gotham Woodworks";
     const logo=adminSettings?.logoUrl?"<img src='"+adminSettings.logoUrl+"' style='height:60px;object-fit:contain;margin-bottom:8px;display:block' />":'';
     const addr=(adminSettings?.companyAddress||"").replace(/\n/g,"<br/>");
-    const rows=(q.lines||[]).filter(l=>!l.groupId&&l.type!=="group").map(l=>{
+    const allLines=q.lines||[];
+    const lineRow=(l)=>{
       const cp=l.costPer||0;
       const ext=l.qty*(l.profitMargin>0&&l.profitMargin<100?cp/(1-l.profitMargin/100):l.markupFlat>0?cp+l.markupFlat/l.qty:l.markupPct>0?cp*(1+l.markupPct/100):cp);
       const im=l.imageUrl?"<img src='"+l.imageUrl+"' style='width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;margin-right:12px;flex-shrink:0' />":'';
       const nm="<div style='font-weight:700;font-size:13px;margin-bottom:2px'>"+(l.name||"—")+"</div><div style='font-size:11px;color:#666;line-height:1.5'>"+(l.desc||"")+"</div>";
       const cell=im?"<div style='display:flex;align-items:flex-start'>"+im+"<div>"+nm+"</div></div>":"<div>"+nm+"</div>";
       return "<tr style='border-bottom:1px solid #eee'><td style='padding:10px 8px;vertical-align:top'>"+cell+"</td><td style='padding:10px 8px;text-align:center;font-size:13px'>"+l.qty+"</td><td style='padding:10px 8px;text-align:center;font-size:12px;color:#666'>"+l.unit+"</td><td style='padding:10px 8px;text-align:right;font-size:13px;font-weight:700'>"+fv(ext)+"</td></tr>";
+    };
+    const rows=allLines.map(l=>{
+      if(l.type==="group"){
+        // Section header row — spans full width, styled as a subheader
+        return "<tr><td colspan='4' style='padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12;border-top:"+(allLines.indexOf(l)>0?"1px solid #e0e0d0":"none")+"'>"+(l.name||"")+"</td></tr>";
+      }
+      if(l.groupId){
+        // Grouped item — same as normal but with slight indent
+        return lineRow(l);
+      }
+      return lineRow(l);
     }).join("");
     const docs=(()=>{const ds=[(q.attachedTandC||null),...(q.supportingDocs||[])].filter(Boolean);if(!ds.length)return"";return"<div style='margin-top:32px;padding-top:24px;border-top:1px solid #e0e0d0'><div style='font-size:11px;font-weight:700;letter-spacing:0.08em;color:#1a1a12;margin-bottom:10px'>SUPPORTING DOCUMENTS</div>"+ds.map(d=>d.url?"<a href='"+d.url+"' style='display:block;margin-bottom:6px;font-size:12px;color:#635bff;text-decoration:none;'>&#128206; "+d.name+" &#8599;</a>":"<div style='margin-bottom:6px;font-size:12px;color:#555;font-style:italic;'>&#128203; "+d.name+" &mdash; see attached file</div>").join("")+"</div>";})();
     const btn=q.approvalToken&&!q.isInvoice?"<div style='margin-top:32px;padding:28px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:12px;text-align:center'><div style='font-size:14px;color:#555;margin-bottom:16px'>Ready to move forward? Review and approve this quote online.</div><a href='"+window.location.origin+"/?approve="+q.approvalToken+"&qid="+q.id+"' style='display:inline-block;padding:14px 36px;background:#1a1a12;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px'>&#9997; Review &amp; Approve Quote</a></div>":"";
@@ -11895,7 +11912,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
             <Input label="Company Name" value={settings.companyName} onChange={e=>upd("companyName",e.target.value)} />
             <Input label="Shop Address" value={settings.companyAddress} onChange={e=>upd("companyAddress",e.target.value)} type="textarea" placeholder="Physical shop / studio location" />
             <Input label="Billing Address" value={settings.billingAddress||""} onChange={e=>upd("billingAddress",e.target.value)} type="textarea" placeholder="Leave blank if same as shop address" />
-            <Input label="Phone" value={settings.companyPhone} onChange={e=>upd("companyPhone",e.target.value)} />
+            <Input label="Phone" value={settings.companyPhone} onChange={e=>upd("companyPhone",fmtPhone(e.target.value))} placeholder="(xxx) xxx-xxxx" />
             <Input label="Email" value={settings.companyEmail} onChange={e=>upd("companyEmail",e.target.value)} />
             <Input label="Website" value={settings.companyWebsite} onChange={e=>upd("companyWebsite",e.target.value)} />
             <Input label="PO Number Prefix" value={settings.poPrefix||""} onChange={e=>upd("poPrefix",e.target.value)} placeholder="PO" />
@@ -16433,7 +16450,9 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
                         </tr>
                       ));
                     }
-                  } else if(!l.groupId) {
+                  } else if(l.type==="group") {
+                    rows.push(<tr key={l.id}><td colSpan={4} style={{padding:"14px 10px 6px",fontWeight:800,fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",color:"#1a1a12",borderBottom:"2px solid #1a1a12",borderTop:rows.length>0?"1px solid #e0e0d0":"none"}}>{l.name}</td></tr>);
+                  } else if(!l.groupId || l.groupId) {
                     rows.push(<tr key={l.id} style={{borderBottom:"1px solid #eee"}}>
                       <td style={{padding:"10px",fontSize:13}}>
                         <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
