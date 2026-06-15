@@ -9205,11 +9205,11 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 <div style="max-width:820px;margin:0 auto;padding:36px 40px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
     <div>${shopLogo?`<img src="${shopLogo}" style="height:56px;object-fit:contain;margin-bottom:8px;display:block" />`:""}
-      <div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
+      <div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${fmtPhone(shopPhone)}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
     <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">QUOTE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div><div style="font-size:12px;color:#888;margin-top:6px">Date: ${q.date}</div>${q.validUntil?`<div style="font-size:12px;color:#888">Valid until: ${q.validUntil}</div>`:""}</div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
-    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PREPARED FOR</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?contact.phone:""}</div></div>
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PREPARED FOR</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?fmtPhone(contact.phone):""}</div></div>
     <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PROJECT</div><div style="font-weight:700;font-size:15px">${q.title}</div>${project?`<div style="color:#555;font-size:13px;margin-top:2px">${project.name}</div>`:""}</div>
   </div>
   <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><thead><tr style="background:#1a1a12;color:#fff"><th style="padding:10px 8px;text-align:left;font-size:11px;letter-spacing:0.06em;font-weight:700">DESCRIPTION</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">QTY</th><th style="padding:10px 8px;text-align:center;font-size:11px;letter-spacing:0.06em;font-weight:700;width:50px">UNIT</th><th style="padding:10px 8px;text-align:right;font-size:11px;letter-spacing:0.06em;font-weight:700;width:110px">PRICE</th></tr></thead><tbody>${lineRows}</tbody></table>
@@ -9243,11 +9243,11 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Georgia',serif;background:#fff;color:#1a1a1a;padding:0}@media print{body{padding:0}@page{margin:20mm 18mm}}</style></head><body>
 <div style="max-width:820px;margin:0 auto;padding:36px 40px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px">
-    <div><div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${shopPhone}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
+    <div><div style="font-weight:900;font-size:22px;color:#1a1a12">${shopName}</div>${shopAddr?`<div style="font-size:11px;color:#888;margin-top:4px;white-space:pre-line">${shopAddr}</div>`:""}${shopPhone?`<div style="font-size:11px;color:#888">${fmtPhone(shopPhone)}</div>`:""}${shopEmail?`<div style="font-size:11px;color:#888">${shopEmail}</div>`:""}</div>
     <div style="text-align:right"><div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12">INVOICE</div><div style="font-size:15px;font-weight:700;color:#444;margin-top:4px">${q.number}</div>${q.sourceQuoteNumber?`<div style="font-size:11px;color:#aaa;margin-top:2px">from Quote ${q.sourceQuoteNumber}</div>`:""}<div style="font-size:12px;color:#888;margin-top:6px">Invoice Date: ${q.invoiceDate||q.date}</div>${q.dueDate?`<div style="font-size:12px;color:${isOverdue?"#c0392b":"#888"}">Due: ${q.dueDate}${isOverdue?" — OVERDUE":""}</div>`:""}${isPaid?'<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:#d4f5e2;color:#1a7a40">PAID</div>':isOverdue?'<div style="display:inline-block;margin-top:8px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:#fde8e8;color:#c0392b">OVERDUE</div>':''}</div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
-    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">BILL TO</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?contact.phone:""}</div></div>
+    <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">BILL TO</div><div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div><div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div><div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div><div style="color:#888;font-size:12px">${contact?fmtPhone(contact.phone):""}</div></div>
     <div><div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PAYMENT DETAILS</div><div style="font-weight:700;font-size:15px">${q.title}</div>${project?`<div style="color:#555;font-size:13px;margin-top:2px">${project.name}</div>`:""}<div style="font-size:12px;color:#555;margin-top:6px">Terms: ${q.paymentTerms||"Net 30"}</div>${q.paidDate?`<div style="font-size:12px;color:#1a7a40;margin-top:4px;font-weight:700">Paid: ${q.paidDate}</div>`:""}</div>
   </div>
   ${!isPaid?`<div style="background:${isOverdue?"#fde8e8":"#f5f4f0"};border:2px solid ${isOverdue?"#c0392b":"#1a1a12"};border-radius:10px;padding:14px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:700;color:${isOverdue?"#c0392b":"#1a1a12"}">${isOverdue?"OVERDUE — PAYMENT REQUIRED":"AMOUNT DUE"}</span><span style="font-size:22px;font-weight:900;color:${isOverdue?"#c0392b":"#1a1a12"}">${fmt(total)}</span></div>`:""}
@@ -9321,7 +9321,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       <div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div>
       <div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div>
       <div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div>
-      <div style="color:#888;font-size:12px">${contact?contact.phone:""}</div>
+      <div style="color:#888;font-size:12px">${contact?fmtPhone(contact.phone):""}</div>
     </div>
     <div>
       <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PROJECT</div>
@@ -9426,7 +9426,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       +"<div style='display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:28px;border-bottom:3px solid #1a1a12;margin-bottom:28px'>"
       +"<div>"+logo+"<div style='font-weight:900;font-size:22px;color:#1a1a12'>"+sn+"</div>"
       +"<div style='font-size:11px;color:#888;margin-top:4px'>"+addr+"</div>"
-      +"<div style='font-size:11px;color:#888'>"+(adminSettings?.companyPhone||"")+"</div>"
+      +"<div style='font-size:11px;color:#888'>"+fmtPhone(adminSettings?.companyPhone||"")+"</div>"
       +"<div style='font-size:11px;color:#888'>"+(adminSettings?.companyEmail||"")+"</div></div>"
       +"<div style='text-align:right'><div style='font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#1a1a12'>"+(q.isInvoice?"INVOICE":"QUOTE")+"</div>"
       +"<div style='font-size:15px;font-weight:700;color:#444;margin-top:4px'>"+q.number+"</div>"
@@ -9663,7 +9663,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       <div style="font-weight:700;font-size:15px">${contact?contact.name:"—"}</div>
       <div style="color:#555;font-size:13px;margin-top:2px">${contact?contact.company:""}</div>
       <div style="color:#888;font-size:12px;margin-top:4px">${contact?contact.email:""}</div>
-      <div style="color:#888;font-size:12px">${contact?contact.phone:""}</div>
+      <div style="color:#888;font-size:12px">${contact?fmtPhone(contact.phone):""}</div>
     </div>
     <div>
       <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#888;margin-bottom:8px">PAYMENT DETAILS</div>
