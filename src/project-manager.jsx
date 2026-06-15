@@ -11058,6 +11058,13 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                           {inInv?"+ Restock":"+ Inventory"}
                         </button>
                       )}
+                      <button title="Duplicate item" onClick={()=>{
+                        const newItem={...item,id:`qi${Date.now()}`,name:item.name+" (copy)"};
+                        setQuoteItems(prev=>[...prev,newItem]);
+                        setLibSel(newItem);
+                        setLibForm({...newItem,basePrice:String(newItem.basePrice),defaultMarkupPct:String(newItem.defaultMarkupPct||""),defaultMarginPct:String(newItem.defaultMarginPct||""),productNum:newItem.productNum||"",productUrl:newItem.productUrl||"",documents:newItem.documents||[]});
+                        setLibModal(true);
+                      }} style={{background:"none",border:"none",color:"var(--muted)",fontSize:15,cursor:"pointer",padding:"2px 5px"}} >⧉</button>
                       <button onClick={()=>{setLibSel(item);setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[]});setLibModal(true);}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
                       <button onClick={()=>deleteLibItem(item.id)} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:14,cursor:"pointer",padding:"2px 5px",opacity:0.6}}>×</button>
                     </div>
