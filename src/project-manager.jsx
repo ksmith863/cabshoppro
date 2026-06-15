@@ -11977,7 +11977,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
 
       {/* ── Company Tab ── */}
       {activeTab==="company"&&(
-        <>
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1fr 1fr",gap:16}}>
           <div>
             <Input label="Company Name" value={settings.companyName} onChange={e=>upd("companyName",e.target.value)} />
@@ -12007,6 +12007,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
               <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.5}}>Upload your logo to have it appear on quotes, invoices, and PDFs. PNG or SVG with transparent background recommended.</div>
             </div>
           </div>
+        </div>{/* end two-col grid */}
         {/* Custom Item Categories */}
         <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",marginTop:16}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>📂 Item Library Categories</div>
@@ -12045,7 +12046,7 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
             }} style={{padding:"8px 16px",borderRadius:8,background:"var(--accent2)",border:"none",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)",whiteSpace:"nowrap"}}>+ Add</button>
           </div>
         </div>
-        </>
+        </div>
       )}
 
       {/* ── Regional Tab ── */}
