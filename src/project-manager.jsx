@@ -7872,52 +7872,41 @@ function Lightbox({item, images, startIndex, onClose}) {
     window.addEventListener("keydown",fn);
     return()=>window.removeEventListener("keydown",fn);
   },[]);
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:3000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 20px 20px"}}
-      onClick={onClose}>
-      {/* Close */}
-      <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:22,cursor:"pointer",zIndex:1}}>×</button>
+  return createPortal(
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:9999,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:20}}>
+      {/* Close button */}
+      <button onClick={onClose} style={{position:"fixed",top:16,right:16,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
 
-      {/* Main image */}
-      <div onClick={e=>e.stopPropagation()} style={{flex:"0 1 auto",maxWidth:"min(90vw,860px)",borderRadius:12,overflow:"hidden",position:"relative",boxShadow:"0 32px 80px rgba(0,0,0,0.8)"}}>
-        {img?.url?(
-          <img src={img.url} alt={img.caption||""} style={{display:"block",maxWidth:"min(90vw,860px)",maxHeight:"60vh",width:"auto",height:"auto"}} />
-        ):(
-          <div style={{height:"min(56vw,400px)",width:"min(90vw,860px)",background:"#111"}}>
-            <PlaceholderThumb item={item} imgIndex={idx} size="full" />
-          </div>
-        )}
-        {/* Caption overlay */}
-        {img?.caption&&(
-          <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.8))",padding:"20px 20px 16px",color:"#fff",fontSize:14,fontWeight:600}}>{img.caption}</div>
-        )}
+      {/* Image */}
+      <div onClick={e=>e.stopPropagation()} style={{position:"relative",lineHeight:0,borderRadius:10,overflow:"hidden",boxShadow:"0 24px 60px rgba(0,0,0,0.7)"}}>
+        {img?.url
+          ? <img src={img.url} alt={img.caption||""} style={{display:"block",maxWidth:"88vw",maxHeight:"78vh",width:"auto",height:"auto",objectFit:"contain"}} />
+          : <div style={{width:"min(80vw,600px)",height:"min(60vh,400px)",background:"#222"}}><PlaceholderThumb item={item} imgIndex={idx} size="full"/></div>
+        }
+        {img?.caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.75))",color:"#fff",fontSize:13,fontWeight:600,padding:"24px 16px 12px"}}>{img.caption}</div>}
       </div>
 
-      {/* Nav arrows */}
+      {/* Nav + counter */}
       {images.length>1&&(
-        <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:12,marginTop:16,alignItems:"center"}}>
-          <button onClick={prev} disabled={idx===0} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:20,cursor:"pointer",opacity:idx===0?0.3:1,transition:"opacity 0.2s"}}>‹</button>
-          <span style={{color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:"var(--mono)"}}>{idx+1} / {images.length}</span>
-          <button onClick={next} disabled={idx===images.length-1} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:20,cursor:"pointer",opacity:idx===images.length-1?0.3:1,transition:"opacity 0.2s"}}>›</button>
+        <div onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:12}}>
+          <button onClick={prev} disabled={idx===0} style={{background:"rgba(255,255,255,0.12)",border:"none",color:"#fff",borderRadius:8,width:38,height:38,fontSize:20,cursor:"pointer",opacity:idx===0?0.3:1}}>‹</button>
+          <span style={{color:"rgba(255,255,255,0.5)",fontSize:12,fontFamily:"var(--mono)"}}>{idx+1} / {images.length}</span>
+          <button onClick={next} disabled={idx===images.length-1} style={{background:"rgba(255,255,255,0.12)",border:"none",color:"#fff",borderRadius:8,width:38,height:38,fontSize:20,cursor:"pointer",opacity:idx===images.length-1?0.3:1}}>›</button>
         </div>
       )}
 
       {/* Thumbnail strip */}
       {images.length>1&&(
-        <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,marginTop:12,maxWidth:"90vw",overflowX:"auto",padding:"4px 0"}}>
+        <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:6,maxWidth:"88vw",overflowX:"auto",padding:"2px 0"}}>
           {images.map((im,i)=>(
-            <div key={im.id} onClick={()=>setIdx(i)}
-              style={{width:60,height:42,borderRadius:6,overflow:"hidden",flexShrink:0,cursor:"pointer",border:`2px solid ${i===idx?"var(--accent)":"rgba(255,255,255,0.15)"}`,transition:"border-color 0.15s",opacity:i===idx?1:0.6}}>
-              {im.url?(
-                <img src={im.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-              ):(
-                <PlaceholderThumb item={item} imgIndex={i} size="thumb" />
-              )}
+            <div key={im.id} onClick={()=>setIdx(i)} style={{width:56,height:40,borderRadius:5,overflow:"hidden",flexShrink:0,cursor:"pointer",border:`2px solid ${i===idx?"var(--accent)":"rgba(255,255,255,0.15)"}`,opacity:i===idx?1:0.55,transition:"all 0.15s"}}>
+              {im.url?<img src={im.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />:<PlaceholderThumb item={item} imgIndex={i} size="thumb"/>}
             </div>
           ))}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 
