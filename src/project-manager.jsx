@@ -7878,10 +7878,10 @@ function Lightbox({item, images, startIndex, onClose}) {
       <button onClick={onClose} style={{position:"fixed",top:16,right:16,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
 
       {/* Image */}
-      <div onClick={e=>e.stopPropagation()} style={{position:"relative",lineHeight:0,borderRadius:10,overflow:"hidden",boxShadow:"0 24px 60px rgba(0,0,0,0.7)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{position:"relative",lineHeight:0,borderRadius:10,overflow:"hidden",boxShadow:"0 24px 60px rgba(0,0,0,0.7)",width:"90vw",height:"85vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#111"}}>
         {img?.url
-          ? <img src={img.url} alt={img.caption||""} style={{display:"block",maxWidth:"95vw",maxHeight:"90vh",width:"auto",height:"auto",objectFit:"contain"}} />
-          : <div style={{width:"min(80vw,600px)",height:"min(60vh,400px)",background:"#222"}}><PlaceholderThumb item={item} imgIndex={idx} size="full"/></div>
+          ? <img src={img.url} alt={img.caption||""} style={{display:"block",width:"90vw",height:"85vh",objectFit:"contain"}} />
+          : <div style={{width:"90vw",height:"85vh",background:"#222"}}><PlaceholderThumb item={item} imgIndex={idx} size="full"/></div>
         }
         {img?.caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.75))",color:"#fff",fontSize:13,fontWeight:600,padding:"24px 16px 12px"}}>{img.caption}</div>}
       </div>
