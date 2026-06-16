@@ -7873,17 +7873,17 @@ function Lightbox({item, images, startIndex, onClose}) {
     return()=>window.removeEventListener("keydown",fn);
   },[]);
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:3000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:3000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 20px 20px"}}
       onClick={onClose}>
       {/* Close */}
-      <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:22,cursor:"pointer",zIndex:1}}>×</button>
+      <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:22,cursor:"pointer",zIndex:1}}>×</button>
 
       {/* Main image */}
-      <div onClick={e=>e.stopPropagation()} style={{width:"min(90vw,900px)",maxHeight:"70vh",borderRadius:12,overflow:"hidden",position:"relative",background:"#111",boxShadow:"0 32px 80px rgba(0,0,0,0.8)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{flex:"0 1 auto",maxWidth:"min(90vw,860px)",borderRadius:12,overflow:"hidden",position:"relative",boxShadow:"0 32px 80px rgba(0,0,0,0.8)"}}>
         {img?.url?(
-          <img src={img.url} alt={img.caption||""} style={{width:"100%",height:"100%",objectFit:"contain",display:"block",maxHeight:"70vh"}} />
+          <img src={img.url} alt={img.caption||""} style={{display:"block",maxWidth:"min(90vw,860px)",maxHeight:"60vh",width:"auto",height:"auto"}} />
         ):(
-          <div style={{height:"min(56vw,500px)"}}>
+          <div style={{height:"min(56vw,400px)",width:"min(90vw,860px)",background:"#111"}}>
             <PlaceholderThumb item={item} imgIndex={idx} size="full" />
           </div>
         )}
