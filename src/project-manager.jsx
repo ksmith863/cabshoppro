@@ -7880,7 +7880,7 @@ function Lightbox({item, images, startIndex, onClose}) {
       {/* Image */}
       <div onClick={e=>e.stopPropagation()} style={{position:"relative",lineHeight:0,borderRadius:10,overflow:"hidden",boxShadow:"0 24px 60px rgba(0,0,0,0.7)"}}>
         {img?.url
-          ? <img src={img.url} alt={img.caption||""} style={{display:"block",maxWidth:"88vw",maxHeight:"78vh",width:"auto",height:"auto",objectFit:"contain"}} />
+          ? <img src={img.url} alt={img.caption||""} style={{display:"block",maxWidth:"95vw",maxHeight:"90vh",width:"auto",height:"auto",objectFit:"contain"}} />
           : <div style={{width:"min(80vw,600px)",height:"min(60vh,400px)",background:"#222"}}><PlaceholderThumb item={item} imgIndex={idx} size="full"/></div>
         }
         {img?.caption&&<div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.75))",color:"#fff",fontSize:13,fontWeight:600,padding:"24px 16px 12px"}}>{img.caption}</div>}
