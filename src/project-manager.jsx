@@ -6606,7 +6606,11 @@ function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp})
     setItemModal(true);
   };
 
-  const deleteItem=(id)=>{setInventory(prev=>prev.filter(i=>i.id!==id));setDetail(null);};
+  const deleteItem=(id,name)=>{
+    if(!window.confirm(`Permanently delete "${name||"this item"}" from inventory? This cannot be undone.`))return;
+    setInventory(prev=>prev.filter(i=>i.id!==id));
+    setDetail(null);
+  };
 
   const saveUsage=()=>{
     if(!useForm.qty||!useTarget)return;
@@ -6796,6 +6800,9 @@ function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp})
           <Btn small variant="ghost" onClick={()=>{setRestockTarget(item);setRestockQty("");setRestockModal(true);}}>+ Restock</Btn>
           {item.supplierContactId&&<Btn small variant="ghost" onClick={()=>generatePO(item)} style={{color:"var(--accent2)"}}>📋 PO</Btn>}
           <button onClick={e=>{e.stopPropagation();openEditItem(item);}} style={{marginLeft:"auto",background:"none",border:"none",color:"var(--muted)",fontSize:18,padding:"4px 6px",borderRadius:6}}>✎</button>
+          <button onClick={e=>{e.stopPropagation();deleteItem(item.id,item.name);}} title="Delete item" style={{background:"none",border:"none",color:"var(--accent3)",fontSize:16,padding:"4px 6px",borderRadius:6,cursor:"pointer",opacity:0.7}}
+            onMouseEnter={e=>e.currentTarget.style.opacity="1"}
+            onMouseLeave={e=>e.currentTarget.style.opacity="0.7"}>🗑</button>
         </div>
       </Card>
     );
@@ -6944,6 +6951,11 @@ function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp})
                     style={{padding:"4px 8px",borderRadius:6,background:"var(--accent)22",border:"none",color:"var(--accent)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)",fontWeight:600,whiteSpace:"nowrap"}}>
                     +Stock
                   </button>
+                  <button onClick={e=>{e.stopPropagation();deleteItem(item.id,item.name);}}
+                    title="Delete item"
+                    style={{padding:"4px 8px",borderRadius:6,background:"var(--accent3)11",border:"none",color:"var(--accent3)",fontSize:11,cursor:"pointer",fontFamily:"var(--font)",fontWeight:600,whiteSpace:"nowrap"}}>
+                    🗑
+                  </button>
                 </div>
               </div>
             );
@@ -7058,7 +7070,7 @@ function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp})
               </div>
             )}
             <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"space-between"}}>
-              <Btn variant="danger" small onClick={()=>deleteItem(item.id)}>Delete Item</Btn>
+              <Btn variant="danger" small onClick={()=>deleteItem(item.id, item.name)}>🗑 Delete Item</Btn>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <Btn variant="secondary" onClick={()=>setDetail(null)}>Close</Btn>
                 <Btn variant="ghost" onClick={()=>{setDetail(null);setRestockTarget(item);setRestockQty("");setRestockModal(true);}}>+ Restock</Btn>
