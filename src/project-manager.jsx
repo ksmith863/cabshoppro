@@ -14911,7 +14911,9 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
   // Persist quotes to Supabase quotes_store
   const setQuotes = async (updater) => {
     let newQuotes;
+    let prevQuotes;
     _setQuotes(prev => {
+      prevQuotes = prev;
       newQuotes = typeof updater === 'function' ? updater(prev) : updater;
       return newQuotes;
     });
@@ -14920,7 +14922,13 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        // Upsert each quote individually
+        // Delete any quotes that were removed
+        const newIds = new Set(newQuotes.map(q => String(q.id)));
+        const deletedIds = (prevQuotes||[]).map(q => String(q.id)).filter(id => !newIds.has(id));
+        for (const id of deletedIds) {
+          await supabase.from("quotes_store").delete().match({ user_id: user.id, quote_id: id });
+        }
+        // Upsert remaining quotes
         for (const q of newQuotes) {
           await supabase.from("quotes_store").upsert({
             user_id: user.id,
