@@ -8275,15 +8275,17 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
         const proj=projects.find(p=>p.id===liveDetail.projectId);
         return(
           <Modal title="Gallery Piece" onClose={()=>setDetail(null)} wide>
-            {/* Cover / hero */}
+            {/* Cover / hero — square */}
             <div onClick={()=>images.length&&setLightbox({item:liveDetail,images,startIndex:0})}
-              style={{borderRadius:12,overflow:"hidden",marginBottom:images.length>1?8:18,height:160,background:"#111",cursor:images.length?"zoom-in":"default",position:"relative"}}>
+              style={{borderRadius:12,overflow:"hidden",marginBottom:images.length>1?8:18,paddingBottom:"100%",background:"#111",cursor:images.length?"zoom-in":"default",position:"relative"}}>
+              <div style={{position:"absolute",inset:0}}>
               {images[0]?.url?(
                 <img src={images[0].url} alt={images[0].caption||liveDetail.title} style={{width:"100%",height:"100%",objectFit:"cover"}} />
               ):(
                 <PlaceholderThumb item={liveDetail} imgIndex={0} size="full" />
               )}
               {images.length>0&&<div style={{position:"absolute",bottom:10,right:10,background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:11,fontFamily:"var(--mono)",padding:"3px 9px",borderRadius:20}}>🔍 {images.length} photo{images.length!==1?"s":""}</div>}
+              </div>
             </div>
 
             {/* Thumbnail grid */}
@@ -8727,13 +8729,15 @@ function SamplesLibrary({samples,setSamples,bp}) {
 
             {/* Hero — veneer swatch (always images[0]) */}
             <div onClick={()=>hero&&setLightbox({item:liveSel,images,startIndex:0})}
-              style={{height:240,borderRadius:12,overflow:"hidden",marginBottom:16,background:"#111",cursor:hero?"zoom-in":"default",position:"relative"}}>
+              style={{paddingBottom:"100%",borderRadius:12,overflow:"hidden",marginBottom:16,background:"#111",cursor:hero?"zoom-in":"default",position:"relative"}}>
+              <div style={{position:"absolute",inset:0}}>
               <SwatchTile s={liveSel} imgIndex={0} size="card" />
               <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.6))",padding:"20px 14px 12px",display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
                 <div>
                   <Badge color="var(--accent5)" style={{fontSize:11}}>{liveSel.category}</Badge>
                 </div>
                 {hero&&<span style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontFamily:"var(--mono)"}}>🔍 Click to enlarge</span>}
+              </div>
               </div>
             </div>
 
@@ -8750,11 +8754,13 @@ function SamplesLibrary({samples,setSamples,bp}) {
                       style={{borderRadius:9,overflow:"hidden",cursor:"zoom-in",border:"1px solid var(--border)",background:"#111",position:"relative",transition:"border-color 0.15s"}}
                       onMouseEnter={e=>e.currentTarget.style.borderColor="var(--accent5)"}
                       onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
-                      <div style={{height:75}}>
+                      <div style={{paddingBottom:"100%",position:"relative"}}>
+                        <div style={{position:"absolute",inset:0}}>
                         {img.url
                           ?<img src={img.url} alt={img.caption||""} style={{width:"100%",height:"100%",objectFit:"cover"}} />
                           :<SwatchTile s={liveSel} imgIndex={i+1} size="thumb" />
                         }
+                        </div>
                       </div>
                       {img.caption&&(
                         <div style={{padding:"5px 6px",fontSize:10,color:"var(--muted)",lineHeight:1.3,background:"var(--surface2)"}}>{img.caption}</div>
