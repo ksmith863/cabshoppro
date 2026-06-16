@@ -694,10 +694,11 @@ function Modal({title,children,onClose,wide=false}) {
       <div className="scalein" style={{background:"var(--surface)",border:"1px solid var(--border)",
           borderRadius:isPhone?"20px 20px 0 0":"16px",
           width:"100%",maxWidth:wide?760:540,
-          maxHeight:isPhone?"92vh":"min(calc(100vh - 40px), 88vh)",
+          maxHeight:isPhone?"92vh":"min(calc(100vh - 80px), 82vh)",
           overflowY:"auto",
-          padding:"24px 22px 32px",
-          margin:isPhone?0:"auto"}}>
+          padding:"24px 22px 28px",
+          margin:isPhone?0:"auto",
+          display:"flex",flexDirection:"column"}}>
         {isPhone && <div style={{width:36,height:4,borderRadius:4,background:"var(--border)",margin:"0 auto 20px"}} />}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
           <div style={{fontSize:17,fontWeight:700}}>{title}</div>
@@ -8285,7 +8286,7 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
           <Modal title="Gallery Piece" onClose={()=>setDetail(null)} wide>
             {/* Cover / hero */}
             <div onClick={()=>images.length&&setLightbox({item:liveDetail,images,startIndex:0})}
-              style={{borderRadius:12,overflow:"hidden",marginBottom:images.length>1?8:18,height:220,background:"#111",cursor:images.length?"zoom-in":"default",position:"relative"}}>
+              style={{borderRadius:12,overflow:"hidden",marginBottom:images.length>1?8:18,height:160,background:"#111",cursor:images.length?"zoom-in":"default",position:"relative"}}>
               {images[0]?.url?(
                 <img src={images[0].url} alt={images[0].caption||liveDetail.title} style={{width:"100%",height:"100%",objectFit:"cover"}} />
               ):(
@@ -8296,10 +8297,10 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
 
             {/* Thumbnail grid */}
             {images.length>1&&(
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:6,marginBottom:18}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(60px,1fr))",gap:5,marginBottom:14}}>
                 {images.map((img,i)=>(
                   <div key={img.id} onClick={()=>setLightbox({item:liveDetail,images,startIndex:i})}
-                    style={{height:60,borderRadius:8,overflow:"hidden",cursor:"zoom-in",border:"1px solid var(--border)",position:"relative",background:"#111",transition:"border-color 0.15s"}}
+                    style={{height:48,borderRadius:6,overflow:"hidden",cursor:"zoom-in",border:"1px solid var(--border)",position:"relative",background:"#111",transition:"border-color 0.15s"}}
                     onMouseEnter={e=>e.currentTarget.style.borderColor="var(--accent)"}
                     onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
                     {img.url?(
@@ -8327,9 +8328,9 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
             </div>
             <div style={{fontWeight:800,fontSize:20,marginBottom:4}}>{liveDetail.title}</div>
             <div style={{color:"var(--muted)",fontSize:14,marginBottom:14}}>{liveDetail.client}</div>
-            <div style={{background:"var(--surface2)",borderRadius:10,padding:"14px 16px",marginBottom:14,fontSize:14,color:"var(--muted)",lineHeight:1.7}}>{liveDetail.desc}</div>
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:8}}>DETAILS / MATERIALS</div>
+            {liveDetail.desc&&<div style={{background:"var(--surface2)",borderRadius:10,padding:"10px 14px",marginBottom:10,fontSize:13,color:"var(--muted)",lineHeight:1.6}}>{liveDetail.desc}</div>}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:6}}>DETAILS / MATERIALS</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{liveDetail.tags?.map(t=><Badge key={t} color="var(--muted)">{t}</Badge>)}</div>
             </div>
             {proj&&<div style={{marginBottom:14}}><div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:6}}>PROJECT</div><Badge color={proj.color}>{proj.name}</Badge></div>}
