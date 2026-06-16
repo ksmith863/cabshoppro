@@ -8143,13 +8143,15 @@ function Gallery({gallery,setGallery,projects,contacts,bp}) {
       <div onClick={onClick} style={{borderRadius:14,overflow:"hidden",background:"var(--surface)",border:"1px solid var(--border)",cursor:"pointer",transition:"transform 0.2s,box-shadow 0.2s"}}
         onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 12px 40px rgba(0,0,0,0.4)";}}
         onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
-        {/* Cover image */}
-        <div style={{position:"relative",height:bp==="phone"?130:160,overflow:"hidden",background:"#111"}}>
+        {/* Cover image — square aspect ratio */}
+        <div style={{position:"relative",paddingBottom:"100%",overflow:"hidden",background:"#111"}}>
+          <div style={{position:"absolute",inset:0}}>
           {cover?.url?(
             <img src={cover.url} alt={cover.caption||item.title} style={{width:"100%",height:"100%",objectFit:"cover"}} />
           ):(
             <PlaceholderThumb item={item} imgIndex={0} size="full" />
           )}
+          </div>
           {item.featured&&<div style={{position:"absolute",top:10,right:10,background:"var(--accent4)",color:"#000",fontSize:10,fontWeight:700,fontFamily:"var(--mono)",padding:"3px 9px",borderRadius:20,zIndex:1}}>★ FEATURED</div>}
           <div style={{position:"absolute",bottom:0,left:0,right:0,height:50,background:"linear-gradient(transparent,rgba(0,0,0,0.8))"}} />
           <div style={{position:"absolute",bottom:8,left:10,display:"flex",gap:6,alignItems:"center"}}>
@@ -8621,10 +8623,12 @@ function SamplesLibrary({samples,setSamples,bp}) {
       <div onClick={onClick} style={{borderRadius:14,overflow:"hidden",background:"var(--surface)",border:"1px solid var(--border)",cursor:"pointer",transition:"transform 0.2s,box-shadow 0.2s"}}
         onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 10px 36px rgba(0,0,0,0.4)";}}
         onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
-        {/* Hero — veneer swatch */}
-        <div style={{height:150,overflow:"hidden",position:"relative",background:"#111"}}>
+        {/* Hero — veneer swatch — square */}
+        <div style={{paddingBottom:"100%",overflow:"hidden",position:"relative",background:"#111"}}>
+          <div style={{position:"absolute",inset:0}}>
           <SwatchTile s={s} imgIndex={0} size="card" />
           <div style={{position:"absolute",bottom:0,left:0,right:0,height:50,background:"linear-gradient(transparent,rgba(0,0,0,0.75))"}} />
+          </div>
           <div style={{position:"absolute",top:10,left:10}}>
             <Badge color="var(--accent5)" style={{fontSize:10}}>{s.category}</Badge>
           </div>
