@@ -8827,8 +8827,9 @@ function SamplesLibrary({samples,setSamples,bp}) {
                     <div style={{flex:1,minWidth:0}}>
                       <input value={hero.caption} onChange={e=>updateCaption(hero.id,e.target.value)} placeholder="Caption (optional)…"
                         style={{width:"100%",padding:"5px 8px",borderRadius:6,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}} />
-                      <div style={{fontSize:10,color:"var(--muted)",marginTop:3,fontFamily:"var(--mono)"}}>This is the main swatch displayed on the card.</div>
+                      <div style={{fontSize:10,color:"var(--muted)",marginTop:3,fontFamily:"var(--mono)"}}>This is the hero image displayed on the gallery card.</div>
                     </div>
+                    {form.images.length>1&&<button title="Move to project examples" onClick={()=>setForm(f=>{const a=[...f.images];const h=a.shift();a.push(h);return{...f,images:a};})} style={{background:"none",border:"1px solid var(--border)",borderRadius:5,color:"var(--muted)",cursor:"pointer",fontSize:10,padding:"2px 6px",fontFamily:"var(--mono)",whiteSpace:"nowrap"}}>↓ Move to examples</button>}
                   </div>
                 </div>
               );
@@ -8846,7 +8847,8 @@ function SamplesLibrary({samples,setSamples,bp}) {
                       </div>
                       <input value={img.caption} onChange={e=>updateCaption(img.id,e.target.value)} placeholder="e.g. Walnut Burl island panel — Hartwell"
                         style={{flex:1,padding:"5px 8px",borderRadius:6,background:"var(--surface3)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)"}} />
-                      {i>0&&<button onClick={()=>setForm(f=>{const a=[...f.images];const real=i+1;[a[real-1],a[real]]=[a[real],a[real-1]];return{...f,images:a};})} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>↑</button>}
+                      <button title="Move up" onClick={()=>setForm(f=>{const a=[...f.images];const real=i+1;if(real>1){[a[real-1],a[real]]=[a[real],a[real-1]];}return{...f,images:a};})} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>↑</button>
+                      <button title="Set as Hero image" onClick={()=>setForm(f=>{const a=[...f.images];const real=i+1;const hero=a.splice(real,1)[0];a.unshift(hero);return{...f,images:a};})} style={{background:"none",border:"1px solid var(--accent5)44",borderRadius:5,color:"var(--accent5)",cursor:"pointer",fontSize:10,fontWeight:700,padding:"2px 5px",fontFamily:"var(--mono)"}}>★ HERO</button>
                       <button onClick={()=>removeImage(img.id)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"0 3px",opacity:0.7}}>×</button>
                     </div>
                   ))}
