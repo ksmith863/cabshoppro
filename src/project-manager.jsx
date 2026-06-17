@@ -5400,7 +5400,7 @@ function Tasks({tasks,setTasks,projects,onOpenProject,onScheduleEvent,bp,pending
   const [expandedTasks,setExpandedTasks]=useState(new Set()); // which tasks show subtasks
   const [selectedTasks,setSelectedTasks]=useState(new Set()); // bulk select
 
-  const blankForm={title:"",projectId:"",assignee:"",status:"todo",priority:"medium",due:"",tags:""};
+  const blankForm={title:"",projectId:"",assignee:"",status:"todo",priority:"medium",due:"",tags:"",notes:""};
   const [form,setForm]=useState(blankForm);
 
   // ── helpers ──
@@ -5570,6 +5570,8 @@ function Tasks({tasks,setTasks,projects,onOpenProject,onScheduleEvent,bp,pending
               )}
               {t.tags?.map(tag=><Badge key={tag} color="var(--accent2)" style={{fontSize:10,padding:"1px 7px"}}>{tag}</Badge>)}
             </div>
+            {/* Notes preview */}
+            {t.notes&&<div style={{fontSize:12,color:"var(--muted)",marginTop:6,lineHeight:1.5,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>📝 {t.notes}</div>}
             {/* Subtask progress bar */}
             {subs.length>0&&<SubtaskProgress subtasks={subs} />}
           </div>
@@ -5800,6 +5802,7 @@ function Tasks({tasks,setTasks,projects,onOpenProject,onScheduleEvent,bp,pending
               options={["low","medium","high"].map(s=>({value:s,label:s.charAt(0).toUpperCase()+s.slice(1)}))} />
           </div>
           <Input label="Tags (comma-separated)" value={form.tags} onChange={e=>setForm(f=>({...f,tags:e.target.value}))} placeholder="install, paint…" voice />
+          <Input label="Notes" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} type="textarea" placeholder="Additional details, context, or instructions…" voice />
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}><Btn variant="secondary" onClick={()=>setAddModal(false)}>Cancel</Btn><Btn onClick={saveTask}>Add Task</Btn></div>
         </Modal>
       )}
@@ -5831,6 +5834,7 @@ function Tasks({tasks,setTasks,projects,onOpenProject,onScheduleEvent,bp,pending
               options={["low","medium","high"].map(s=>({value:s,label:s.charAt(0).toUpperCase()+s.slice(1)}))} />
           </div>
           <Input label="Tags (comma-separated)" value={form.tags} onChange={e=>setForm(f=>({...f,tags:e.target.value}))} placeholder="install, paint…" voice />
+          <Input label="Notes" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} type="textarea" placeholder="Additional details, context, or instructions…" voice />
 
           {/* Subtasks editor within edit modal */}
           {editModal.subtasks?.length>0&&(
