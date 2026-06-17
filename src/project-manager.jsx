@@ -3679,6 +3679,7 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
   const [sel,setSel]=useState(null);
   const [newClientModal,setNewClientModal]=useState(false);
   const [newClientForm,setNewClientForm]=useState({name:"",company:"",role:"Homeowner",email:"",phone:"",notes:""});
+  const [dragStageId,setDragStageId]=useState(null);
 
   // Open project detail when navigated here from another page (e.g. task card link)
   useEffect(()=>{
@@ -4604,34 +4605,65 @@ function Projects({projects,setProjects,contacts,setContacts,transactions,tasks,
             <input type="color" value={form.color} onChange={e=>setForm(f=>({...f,color:e.target.value}))} style={{width:48,height:40,borderRadius:8,border:"1px solid var(--border)",background:"none",cursor:"pointer"}} />
           </div>
 
-          {/* Stage customization */}
+          {/* Stage customization — reorderable, toggleable, with custom stages */}
           <div style={{marginBottom:16}}>
             <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,fontFamily:"var(--mono)",letterSpacing:"0.07em",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <span>STAGES</span>
-              <span style={{fontSize:10,color:"var(--muted)"}}>Toggle stages relevant to this project</span>
+              <span>STAGES & WORKFLOW</span>
+              <span style={{fontSize:10,color:"var(--muted)"}}>Drag ⠿ to reorder · toggle to show/hide</span>
             </div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
-              {PROJECT_STAGES.map(s=>{
-                const active=(form.selectedStages||PROJECT_STAGES.map(x=>x.id)).includes(s.id);
-                return(
-                  <button key={s.id} type="button"
-                    onClick={()=>{
-                      const current=form.selectedStages||PROJECT_STAGES.map(x=>x.id);
-                      const next=active?current.filter(id=>id!==s.id):[...current,s.id];
-                      // Keep in PROJECT_STAGES order
-                      const ordered=PROJECT_STAGES.map(x=>x.id).filter(id=>next.includes(id));
-                      setForm(f=>({...f,selectedStages:ordered}));
-                    }}
-                    style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,
-                      background:active?form.color+"22":"var(--surface2)",
-                      border:`1px solid ${active?form.color+"66":"var(--border)"}`,
-                      color:active?form.color:"var(--muted)",
-                      fontSize:11,fontWeight:active?700:400,cursor:"pointer",fontFamily:"var(--font)",transition:"all 0.15s"}}>
-                    {s.icon} {s.label}
-                  </button>
-                );
-              })}
-            </div>
+            {(()=>{
+              const allStageDefs=[...PROJECT_STAGES,...Object.values(form.customStages||{})];
+              const selected=form.selectedStages||PROJECT_STAGES.map(x=>x.id);
+              // Build full ordered list: selected stages first (in their saved order), then unselected stages
+              const orderedSelected=selected.filter(id=>allStageDefs.find(s=>s.id===id));
+              const unselected=allStageDefs.filter(s=>!selected.includes(s.id));
+              const fullList=[...orderedSelected.map(id=>allStageDefs.find(s=>s.id===id)),...unselected];
+
+              const moveStage=(fromId,toId)=>{
+                if(fromId===toId)return;
+                const cur=[...selected];
+                const fromIdx=cur.indexOf(fromId);
+                const toIdx=cur.indexOf(toId);
+                if(fromIdx<0||toIdx<0)return;
+                cur.splice(fromIdx,1);
+                cur.splice(toIdx,0,fromId);
+                setForm(f=>({...f,selectedStages:cur}));
+              };
+
+              return(
+                <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
+                  {fullList.map(s=>{
+                    const active=selected.includes(s.id);
+                    const isCustom=!!form.customStages?.[s.id];
+                    return(
+                      <div key={s.id}
+                        draggable={active}
+                        onDragStart={()=>active&&setDragStageId(s.id)}
+                        onDragOver={e=>e.preventDefault()}
+                        onDrop={()=>{if(active&&dragStageId)moveStage(dragStageId,s.id);setDragStageId(null);}}
+                        onDragEnd={()=>setDragStageId(null)}
+                        style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,
+                          background:active?form.color+"14":"var(--surface2)",
+                          border:`1px solid ${active?form.color+"44":"var(--border)"}`,
+                          opacity:dragStageId===s.id?0.4:1,
+                          cursor:active?"grab":"default",transition:"opacity 0.15s"}}>
+                        <span style={{color:active?"var(--muted)":"transparent",fontSize:13,cursor:active?"grab":"default",userSelect:"none"}}>⠿</span>
+                        <span style={{fontSize:14}}>{s.icon}</span>
+                        <span style={{flex:1,fontSize:12,fontWeight:active?700:400,color:active?"var(--text)":"var(--muted)"}}>{s.label}</span>
+                        {isCustom&&<Badge color="var(--accent5)" style={{fontSize:9,padding:"1px 6px"}}>custom</Badge>}
+                        <button type="button" onClick={()=>{
+                          const next=active?selected.filter(id=>id!==s.id):[...selected,s.id];
+                          setForm(f=>({...f,selectedStages:next}));
+                        }}
+                        style={{width:36,height:20,borderRadius:10,background:active?form.color:"var(--surface3)",border:"none",cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.15s"}}>
+                          <span style={{position:"absolute",top:2,left:active?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             {/* Custom stage input */}
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
               <input id="customStageInput" placeholder="+ Add custom stage…"
