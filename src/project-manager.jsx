@@ -18058,10 +18058,20 @@ function Receipts({transactions, setTransactions, projects, contacts, chartOfAcc
                   )}
                 </div>
               ))}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6,marginBottom:8}}>
                 <button onClick={()=>setForm(f=>({...f,splits:[...f.splits,blankSplit()]}))} style={{background:"none",border:"none",color:"var(--accent2)",fontSize:13,fontWeight:600,cursor:"pointer",padding:0}}>+ Add another project</button>
-                <span style={{fontSize:12,fontFamily:"var(--mono)",color:Math.abs(splitsTotal-100)<0.5?"var(--accent)":"var(--accent3)"}}>{splitsTotal}% of 100%</span>
+                <span style={{fontSize:13,fontWeight:700,fontFamily:"var(--mono)",color:Math.abs(splitsTotal-100)<0.5?"var(--accent)":"var(--accent3)"}}>{splitsTotal}% of 100%</span>
               </div>
+              {Math.abs(splitsTotal-100)>=0.5&&(
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:"var(--accent3)15",border:"1px solid var(--accent3)44",borderRadius:8,marginBottom:6}}>
+                  <span style={{fontSize:15}}>⚠️</span>
+                  <span style={{fontSize:12,color:"var(--accent3)",fontWeight:600}}>
+                    {splitsTotal>100
+                      ? `Percentages exceed 100% by ${(splitsTotal-100).toFixed(1)}% — reduce one or more allocations.`
+                      : `Percentages total only ${splitsTotal}% — add ${(100-splitsTotal).toFixed(1)}% more to reach 100%.`}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
