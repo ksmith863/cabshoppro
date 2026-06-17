@@ -18085,9 +18085,9 @@ function Receipts({transactions, setTransactions, projects, contacts, chartOfAcc
       )}
 
       {zoomImg&&createPortal(
-        <div onClick={()=>setZoomImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={()=>setZoomImg(null)} style={{position:"fixed",inset:0,background:"#0a0a0a",zIndex:99999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <button onClick={()=>setZoomImg(null)} style={{position:"fixed",top:16,right:16,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
-          <img src={zoomImg} alt="Receipt enlarged" onClick={e=>e.stopPropagation()} style={{maxWidth:"90vw",maxHeight:"88vh",width:"auto",height:"auto",objectFit:"contain",borderRadius:10,boxShadow:"0 24px 60px rgba(0,0,0,0.7)"}} />
+          <img src={zoomImg} alt="Receipt enlarged" onClick={e=>e.stopPropagation()} style={{maxWidth:"90vw",maxHeight:"88vh",width:"auto",height:"auto",objectFit:"contain",borderRadius:10,boxShadow:"0 24px 60px rgba(0,0,0,0.9)",background:"#fff"}} />
         </div>,
         document.body
       )}
