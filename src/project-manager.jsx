@@ -9086,6 +9086,16 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     return 0;
   });
 
+  // Total value of currently filtered quotes (reflects status filter + search)
+  const filteredTotalValue = filteredQuotes.reduce((sum,q)=>sum+quoteTotal(q),0);
+  const statusFilterLabel = (()=>{
+    if(qStatus==="all") return "All Quotes & Invoices";
+    if(qStatus==="__quotes") return "Quotes Only";
+    if(qStatus==="__invoices") return "Invoices Only";
+    if(qStatus==="__overdue") return "Overdue Invoices";
+    return qStatus.charAt(0).toUpperCase()+qStatus.slice(1);
+  })();
+
   const openNew=()=>{setSel(blankQuote());setView("edit");};
   const openEdit=(q)=>{
     setSel({...q,lines:q.lines.map(l=>({...l}))});
@@ -10603,6 +10613,15 @@ ${shopName}`;
         <Btn variant="secondary" onClick={()=>setView("itemLib")}>⊞ Item Library</Btn>
         <Btn onClick={openNew}>+ New Quote</Btn>
       </div>} />
+
+    {/* Total Value summary — reflects current status filter and search */}
+    <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"16px 20px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+      <div>
+        <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:4}}>TOTAL VALUE — {statusFilterLabel.toUpperCase()}</div>
+        <div style={{fontWeight:800,fontSize:bp==="phone"?22:28,color:"var(--accent4)"}}>{fmt(filteredTotalValue)}</div>
+      </div>
+      <div style={{fontSize:12,color:"var(--muted)",fontFamily:"var(--mono)"}}>{filteredQuotes.length} {filteredQuotes.length===1?"record":"records"}</div>
+    </div>
 
     {/* Single clean toolbar */}
     <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
