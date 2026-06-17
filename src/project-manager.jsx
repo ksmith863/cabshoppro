@@ -758,6 +758,7 @@ var NAV = [
     {id:"inventory",      label:"Inventory",       icon:"⊞"},
     {id:"tools",          label:"Tools & Equip",   icon:"🔧"},
     {id:"purchaseorders", label:"Purchase Orders", icon:"📦"},
+    {id:"receipts",       label:"Receipts",        icon:"🧾"},
     {id:"profitability",  label:"Profitability",   icon:"📈"},
   ]},
   // ── LIBRARY ──
@@ -15033,6 +15034,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "superadmin":   return <SuperAdminPage bp={bp}/>;
       case "samples":    return <SamplesLibrary samples={samples} setSamples={p.setSamples} bp={bp}/>;
       case "purchaseorders": return <PurchaseOrders projects={projects} contacts={contacts} bp={bp} adminSettings={adminSettings}/>;
+      case "receipts": return <Receipts transactions={transactions} setTransactions={p.setTransactions} projects={projects} contacts={contacts} chartOfAccounts={chartOfAccounts} bp={bp}/>;
       default: return null;
     }
   };
@@ -17677,6 +17679,401 @@ ${(po.items||[]).map(it=>`<tr><td>${it.desc||"—"}</td><td>${it.qty}</td><td>$$
   );
 }
 
+
+// ─── Receipts ─────────────────────────────────────────────────────────────────
+function Receipts({transactions, setTransactions, projects, contacts, chartOfAccounts, bp}) {
+  const [modal,setModal]=useState(false);
+  const [editId,setEditId]=useState(null);
+  const [search,setSearch]=useState("");
+  const [fp,setFp]=useState("all"); // filter by project
+
+  const blankSplit=()=>({id:`sp${Date.now()}${Math.random().toString(36).slice(2,5)}`,projectId:"",pct:100});
+  const blankForm={
+    vendorContactId:"", vendorName:"",
+    desc:"", poNumber:"",
+    accountCode:"",
+    date:new Date().toISOString().slice(0,10),
+    priceBeforeTax:"", taxAmount:"", shipping:"", other:"",
+    receiptUrl:"", receiptStoragePath:"",
+    splitMode:"single", // "single" | "split" | "shop" (no project)
+    projectId:"",
+    splits:[blankSplit()],
+  };
+  const [form,setForm]=useState(blankForm);
+  const [vendorSearch,setVendorSearch]=useState("");
+  const [showVendorList,setShowVendorList]=useState(false);
+  const [uploading,setUploading]=useState(false);
+
+  const suppliers=contacts.filter(c=>c.isSupplier||c.contactType==="supplier");
+  const vendorMatches=vendorSearch.trim().length>0
+    ? suppliers.filter(c=>(c.company||c.name||"").toLowerCase().includes(vendorSearch.toLowerCase())).slice(0,8)
+    : [];
+
+  const total=(+form.priceBeforeTax||0)+(+form.taxAmount||0)+(+form.shipping||0)+(+form.other||0);
+  const splitsTotal=form.splits.reduce((s,sp)=>s+(+sp.pct||0),0);
+
+  // Receipts are stored as transactions with a receiptMeta blob, grouped by receiptGroupId
+  const receiptTx=transactions.filter(t=>t.isReceipt);
+  // Group by receiptGroupId to show one row per receipt (even if split across projects)
+  const grouped=(()=>{
+    const map={};
+    receiptTx.forEach(t=>{
+      const gid=t.receiptGroupId||t.id;
+      if(!map[gid])map[gid]={...t,_rows:[],totalAmount:0};
+      map[gid]._rows.push(t);
+      map[gid].totalAmount+=t.amount;
+    });
+    return Object.values(map).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  })();
+
+  const filtered=grouped.filter(g=>{
+    const pm = fp==="all" ? true : fp==="__shop" ? g._rows.every(r=>!r.projectId) : g._rows.some(r=>String(r.projectId)===fp);
+    const sm = !search.trim() || (g.vendorName||"").toLowerCase().includes(search.toLowerCase()) || (g.desc||"").toLowerCase().includes(search.toLowerCase()) || (g.poNumber||"").toLowerCase().includes(search.toLowerCase());
+    return pm&&sm;
+  });
+
+  const openNew=()=>{ setForm(blankForm); setVendorSearch(""); setEditId(null); setModal(true); };
+
+  const openEdit=(g)=>{
+    const first=g._rows[0];
+    const isShop = g._rows.every(r=>!r.projectId);
+    const isSplit = g._rows.length>1;
+    setForm({
+      vendorContactId:first.vendorContactId||"", vendorName:first.vendorName||"",
+      desc:first.desc||"", poNumber:first.poNumber||"",
+      accountCode:first.account||"",
+      date:first.date||new Date().toISOString().slice(0,10),
+      priceBeforeTax:String(first.receiptMeta?.priceBeforeTax||""),
+      taxAmount:String(first.receiptMeta?.taxAmount||""),
+      shipping:String(first.receiptMeta?.shipping||""),
+      other:String(first.receiptMeta?.other||""),
+      receiptUrl:first.receiptMeta?.receiptUrl||"",
+      receiptStoragePath:first.receiptMeta?.receiptStoragePath||"",
+      splitMode: isShop?"shop":isSplit?"split":"single",
+      projectId: isShop?"":String(first.projectId||""),
+      splits: isSplit ? g._rows.map(r=>({id:`sp${r.id}`,projectId:String(r.projectId||""),pct:Math.round((r.amount/g.totalAmount)*100)})) : [blankSplit()],
+    });
+    setVendorSearch(first.vendorName||"");
+    setEditId(g.receiptGroupId||first.id);
+    setModal(true);
+  };
+
+  const handleFile=async(file)=>{
+    if(!file)return;
+    setUploading(true);
+    try{
+      const res=await uploadImageToStorage(file,"receipts");
+      setForm(f=>({...f,receiptUrl:res.url,receiptStoragePath:res.storagePath||""}));
+    }catch(e){ console.error("Receipt upload failed:",e); alert("Couldn't upload receipt image."); }
+    setUploading(false);
+  };
+
+  const save=()=>{
+    if(!form.vendorName.trim()){alert("Please enter or select a vendor/supplier.");return;}
+    if(!form.accountCode){alert("Please select a Chart of Accounts code.");return;}
+    if(total<=0){alert("Please enter at least a price before tax.");return;}
+    if(form.splitMode==="split"){
+      const validSplits=form.splits.filter(sp=>sp.projectId);
+      if(validSplits.length<2){alert("Add at least 2 projects to split this receipt, or switch to Single Project.");return;}
+      if(Math.abs(splitsTotal-100)>0.5){alert(`Split percentages must add up to 100% (currently ${splitsTotal}%).`);return;}
+    }
+    if(form.splitMode==="single"&&!form.projectId){alert("Please select a project, or choose 'Shop Supply (no project)'.");return;}
+
+    const groupId=editId||`rcpt${Date.now()}`;
+    const receiptMeta={
+      priceBeforeTax:+form.priceBeforeTax||0,
+      taxAmount:+form.taxAmount||0,
+      shipping:+form.shipping||0,
+      other:+form.other||0,
+      receiptUrl:form.receiptUrl||"",
+      receiptStoragePath:form.receiptStoragePath||"",
+    };
+
+    let newRows=[];
+    if(form.splitMode==="split"){
+      const validSplits=form.splits.filter(sp=>sp.projectId);
+      newRows=validSplits.map((sp,i)=>({
+        id:`${groupId}_${i}`,
+        receiptGroupId:groupId,
+        isReceipt:true,
+        type:"expense",
+        projectId:+sp.projectId,
+        vendorContactId:form.vendorContactId||null,
+        vendorName:form.vendorName,
+        desc:form.desc,
+        poNumber:form.poNumber,
+        account:form.accountCode,
+        date:form.date,
+        amount: total*((+sp.pct||0)/100),
+        splitPct:+sp.pct||0,
+        receiptMeta,
+      }));
+    } else {
+      const pid = form.splitMode==="shop" ? null : +form.projectId;
+      newRows=[{
+        id:`${groupId}_0`,
+        receiptGroupId:groupId,
+        isReceipt:true,
+        type:"expense",
+        projectId:pid,
+        isBusinessExpense: form.splitMode==="shop",
+        vendorContactId:form.vendorContactId||null,
+        vendorName:form.vendorName,
+        desc:form.desc,
+        poNumber:form.poNumber,
+        account:form.accountCode,
+        date:form.date,
+        amount: total,
+        receiptMeta,
+      }];
+    }
+
+    setTransactions(prev=>{
+      const withoutOld = prev.filter(t=>(t.receiptGroupId||t.id)!==groupId);
+      return [...withoutOld, ...newRows];
+    });
+    setModal(false);
+    setForm(blankForm);
+    setEditId(null);
+  };
+
+  const deleteReceipt=(groupId)=>{
+    if(!window.confirm("Delete this receipt? This will remove its associated expense entries. This cannot be undone."))return;
+    setTransactions(prev=>prev.filter(t=>(t.receiptGroupId||t.id)!==groupId));
+  };
+
+  const fmt=n=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const totalSpend=filtered.reduce((s,g)=>s+g.totalAmount,0);
+
+  const inp={width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,fontFamily:"var(--font)",outline:"none",boxSizing:"border-box"};
+  const lbl={fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em",marginBottom:5,display:"block"};
+
+  return(
+    <div className="fadein">
+      <PageHeader bp={bp} title="Receipts" sub="Log purchases and tie them to project costs"
+        action={<Btn onClick={openNew}>+ Add Receipt</Btn>} />
+
+      <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"repeat(3,1fr)",gap:12,marginBottom:20}}>
+        <Card style={{padding:"12px 14px"}}>
+          <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL RECEIPTS</div>
+          <div style={{fontWeight:800,fontSize:bp==="phone"?16:20,color:"var(--accent2)"}}>{filtered.length}</div>
+        </Card>
+        <Card style={{padding:"12px 14px"}}>
+          <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL SPEND</div>
+          <div style={{fontWeight:800,fontSize:bp==="phone"?16:20,color:"var(--accent4)"}}>{fmt(totalSpend)}</div>
+        </Card>
+        <Card style={{padding:"12px 14px"}}>
+          <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>SPLIT RECEIPTS</div>
+          <div style={{fontWeight:800,fontSize:bp==="phone"?16:20,color:"var(--accent5)"}}>{grouped.filter(g=>g._rows.length>1).length}</div>
+        </Card>
+      </div>
+
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+        <SearchBar value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, description, PO#…" />
+        <select value={fp} onChange={e=>setFp(e.target.value)} style={{...inp,width:"auto",minWidth:160}}>
+          <option value="all">All Projects</option>
+          <option value="__shop">Shop Supplies (no project)</option>
+          {projects.map(p=><option key={p.id} value={String(p.id)}>{p.name}</option>)}
+        </select>
+      </div>
+
+      {filtered.length===0?(
+        <div style={{padding:"60px 20px",textAlign:"center",color:"var(--muted)",background:"var(--surface)",borderRadius:14,border:"1px solid var(--border)"}}>
+          <div style={{fontSize:36,marginBottom:10}}>🧾</div>
+          <div style={{fontWeight:700,marginBottom:6}}>No receipts yet</div>
+          <div style={{fontSize:13}}>Add your first receipt to start tracking material and supply costs against your projects.</div>
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {filtered.map(g=>{
+            const isSplit=g._rows.length>1;
+            const isShop=g._rows.every(r=>!r.projectId);
+            const projNames = isShop ? "Shop Supply" : g._rows.map(r=>projects.find(p=>String(p.id)===String(r.projectId))?.name||"—").join(", ");
+            return(
+              <Card key={g.receiptGroupId||g.id} onClick={()=>openEdit(g)} style={{cursor:"pointer",padding:"14px 16px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+                  <div style={{display:"flex",gap:12,flex:1,minWidth:0}}>
+                    {g.receiptMeta?.receiptUrl?(
+                      <img src={g.receiptMeta.receiptUrl} alt="" style={{width:48,height:48,borderRadius:8,objectFit:"cover",flexShrink:0,border:"1px solid var(--border)"}} />
+                    ):(
+                      <div style={{width:48,height:48,borderRadius:8,background:"var(--surface2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🧾</div>
+                    )}
+                    <div style={{minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:14}}>{g.vendorName||"Unknown vendor"}</div>
+                      <div style={{fontSize:12,color:"var(--muted)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.desc||"No description"}</div>
+                      <div style={{fontSize:11,color:"var(--muted)",marginTop:4,fontFamily:"var(--mono)"}}>{g.date} · {projNames}{isSplit&&<span style={{color:"var(--accent5)"}}> (split {g._rows.length} ways)</span>}</div>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontWeight:800,fontSize:15,color:"var(--accent4)"}}>{fmt(g.totalAmount)}</div>
+                    <button onClick={e=>{e.stopPropagation();deleteReceipt(g.receiptGroupId||g.id);}} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:13,cursor:"pointer",marginTop:4,padding:0,opacity:0.7}}>🗑 Delete</button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {modal&&(
+        <Modal title={editId?"Edit Receipt":"Add Receipt"} onClose={()=>{setModal(false);setEditId(null);}} wide>
+          {/* Receipt photo */}
+          <div style={{marginBottom:16}}>
+            <label style={lbl}>RECEIPT PHOTO (OPTIONAL)</label>
+            {form.receiptUrl?(
+              <div style={{position:"relative",width:120,marginBottom:8}}>
+                <img src={form.receiptUrl} alt="Receipt" style={{width:120,height:120,objectFit:"cover",borderRadius:10,border:"1px solid var(--border)"}} />
+                <button onClick={()=>setForm(f=>({...f,receiptUrl:"",receiptStoragePath:""}))} style={{position:"absolute",top:-8,right:-8,width:24,height:24,borderRadius:"50%",background:"var(--accent3)",border:"none",color:"#fff",fontSize:14,cursor:"pointer"}}>×</button>
+              </div>
+            ):(
+              <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                <label style={{padding:"10px 16px",borderRadius:9,background:"var(--surface2)",border:"1px solid var(--border)",fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--accent2)"}}>
+                  📁 Upload from Computer
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={e=>handleFile(e.target.files[0])} style={{display:"none"}} />
+                </label>
+                <label style={{padding:"10px 16px",borderRadius:9,background:"var(--surface2)",border:"1px solid var(--border)",fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--accent)"}}>
+                  📷 Take Photo
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={e=>handleFile(e.target.files[0])} style={{display:"none"}} />
+                </label>
+              </div>
+            )}
+            {uploading&&<div style={{fontSize:12,color:"var(--muted)",marginTop:6}}>Uploading…</div>}
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1fr 1fr",gap:14}}>
+            {/* Vendor search */}
+            <div style={{position:"relative"}}>
+              <label style={lbl}>VENDOR / SUPPLIER</label>
+              <input value={vendorSearch} onChange={e=>{setVendorSearch(e.target.value);setForm(f=>({...f,vendorName:e.target.value,vendorContactId:""}));setShowVendorList(true);}}
+                onFocus={()=>setShowVendorList(true)}
+                placeholder="Type to search suppliers or enter new name…" style={inp} />
+              {showVendorList&&vendorMatches.length>0&&(
+                <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:10,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:9,marginTop:4,maxHeight:160,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,0.3)"}}>
+                  {vendorMatches.map(c=>(
+                    <div key={c.id} onClick={()=>{setForm(f=>({...f,vendorContactId:c.id,vendorName:c.company||c.name}));setVendorSearch(c.company||c.name);setShowVendorList(false);}}
+                      style={{padding:"8px 12px",cursor:"pointer",fontSize:13,borderBottom:"1px solid var(--border)"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background=""}>
+                      <div style={{fontWeight:600}}>{c.company||c.name}</div>
+                      {c.company&&c.name&&<div style={{fontSize:11,color:"var(--muted)"}}>{c.name}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label style={lbl}>PO NUMBER (IF APPLICABLE)</label>
+              <input value={form.poNumber} onChange={e=>setForm(f=>({...f,poNumber:e.target.value}))} placeholder="Search or enter PO #" style={inp} />
+            </div>
+
+            <div style={{gridColumn:bp==="phone"?"auto":"1 / -1"}}>
+              <label style={lbl}>DESCRIPTION OF PURCHASE</label>
+              <input value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="e.g. White oak lumber, 8/4, 120 bf" style={inp} />
+            </div>
+
+            <div>
+              <label style={lbl}>CHART OF ACCOUNTS CODE</label>
+              <select value={form.accountCode} onChange={e=>setForm(f=>({...f,accountCode:e.target.value}))} style={inp}>
+                <option value="">Select account…</option>
+                {chartOfAccounts.map(a=><option key={a.code} value={a.code}>{a.code} — {a.name}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={lbl}>RECEIPT DATE</label>
+              <input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp} />
+            </div>
+          </div>
+
+          {/* Amount fields */}
+          <div style={{marginTop:18,marginBottom:8}}>
+            <label style={lbl}>AMOUNTS</label>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"repeat(4,1fr)",gap:10,marginBottom:10}}>
+            <div>
+              <label style={{...lbl,marginBottom:3}}>Price (before tax)</label>
+              <input type="number" value={form.priceBeforeTax} onChange={e=>setForm(f=>({...f,priceBeforeTax:e.target.value}))} placeholder="0.00" style={inp} />
+            </div>
+            <div>
+              <label style={{...lbl,marginBottom:3}}>Tax</label>
+              <input type="number" value={form.taxAmount} onChange={e=>setForm(f=>({...f,taxAmount:e.target.value}))} placeholder="0.00" style={inp} />
+            </div>
+            <div>
+              <label style={{...lbl,marginBottom:3}}>Shipping</label>
+              <input type="number" value={form.shipping} onChange={e=>setForm(f=>({...f,shipping:e.target.value}))} placeholder="0.00" style={inp} />
+            </div>
+            <div>
+              <label style={{...lbl,marginBottom:3}}>Other</label>
+              <input type="number" value={form.other} onChange={e=>setForm(f=>({...f,other:e.target.value}))} placeholder="0.00" style={inp} />
+            </div>
+          </div>
+          <div style={{textAlign:"right",fontWeight:800,fontSize:18,color:"var(--accent4)",marginBottom:20}}>
+            Total: {fmt(total)}
+          </div>
+
+          {/* Project assignment */}
+          <div style={{marginBottom:10}}>
+            <label style={lbl}>ASSIGN TO PROJECT</label>
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              {[["single","Single Project"],["split","Split Across Projects"],["shop","Shop Supply (no project)"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setForm(f=>({...f,splitMode:v}))}
+                  style={{flex:1,padding:"9px 8px",borderRadius:8,fontSize:12,fontWeight:600,fontFamily:"var(--font)",cursor:"pointer",
+                    background:form.splitMode===v?"var(--accent2)":"var(--surface2)",
+                    color:form.splitMode===v?"#fff":"var(--muted)",
+                    border:`1px solid ${form.splitMode===v?"var(--accent2)":"var(--border)"}`}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {form.splitMode==="single"&&(
+            <select value={form.projectId} onChange={e=>setForm(f=>({...f,projectId:e.target.value}))} style={inp}>
+              <option value="">Select project…</option>
+              {projects.map(p=><option key={p.id} value={String(p.id)}>{p.name}</option>)}
+            </select>
+          )}
+
+          {form.splitMode==="shop"&&(
+            <div style={{padding:"10px 14px",background:"var(--surface2)",borderRadius:9,fontSize:12,color:"var(--muted)"}}>
+              This receipt will be tracked as a general shop expense and won't count toward any single project's profitability.
+            </div>
+          )}
+
+          {form.splitMode==="split"&&(
+            <div>
+              {form.splits.map((sp,i)=>(
+                <div key={sp.id} style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+                  <select value={sp.projectId} onChange={e=>setForm(f=>({...f,splits:f.splits.map(s=>s.id===sp.id?{...s,projectId:e.target.value}:s)}))} style={{...inp,flex:1}}>
+                    <option value="">Select project…</option>
+                    {projects.map(p=><option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                  </select>
+                  <div style={{position:"relative",width:90}}>
+                    <input type="number" value={sp.pct} onChange={e=>setForm(f=>({...f,splits:f.splits.map(s=>s.id===sp.id?{...s,pct:e.target.value}:s)}))} style={{...inp,paddingRight:24}} />
+                    <span style={{position:"absolute",right:10,top:9,fontSize:12,color:"var(--muted)"}}>%</span>
+                  </div>
+                  {form.splits.length>1&&(
+                    <button onClick={()=>setForm(f=>({...f,splits:f.splits.filter(s=>s.id!==sp.id)}))} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:16,cursor:"pointer",padding:"0 4px"}}>×</button>
+                  )}
+                </div>
+              ))}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
+                <button onClick={()=>setForm(f=>({...f,splits:[...f.splits,blankSplit()]}))} style={{background:"none",border:"none",color:"var(--accent2)",fontSize:13,fontWeight:600,cursor:"pointer",padding:0}}>+ Add another project</button>
+                <span style={{fontSize:12,fontFamily:"var(--mono)",color:Math.abs(splitsTotal-100)<0.5?"var(--accent)":"var(--accent3)"}}>{splitsTotal}% of 100%</span>
+              </div>
+            </div>
+          )}
+
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:24}}>
+            <Btn variant="secondary" onClick={()=>{setModal(false);setEditId(null);}}>Cancel</Btn>
+            <Btn onClick={save}>Save Receipt</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 function ProfitabilityDashboard({projects, transactions, quotes, contacts, bp}) {
   const fmt = (n) => n?.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0})||"$0";
