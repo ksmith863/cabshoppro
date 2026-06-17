@@ -17703,6 +17703,7 @@ function Receipts({transactions, setTransactions, projects, contacts, chartOfAcc
   const [vendorSearch,setVendorSearch]=useState("");
   const [showVendorList,setShowVendorList]=useState(false);
   const [uploading,setUploading]=useState(false);
+  const [zoomImg,setZoomImg]=useState(null);
 
   const suppliers=contacts.filter(c=>c.isSupplier||c.contactType==="supplier");
   const vendorMatches=vendorSearch.trim().length>0
@@ -17894,7 +17895,7 @@ function Receipts({transactions, setTransactions, projects, contacts, chartOfAcc
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
                   <div style={{display:"flex",gap:12,flex:1,minWidth:0}}>
                     {g.receiptMeta?.receiptUrl?(
-                      <img src={g.receiptMeta.receiptUrl} alt="" style={{width:48,height:48,borderRadius:8,objectFit:"cover",flexShrink:0,border:"1px solid var(--border)"}} />
+                      <img src={g.receiptMeta.receiptUrl} alt="" onClick={e=>{e.stopPropagation();setZoomImg(g.receiptMeta.receiptUrl);}} style={{width:48,height:48,borderRadius:8,objectFit:"cover",flexShrink:0,border:"1px solid var(--border)",cursor:"zoom-in"}} />
                     ):(
                       <div style={{width:48,height:48,borderRadius:8,background:"var(--surface2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🧾</div>
                     )}
@@ -17922,7 +17923,8 @@ function Receipts({transactions, setTransactions, projects, contacts, chartOfAcc
             <label style={lbl}>RECEIPT PHOTO (OPTIONAL)</label>
             {form.receiptUrl?(
               <div style={{position:"relative",width:120,marginBottom:8}}>
-                <img src={form.receiptUrl} alt="Receipt" style={{width:120,height:120,objectFit:"cover",borderRadius:10,border:"1px solid var(--border)"}} />
+                <img src={form.receiptUrl} alt="Receipt" onClick={()=>setZoomImg(form.receiptUrl)} style={{width:120,height:120,objectFit:"cover",borderRadius:10,border:"1px solid var(--border)",cursor:"zoom-in"}} />
+                <div onClick={()=>setZoomImg(form.receiptUrl)} style={{position:"absolute",bottom:6,left:6,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:10,fontFamily:"var(--mono)",padding:"2px 7px",borderRadius:12,cursor:"zoom-in"}}>🔍 Enlarge</div>
                 <button onClick={()=>setForm(f=>({...f,receiptUrl:"",receiptStoragePath:""}))} style={{position:"absolute",top:-8,right:-8,width:24,height:24,borderRadius:"50%",background:"var(--accent3)",border:"none",color:"#fff",fontSize:14,cursor:"pointer"}}>×</button>
               </div>
             ):(
@@ -18080,6 +18082,14 @@ function Receipts({transactions, setTransactions, projects, contacts, chartOfAcc
             <Btn onClick={save}>Save Receipt</Btn>
           </div>
         </Modal>
+      )}
+
+      {zoomImg&&createPortal(
+        <div onClick={()=>setZoomImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <button onClick={()=>setZoomImg(null)} style={{position:"fixed",top:16,right:16,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,width:40,height:40,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
+          <img src={zoomImg} alt="Receipt enlarged" onClick={e=>e.stopPropagation()} style={{maxWidth:"90vw",maxHeight:"88vh",width:"auto",height:"auto",objectFit:"contain",borderRadius:10,boxShadow:"0 24px 60px rgba(0,0,0,0.7)"}} />
+        </div>,
+        document.body
       )}
     </div>
   );
