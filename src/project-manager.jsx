@@ -10103,20 +10103,7 @@ ${shopName}`;
                       setLibForm({...newItem,basePrice:String(newItem.basePrice),defaultMarkupPct:String(newItem.defaultMarkupPct||""),defaultMarginPct:String(newItem.defaultMarginPct||""),productNum:newItem.productNum||"",productUrl:newItem.productUrl||"",documents:newItem.documents||[]});
                       setLibModal(true);
                     }} style={{background:"none",border:"none",color:"var(--muted)",fontSize:14,cursor:"pointer",padding:"2px 5px"}}>⧉</button>
-                    <button onClick={()=>{
-                        setLibSel(item);
-                        const linkedInv=inventory.find(i=>i.id===item.inventoryId)||inventory.find(i=>i.linkedItemId===item.id);
-                        setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[],
-                          trackInventory:!!linkedInv,
-                          inventoryId:linkedInv?linkedInv.id:null,
-                          qtyOnHand:linkedInv?String(linkedInv.qtyOnHand):"",
-                          minQty:linkedInv?String(linkedInv.minQty):"",
-                          invStatus:linkedInv?linkedInv.status:"active",
-                          lowStockNote:linkedInv?(linkedInv.lowStockNote||""):"",
-                          supplierContactId:linkedInv?String(linkedInv.supplierContactId||""):"",
-                        });
-                        setLibModal(true);
-                      }} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
+                    <button onClick={()=>{setLibSel(item);setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[]});setLibModal(true);}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
                     <button onClick={()=>deleteLibItem(item.id)} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:14,cursor:"pointer",padding:"2px 5px",opacity:0.6}}>×</button>
                   </div>
                 );
@@ -10177,49 +10164,6 @@ ${shopName}`;
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="Product # / SKU" value={libForm.productNum||""} onChange={e=>setLibForm(f=>({...f,productNum:e.target.value}))} placeholder="e.g. BL-4210" />
             <Input label="Product URL" value={libForm.productUrl||""} onChange={e=>setLibForm(f=>({...f,productUrl:e.target.value}))} placeholder="https://supplier.com/product" />
-          </div>
-
-          {/* Inventory tracking toggle */}
-          <div style={{background:"var(--surface2)",borderRadius:10,padding:"12px 14px",marginBottom:14,border:`1px solid ${libForm.trackInventory?"var(--accent)44":"var(--border)"}`}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <div>
-                <div style={{fontWeight:700,fontSize:13}}>📦 Track this item in Inventory</div>
-                <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Enable to track quantity on hand, reorder thresholds, and stock status</div>
-              </div>
-              <button type="button" onClick={()=>setLibForm(f=>({...f,trackInventory:!f.trackInventory}))}
-                style={{width:42,height:24,borderRadius:12,background:libForm.trackInventory?"var(--accent)":"var(--surface3)",border:"none",cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.15s"}}>
-                <span style={{position:"absolute",top:2,left:libForm.trackInventory?20:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
-              </button>
-            </div>
-
-            {libForm.trackInventory&&(
-              <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)"}}>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                  <Input label={libForm.inventoryId?"Qty on Hand":"Opening Qty on Hand"} value={libForm.qtyOnHand} onChange={e=>setLibForm(f=>({...f,qtyOnHand:e.target.value}))} type="number" placeholder="0" />
-                  <Input label="Reorder Threshold (min qty)" value={libForm.minQty} onChange={e=>setLibForm(f=>({...f,minQty:e.target.value}))} type="number" placeholder="0 = no alert" />
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                  <div style={{marginBottom:14}}>
-                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>STATUS</div>
-                    <select value={libForm.invStatus} onChange={e=>setLibForm(f=>({...f,invStatus:e.target.value}))} style={inp}>
-                      <option value="active">Active</option>
-                      <option value="discontinued">Discontinued</option>
-                      <option value="backordered">Backordered</option>
-                    </select>
-                  </div>
-                  {suppliers.length>0&&(
-                    <div style={{marginBottom:14}}>
-                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>SUPPLIER (OPTIONAL)</div>
-                      <select value={libForm.supplierContactId} onChange={e=>setLibForm(f=>({...f,supplierContactId:e.target.value}))} style={inp}>
-                        <option value="">No supplier linked</option>
-                        {suppliers.map(s=><option key={s.id} value={s.id}>{s.name} — {s.company}</option>)}
-                      </select>
-                    </div>
-                  )}
-                </div>
-                <Input label="Low-Stock Alert Note (optional)" value={libForm.lowStockNote} onChange={e=>setLibForm(f=>({...f,lowStockNote:e.target.value}))} placeholder="e.g. 2-week lead time from supplier — reorder early" />
-              </div>
-            )}
           </div>
 
           {/* Pricing section */}
@@ -11509,6 +11453,50 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
             <Input label="Product # / SKU" value={libForm.productNum||""} onChange={e=>setLibForm(f=>({...f,productNum:e.target.value}))} placeholder="e.g. BL-4210" />
             <Input label="Product URL" value={libForm.productUrl||""} onChange={e=>setLibForm(f=>({...f,productUrl:e.target.value}))} placeholder="https://supplier.com/product" />
           </div>
+
+          {/* Inventory tracking toggle */}
+          <div style={{background:"var(--surface2)",borderRadius:10,padding:"12px 14px",marginBottom:14,border:`1px solid ${libForm.trackInventory?"var(--accent)44":"var(--border)"}`}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:13}}>📦 Track this item in Inventory</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Enable to track quantity on hand, reorder thresholds, and stock status</div>
+              </div>
+              <button type="button" onClick={()=>setLibForm(f=>({...f,trackInventory:!f.trackInventory}))}
+                style={{width:42,height:24,borderRadius:12,background:libForm.trackInventory?"var(--accent)":"var(--surface3)",border:"none",cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.15s"}}>
+                <span style={{position:"absolute",top:2,left:libForm.trackInventory?20:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
+              </button>
+            </div>
+
+            {libForm.trackInventory&&(
+              <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)"}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <Input label={libForm.inventoryId?"Qty on Hand":"Opening Qty on Hand"} value={libForm.qtyOnHand} onChange={e=>setLibForm(f=>({...f,qtyOnHand:e.target.value}))} type="number" placeholder="0" />
+                  <Input label="Reorder Threshold (min qty)" value={libForm.minQty} onChange={e=>setLibForm(f=>({...f,minQty:e.target.value}))} type="number" placeholder="0 = no alert" />
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>STATUS</div>
+                    <select value={libForm.invStatus} onChange={e=>setLibForm(f=>({...f,invStatus:e.target.value}))} style={inp}>
+                      <option value="active">Active</option>
+                      <option value="discontinued">Discontinued</option>
+                      <option value="backordered">Backordered</option>
+                    </select>
+                  </div>
+                  {suppliers.length>0&&(
+                    <div style={{marginBottom:14}}>
+                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>SUPPLIER (OPTIONAL)</div>
+                      <select value={libForm.supplierContactId} onChange={e=>setLibForm(f=>({...f,supplierContactId:e.target.value}))} style={inp}>
+                        <option value="">No supplier linked</option>
+                        {suppliers.map(s=><option key={s.id} value={s.id}>{s.name} — {s.company}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <Input label="Low-Stock Alert Note (optional)" value={libForm.lowStockNote} onChange={e=>setLibForm(f=>({...f,lowStockNote:e.target.value}))} placeholder="e.g. 2-week lead time from supplier — reorder early" />
+              </div>
+            )}
+          </div>
+
           <div style={{background:"var(--surface2)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
             <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>PRICING 🔒 internal only</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:8}}>
