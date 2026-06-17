@@ -6574,7 +6574,7 @@ function Finance({transactions,setTransactions,projects,quotes,bp}) {
 }
 
 // ─── Inventory ────────────────────────────────────────────────────────────────
-function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp}) {
+function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp,adminSettings,setAdminSettings}) {
 
   // ── view state ──
   const [tab,setTab]=useState("stock");
@@ -7123,7 +7123,34 @@ function Inventory({inventory,setInventory,projects,contacts,tasks,setTasks,bp})
         <Modal title={selItem?"Edit Item":"Add Inventory Item"} onClose={()=>setItemModal(false)}>
           <Input label="Item Name" value={itemForm.name} onChange={e=>setItemForm(f=>({...f,name:e.target.value}))} voice />
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Input label="Category" value={itemForm.category} onChange={e=>setItemForm(f=>({...f,category:e.target.value}))} placeholder="Hardwood, Hardware…" voice />
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>CATEGORY</div>
+              {(()=>{
+                const customCats=adminSettings?.customItemCategories||[];
+                const allCats=[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...customCats])];
+                return(
+                  <select value={allCats.includes(itemForm.category)?itemForm.category:"custom_new"}
+                    onChange={e=>{
+                      if(e.target.value==="custom_new"){
+                        const name=window.prompt("Enter new category name:");
+                        if(name&&name.trim()){
+                          const trimmed=name.trim();
+                          const updated=[...customCats.filter(c=>c!==trimmed),trimmed];
+                          setAdminSettings&&setAdminSettings(s=>({...s,customItemCategories:updated}));
+                          setItemForm(f=>({...f,category:trimmed}));
+                        }
+                      } else {
+                        setItemForm(f=>({...f,category:e.target.value}));
+                      }
+                    }}
+                    style={{width:"100%",padding:"10px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:15,outline:"none"}}>
+                    <option value="">Select category…</option>
+                    {allCats.map(c=><option key={c} value={c}>{c}</option>)}
+                    <option value="custom_new">＋ Add new category…</option>
+                  </select>
+                );
+              })()}
+            </div>
             <Input label="Unit of Measure" value={itemForm.unit} onChange={e=>setItemForm(f=>({...f,unit:e.target.value}))} placeholder="bf, sheets, pcs…" />
           </div>
           {/* Supplier linked from CRM */}
@@ -9000,7 +9027,7 @@ var statusColor = s => ({
   unpaid:"var(--accent4)", partial:"var(--accent2)", paid:"var(--accent)", void:"var(--muted)"
 })[s]||"var(--muted)";
 
-function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,resources,setResources,bp,pendingQuote,onClearPendingQuote,adminSettings}) {
+function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,resources,setResources,bp,pendingQuote,onClearPendingQuote,adminSettings,inventory,setInventory}) {
   // ── Views: list | edit | itemLib ──
   const [view,setView]=useState(()=>{try{return localStorage.getItem("csp_quotes_view")||"list";}catch{return "list";}});
   const [sel,setSel]=useState(null);     // quote being edited/viewed — restored below
@@ -9064,7 +9091,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   const toggleSelectQuote=(id)=>setSelectedQuotes(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
   const clearQuoteSelection=()=>setSelectedQuotes(new Set());
 
-  const blankLine=(groupId="")=>({id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,itemId:"",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000",groupId});
+  const blankLine=(groupId="")=>({id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,itemId:"",inventoryId:null,sourceType:"custom",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000",groupId});
   const blankGroup=()=>({id:`g${Date.now()}`,type:"group",name:"New Section",clientDisplay:"summary",clientDesc:"",collapsed:false});
   const blankQuote=()=>({id:`q${Date.now()}`,number:`GW-${new Date().getFullYear()}-${String(quotes.length+1).padStart(3,"0")}`,isInvoice:false,status:"draft",projectId:"",contactId:"",title:"",date:new Date().toISOString().slice(0,10),validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",notes:"",taxRate:0,lines:[blankLine()],attachedTandC:null,supportingDocs:[]});
 
@@ -9181,10 +9208,77 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   };
   const saveQuote=()=>{
     if(!sel)return;
+
+    // Reconcile inventory deductions: compare previously-saved quote (if any) vs. the new line items
+    if(setInventory){
+      const prevQuote=quotes.find(q=>q.id===sel.id);
+      const prevQtyByInv={}; // inventoryId -> total qty previously committed
+      (prevQuote?.lines||[]).forEach(l=>{
+        if(l.sourceType==="inventory"&&l.inventoryId){
+          prevQtyByInv[l.inventoryId]=(prevQtyByInv[l.inventoryId]||0)+(+l.qty||0);
+        }
+      });
+      const newQtyByInv={};
+      (sel.lines||[]).forEach(l=>{
+        if(l.sourceType==="inventory"&&l.inventoryId){
+          newQtyByInv[l.inventoryId]=(newQtyByInv[l.inventoryId]||0)+(+l.qty||0);
+        }
+      });
+      const allInvIds=new Set([...Object.keys(prevQtyByInv),...Object.keys(newQtyByInv)]);
+
+      // Warn (non-blocking) if any item would go negative
+      const shortages=[];
+      allInvIds.forEach(idStr=>{
+        const invItem=inventory.find(i=>String(i.id)===idStr);
+        if(!invItem)return;
+        const before=prevQtyByInv[idStr]||0;
+        const after=newQtyByInv[idStr]||0;
+        const delta=after-before;
+        if(delta>0&&invItem.qtyOnHand-delta<0){
+          shortages.push(`${invItem.name} (${invItem.qtyOnHand} on hand, ${delta} needed)`);
+        }
+      });
+      if(shortages.length>0){
+        const proceed=window.confirm(`This will bring the following item(s) below zero in stock:\n\n${shortages.join("\n")}\n\nSave anyway?`);
+        if(!proceed)return;
+      }
+
+      if(allInvIds.size>0){
+        setInventory(prevInv=>prevInv.map(item=>{
+          const idStr=String(item.id);
+          if(!allInvIds.has(idStr))return item;
+          const before=prevQtyByInv[idStr]||0;
+          const after=newQtyByInv[idStr]||0;
+          const delta=after-before; // positive = pulling more stock than before
+          if(delta===0)return item;
+          return {...item,qtyOnHand:Math.max(0,item.qtyOnHand-delta)};
+        }));
+      }
+    }
+
     setQuotes(prev=>{const ex=prev.find(q=>q.id===sel.id);return ex?prev.map(q=>q.id===sel.id?sel:q):[...prev,sel];});
     clearEditState();
   };
-  const deleteQuote=(id)=>{setQuotes(prev=>prev.filter(q=>q.id!==id));clearEditState();};
+  const deleteQuote=(id)=>{
+    // Release any inventory committed by this quote's lines back to stock
+    if(setInventory){
+      const q=quotes.find(x=>x.id===id);
+      const releaseByInv={};
+      (q?.lines||[]).forEach(l=>{
+        if(l.sourceType==="inventory"&&l.inventoryId){
+          releaseByInv[l.inventoryId]=(releaseByInv[l.inventoryId]||0)+(+l.qty||0);
+        }
+      });
+      if(Object.keys(releaseByInv).length>0){
+        setInventory(prevInv=>prevInv.map(item=>{
+          const r=releaseByInv[String(item.id)];
+          return r?{...item,qtyOnHand:item.qtyOnHand+r}:item;
+        }));
+      }
+    }
+    setQuotes(prev=>prev.filter(q=>q.id!==id));
+    clearEditState();
+  };
 
   // ── Line item helpers ──
   const updateLine=(id,field,val)=>setSel(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,[field]:val}:l)}));
@@ -9202,19 +9296,26 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   const moveLineDown=(idx)=>setSel(s=>{const a=[...s.lines];if(idx===a.length-1)return s;[a[idx],a[idx+1]]=[a[idx+1],a[idx]];return {...s,lines:a};});
 
   // Fill a line from a library item
-  const fillLineFromLib=(lineId,item)=>{
+  const fillLineFromLib=(lineId,item,sourceType="library")=>{
     setSel(s=>({...s,lines:s.lines.map(l=>l.id===lineId?{
       ...l,
       itemId:item.id,
+      inventoryId:sourceType==="inventory"?item.id:null,
+      sourceType,
       name:item.name,
-      desc:item.desc,
+      desc:item.desc||"",
       unit:item.unit,
-      costPer:item.basePrice||0,
+      costPer:sourceType==="inventory"?(item.costPer||0):(item.basePrice||0),
       imageUrl:item.imageUrl||"",
       markupPct:item.defaultMarkupPct||0,
       profitMargin:item.defaultMarginPct||0,
       markupFlat:0,
     }:l)}));
+  };
+
+  // Pull a line item from Inventory — actual stock deduction happens on Save (see saveQuote)
+  const fillLineFromInventory=(lineId,invItem)=>{
+    fillLineFromLib(lineId,invItem,"inventory");
   };
 
   // ── Item Library CRUD ──
@@ -10002,7 +10103,20 @@ ${shopName}`;
                       setLibForm({...newItem,basePrice:String(newItem.basePrice),defaultMarkupPct:String(newItem.defaultMarkupPct||""),defaultMarginPct:String(newItem.defaultMarginPct||""),productNum:newItem.productNum||"",productUrl:newItem.productUrl||"",documents:newItem.documents||[]});
                       setLibModal(true);
                     }} style={{background:"none",border:"none",color:"var(--muted)",fontSize:14,cursor:"pointer",padding:"2px 5px"}}>⧉</button>
-                    <button onClick={()=>{setLibSel(item);setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[]});setLibModal(true);}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
+                    <button onClick={()=>{
+                        setLibSel(item);
+                        const linkedInv=inventory.find(i=>i.id===item.inventoryId)||inventory.find(i=>i.linkedItemId===item.id);
+                        setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[],
+                          trackInventory:!!linkedInv,
+                          inventoryId:linkedInv?linkedInv.id:null,
+                          qtyOnHand:linkedInv?String(linkedInv.qtyOnHand):"",
+                          minQty:linkedInv?String(linkedInv.minQty):"",
+                          invStatus:linkedInv?linkedInv.status:"active",
+                          lowStockNote:linkedInv?(linkedInv.lowStockNote||""):"",
+                          supplierContactId:linkedInv?String(linkedInv.supplierContactId||""):"",
+                        });
+                        setLibModal(true);
+                      }} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
                     <button onClick={()=>deleteLibItem(item.id)} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:14,cursor:"pointer",padding:"2px 5px",opacity:0.6}}>×</button>
                   </div>
                 );
@@ -10063,6 +10177,49 @@ ${shopName}`;
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="Product # / SKU" value={libForm.productNum||""} onChange={e=>setLibForm(f=>({...f,productNum:e.target.value}))} placeholder="e.g. BL-4210" />
             <Input label="Product URL" value={libForm.productUrl||""} onChange={e=>setLibForm(f=>({...f,productUrl:e.target.value}))} placeholder="https://supplier.com/product" />
+          </div>
+
+          {/* Inventory tracking toggle */}
+          <div style={{background:"var(--surface2)",borderRadius:10,padding:"12px 14px",marginBottom:14,border:`1px solid ${libForm.trackInventory?"var(--accent)44":"var(--border)"}`}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:13}}>📦 Track this item in Inventory</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Enable to track quantity on hand, reorder thresholds, and stock status</div>
+              </div>
+              <button type="button" onClick={()=>setLibForm(f=>({...f,trackInventory:!f.trackInventory}))}
+                style={{width:42,height:24,borderRadius:12,background:libForm.trackInventory?"var(--accent)":"var(--surface3)",border:"none",cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.15s"}}>
+                <span style={{position:"absolute",top:2,left:libForm.trackInventory?20:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
+              </button>
+            </div>
+
+            {libForm.trackInventory&&(
+              <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)"}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <Input label={libForm.inventoryId?"Qty on Hand":"Opening Qty on Hand"} value={libForm.qtyOnHand} onChange={e=>setLibForm(f=>({...f,qtyOnHand:e.target.value}))} type="number" placeholder="0" />
+                  <Input label="Reorder Threshold (min qty)" value={libForm.minQty} onChange={e=>setLibForm(f=>({...f,minQty:e.target.value}))} type="number" placeholder="0 = no alert" />
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>STATUS</div>
+                    <select value={libForm.invStatus} onChange={e=>setLibForm(f=>({...f,invStatus:e.target.value}))} style={inp}>
+                      <option value="active">Active</option>
+                      <option value="discontinued">Discontinued</option>
+                      <option value="backordered">Backordered</option>
+                    </select>
+                  </div>
+                  {suppliers.length>0&&(
+                    <div style={{marginBottom:14}}>
+                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontFamily:"var(--mono)",letterSpacing:"0.07em"}}>SUPPLIER (OPTIONAL)</div>
+                      <select value={libForm.supplierContactId} onChange={e=>setLibForm(f=>({...f,supplierContactId:e.target.value}))} style={inp}>
+                        <option value="">No supplier linked</option>
+                        {suppliers.map(s=><option key={s.id} value={s.id}>{s.name} — {s.company}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <Input label="Low-Stock Alert Note (optional)" value={libForm.lowStockNote} onChange={e=>setLibForm(f=>({...f,lowStockNote:e.target.value}))} placeholder="e.g. 2-week lead time from supplier — reorder early" />
+              </div>
+            )}
           </div>
 
           {/* Pricing section */}
@@ -10335,22 +10492,52 @@ ${shopName}`;
                     }
                   </div>
                   <div style={{flex:1,minWidth:0}}>
-                    {/* Pull from library */}
+                    {/* Pull from Inventory, Item Library, or enter custom */}
                     <div style={{marginBottom:6}}>
-                      <select value={line.itemId||""} onChange={e=>{
-                        const item=quoteItems.find(i=>i.id===e.target.value);
-                        if(item)fillLineFromLib(line.id,item);
-                        else updateLine(line.id,"itemId",e.target.value);
+                      <select value={line.sourceType==="inventory"?`inv:${line.inventoryId}`:line.itemId?`lib:${line.itemId}`:""} onChange={e=>{
+                        const val=e.target.value;
+                        if(!val){ updateLine(line.id,"itemId",""); return; }
+                        if(val.startsWith("inv:")){
+                          const invId=val.slice(4);
+                          const invItem=(inventory||[]).find(i=>String(i.id)===invId);
+                          if(invItem){
+                            if(invItem.qtyOnHand<=0&&!window.confirm(`"${invItem.name}" shows 0 on hand. Add this line anyway?`))return;
+                            fillLineFromInventory(line.id,invItem);
+                          }
+                        } else if(val.startsWith("lib:")){
+                          const libId=val.slice(4);
+                          const item=quoteItems.find(i=>i.id===libId);
+                          if(item)fillLineFromLib(line.id,item,"library");
+                        }
                       }} style={{...inp,fontSize:11,padding:"5px 8px",marginBottom:0}}>
-                        <option value="">— Pull from library or enter custom —</option>
-                        {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>(
-                          <optgroup key={cat} label={cat}>
-                            {quoteItems.filter(i=>i.category===cat).map(i=>(
-                              <option key={i.id} value={i.id}>{i.name} (${i.basePrice}/{i.unit})</option>
+                        <option value="">— Pull from Inventory, Library, or type custom below —</option>
+                        {(inventory||[]).length>0&&(
+                          <optgroup label="📦 Inventory (in stock)">
+                            {(inventory||[]).filter(i=>i.status!=="discontinued").map(i=>(
+                              <option key={`inv:${i.id}`} value={`inv:${i.id}`}>{i.name} — {i.qtyOnHand} {i.unit} on hand (${i.costPer}/{i.unit})</option>
                             ))}
                           </optgroup>
-                        ))}
+                        )}
+                        {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>{
+                          const items=quoteItems.filter(i=>i.category===cat);
+                          if(!items.length)return null;
+                          return(
+                            <optgroup key={cat} label={`📚 ${cat} (Item Library)`}>
+                              {items.map(i=>(
+                                <option key={`lib:${i.id}`} value={`lib:${i.id}`}>{i.name} (${i.basePrice}/{i.unit})</option>
+                              ))}
+                            </optgroup>
+                          );
+                        })}
                       </select>
+                      {line.sourceType==="inventory"&&line.inventoryId&&(()=>{
+                        const invItem=(inventory||[]).find(i=>i.id===line.inventoryId);
+                        return(
+                          <div style={{fontSize:10,color:"var(--accent)",fontFamily:"var(--mono)",marginTop:3}}>
+                            📦 Sourced from inventory ({invItem?invItem.qtyOnHand:"?"} on hand) — {line.qty} {line.unit} deducted when you save this quote
+                          </div>
+                        );
+                      })()}
                     </div>
                     <input value={line.name} onChange={e=>updateLine(line.id,"name",e.target.value)} placeholder="Line item name…"
                       style={{...inp,fontWeight:700,fontSize:13,marginBottom:5}} />
@@ -10854,7 +11041,8 @@ function LibActionsMenu({libSubView,setLibSubView,exportItemsCSV,csvImportRef,im
 
 function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,adminSettings,setAdminSettings,bp}) {
   const fmt=n=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};
+  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[],
+    trackInventory:false,inventoryId:null,qtyOnHand:"",minQty:"",invStatus:"active",lowStockNote:"",supplierContactId:""};
   const [libModal,setLibModal]=useState(false);
   const [libForm,setLibForm]=useState(blankLibForm);
   const [libSel,setLibSel]=useState(null);
@@ -10882,7 +11070,55 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
 
   const saveLibItem=()=>{
     if(!libForm.name)return;
-    const data={...libForm,basePrice:+libForm.basePrice||0,defaultMarkupPct:+libForm.defaultMarkupPct||0,defaultMarginPct:+libForm.defaultMarginPct||0,id:libSel?libSel.id:`qi${Date.now()}`};
+    const itemId=libSel?libSel.id:`qi${Date.now()}`;
+    const data={
+      id:itemId,category:libForm.category,name:libForm.name,desc:libForm.desc,unit:libForm.unit,
+      basePrice:+libForm.basePrice||0,defaultMarkupPct:+libForm.defaultMarkupPct||0,defaultMarginPct:+libForm.defaultMarginPct||0,
+      imageUrl:libForm.imageUrl,productNum:libForm.productNum,productUrl:libForm.productUrl,documents:libForm.documents,
+      inventoryId:libForm.trackInventory?(libForm.inventoryId||null):null,
+    };
+
+    // Handle linked inventory record
+    if(libForm.trackInventory){
+      if(libForm.inventoryId){
+        // Update existing linked inventory item
+        setInventory(prev=>prev.map(i=>i.id===libForm.inventoryId?{
+          ...i,
+          name:libForm.name,
+          category:libForm.category,
+          unit:libForm.unit,
+          costPer:+libForm.basePrice||0,
+          qtyOnHand:+libForm.qtyOnHand||0,
+          minQty:+libForm.minQty||0,
+          status:libForm.invStatus||"active",
+          lowStockNote:libForm.lowStockNote||"",
+          supplierContactId:libForm.supplierContactId?+libForm.supplierContactId:null,
+          linkedItemId:itemId,
+        }:i));
+      } else {
+        // Create new linked inventory item
+        const newInvId=Date.now();
+        data.inventoryId=newInvId;
+        setInventory(prev=>[...prev,{
+          id:newInvId,
+          name:libForm.name,
+          category:libForm.category,
+          unit:libForm.unit,
+          costPer:+libForm.basePrice||0,
+          qtyOnHand:+libForm.qtyOnHand||0,
+          minQty:+libForm.minQty||0,
+          status:libForm.invStatus||"active",
+          lowStockNote:libForm.lowStockNote||"",
+          supplierContactId:libForm.supplierContactId?+libForm.supplierContactId:null,
+          linkedItemId:itemId,
+          usageLog:[],
+        }]);
+      }
+    } else if(libForm.inventoryId){
+      // User unchecked "track inventory" — unlink but leave inventory record standalone
+      setInventory(prev=>prev.map(i=>i.id===libForm.inventoryId?{...i,linkedItemId:null}:i));
+    }
+
     libSel?setQuoteItems(prev=>prev.map(i=>i.id===libSel.id?data:i)):setQuoteItems(prev=>[...prev,data]);
     setLibModal(false);setLibSel(null);setLibForm(blankLibForm);
   };
@@ -10992,25 +11228,31 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
 
   const saveToInventory=()=>{
     if(!invModal)return;
-    // Check if already in inventory (by name match)
-    const existing=inventory.find(i=>i.name.toLowerCase()===invModal.name.toLowerCase());
+    // Prefer existing link by ID; fall back to name match for legacy items
+    const existing=inventory.find(i=>i.id===invModal.inventoryId)||inventory.find(i=>i.name.toLowerCase()===invModal.name.toLowerCase());
     if(existing){
       // Just update qty
-      setInventory(prev=>prev.map(i=>i.id===existing.id?{...i,qtyOnHand:i.qtyOnHand+(+invForm.qtyOnHand||0)}:i));
+      setInventory(prev=>prev.map(i=>i.id===existing.id?{...i,qtyOnHand:i.qtyOnHand+(+invForm.qtyOnHand||0),linkedItemId:invModal.id}:i));
+      if(!invModal.inventoryId){
+        setQuoteItems(prev=>prev.map(qi=>qi.id===invModal.id?{...qi,inventoryId:existing.id}:qi));
+      }
     } else {
+      const newInvId=Date.now();
       const newItem={
-        id:Date.now(),
+        id:newInvId,
         name:invModal.name,
-        category:mapCat(invModal.category),
+        category:invModal.category||"Custom",
         unit:invModal.unit||"ea",
         costPer:invModal.basePrice||0,
         qtyOnHand:+invForm.qtyOnHand||0,
         minQty:+invForm.minQty||0,
         status:"active",
         supplierContactId:+invForm.supplierContactId||null,
+        linkedItemId:invModal.id,
         usageLog:[],
       };
       setInventory(prev=>[...prev,newItem]);
+      setQuoteItems(prev=>prev.map(qi=>qi.id===invModal.id?{...qi,inventoryId:newInvId}:qi));
     }
     setInvModal(null);
   };
@@ -11110,7 +11352,7 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                 {items.map(item=>{
                   const sell=itemSellPrice(item);
                   const margin=sell>0?Math.round((1-item.basePrice/sell)*100*10)/10:0;
-                  const inInv=alreadyInInventory(item);
+                  const inInv=!!item.inventoryId&&inventory.some(i=>i.id===item.inventoryId);
                   return(
                     <div key={item.id} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 14px",background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10}}>
                       <div style={{width:48,height:36,borderRadius:6,overflow:"hidden",flexShrink:0,background:"var(--surface2)",border:"1px solid var(--border)"}}>
@@ -15075,9 +15317,9 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "profitability": return <ProfitabilityDashboard projects={projects} transactions={transactions} quotes={quotes} contacts={contacts} bp={bp}/>;
       case "help":       return <HelpPage bp={bp}/>;
       case "financetracker": return <Finance {...p} quotes={quotes}/>;
-      case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} setResources={p.setResources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings}/>;
+      case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} setResources={p.setResources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings} inventory={inventory} setInventory={p.setInventory}/>;
       case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} adminSettings={adminSettings} setAdminSettings={setAdminSettings} bp={bp}/>;
-      case "inventory":  return <Inventory  {...p} contacts={contacts} tasks={tasks} setTasks={p.setTasks}/>;
+      case "inventory":  return <Inventory  {...p} contacts={contacts} tasks={tasks} setTasks={p.setTasks} adminSettings={adminSettings} setAdminSettings={setAdminSettings}/>;
       case "resources":  return null; // group header — collapses to documents
       case "documents":  return <ResourceLibrary {...p}/>;
       case "media":      return <MediaLibrary {...p}/>;
