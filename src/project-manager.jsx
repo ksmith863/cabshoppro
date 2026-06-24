@@ -10055,15 +10055,6 @@ ${shopName}`;
         </div>
         <div style={{display:"flex",gap:7,marginBottom:18,flexWrap:"wrap"}}>
           {[...new Set([...QB_CATS_DEFAULT,...(adminSettings?.customItemCategories||[])])].map(c=><button key={c} onClick={()=>setLibCat(c)} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:libCat===c?"var(--accent2)":"var(--surface2)",color:libCat===c?"#fff":"var(--muted)",border:`1px solid ${libCat===c?"var(--accent2)":"var(--border)"}`,cursor:"pointer"}}>{c}</button>)}
-        <button onClick={()=>{
-          const cats=[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])];
-          const allCollapsed=cats.every(c=>collapsedCats[c]);
-          const next={};
-          if(!allCollapsed)cats.forEach(c=>next[c]=true);
-          setCollapsedCats(next);
-        }} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:"var(--surface2)",color:"var(--muted)",border:"1px solid var(--border)",cursor:"pointer",marginLeft:"auto",flexShrink:0,whiteSpace:"nowrap"}}>
-          {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].every(c=>collapsedCats[c])?"▶ Expand All":"▼ Collapse All"}
-        </button>
         </div>
 
         {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>{
@@ -11291,8 +11282,15 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
           <div style={{maxWidth:280}}><SearchBar value={libSearch} onChange={e=>setLibSearch(e.target.value)} placeholder="Search items…" /></div>
           <span style={{fontSize:12,color:"var(--muted)",fontFamily:"var(--mono)"}}>{quoteItems.length} items</span>
         </div>
-        <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
           {[...new Set([...QB_CATS_DEFAULT,...(adminSettings?.customItemCategories||[])])].map(c=><button key={c} onClick={()=>setLibCat(c)} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:libCat===c?"var(--accent2)":"var(--surface2)",color:libCat===c?"#fff":"var(--muted)",border:`1px solid ${libCat===c?"var(--accent2)":"var(--border)"}`,cursor:"pointer"}}>{c}</button>)}
+          {libCat==="All"&&<button onClick={()=>{
+            const cats=[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])];
+            const allCollapsed=cats.every(c=>collapsedCats[c]);
+            setCollapsedCats(allCollapsed?{}:Object.fromEntries(cats.map(c=>[c,true])));
+          }} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:"var(--surface2)",color:"var(--muted)",border:"1px solid var(--border)",cursor:"pointer",marginLeft:"auto",flexShrink:0,whiteSpace:"nowrap"}}>
+            {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].every(c=>collapsedCats[c])?"▶ Expand All":"▼ Collapse All"}
+          </button>}
         </div>
 
         {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>{
