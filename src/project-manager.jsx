@@ -10055,6 +10055,15 @@ ${shopName}`;
         </div>
         <div style={{display:"flex",gap:7,marginBottom:18,flexWrap:"wrap"}}>
           {[...new Set([...QB_CATS_DEFAULT,...(adminSettings?.customItemCategories||[])])].map(c=><button key={c} onClick={()=>setLibCat(c)} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:libCat===c?"var(--accent2)":"var(--surface2)",color:libCat===c?"#fff":"var(--muted)",border:`1px solid ${libCat===c?"var(--accent2)":"var(--border)"}`,cursor:"pointer"}}>{c}</button>)}
+        <button onClick={()=>{
+          const cats=[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])];
+          const allCollapsed=cats.every(c=>collapsedCats[c]);
+          const next={};
+          if(!allCollapsed)cats.forEach(c=>next[c]=true);
+          setCollapsedCats(next);
+        }} style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,fontFamily:"var(--font)",background:"var(--surface2)",color:"var(--muted)",border:"1px solid var(--border)",cursor:"pointer",marginLeft:"auto",flexShrink:0,whiteSpace:"nowrap"}}>
+          {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].every(c=>collapsedCats[c])?"▶ Expand All":"▼ Collapse All"}
+        </button>
         </div>
 
         {[...new Set([...QB_CATS_DEFAULT.filter(c=>c!=="All"),...(adminSettings?.customItemCategories||[])])].map(cat=>{
@@ -10994,6 +11003,8 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
   const [libCat,setLibCat]=useState("All");
   const [libSubView,setLibSubView]=useState("list");
   const [libLightbox,setLibLightbox]=useState(null);
+  const [collapsedCats,setCollapsedCats]=useState({});
+  const toggleCat=(cat)=>setCollapsedCats(p=>({...p,[cat]:!p[cat]}));
 
   // Add to inventory modal
   const [invModal,setInvModal]=useState(null); // the quoteItem being added
@@ -11288,11 +11299,16 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
           const items=filteredLibItems.filter(i=>i.category===cat);
           if(!items.length)return null;
           return(
-            <div key={cat} style={{marginBottom:24}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:10,paddingBottom:8,borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:8}}>
+            <div key={cat} style={{marginBottom:16}}>
+              <div onClick={()=>toggleCat(cat)}
+                style={{fontWeight:700,fontSize:13,marginBottom:collapsedCats[cat]?0:10,paddingBottom:8,borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:8,cursor:"pointer",userSelect:"none"}}
+                onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
+                onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                <span style={{fontSize:11,color:"var(--muted)",marginRight:2,transition:"transform 0.2s",display:"inline-block",transform:collapsedCats[cat]?"rotate(-90deg)":"rotate(0deg)"}}>▼</span>
                 {cat}<Badge color="var(--accent2)">{items.length}</Badge>
+                <span style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginLeft:"auto"}}>{collapsedCats[cat]?"click to expand":"click to collapse"}</span>
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              {!collapsedCats[cat]&&<div style={{display:"flex",flexDirection:"column",gap:5}}>
                 {items.map(item=>{
                   const sell=itemSellPrice(item);
                   const margin=sell>0?Math.round((1-item.basePrice/sell)*100*10)/10:0;
@@ -11349,7 +11365,7 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                     </div>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           );
         })}
