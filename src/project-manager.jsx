@@ -11666,27 +11666,51 @@ var EVENT_TYPES=[
 // quote line editor — a finishing schedule has 20-40+ inputs across multiple
 // scenarios, which is too much state for a single quote line's edit panel.
 function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
-  const PLACEHOLDER_SPREAD_RATE = 200;
-
   const fmt=(n,decimals=0)=>Number(n||0).toLocaleString("en-US",{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
   const fmtMoney=(n)=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   const toNumber=(v,fallback=0)=>{const n=parseFloat(v);return Number.isFinite(n)?n:fallback;};
 
   const makeId=(prefix)=>`${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
 
+  // Transfer efficiency presets by equipment type, per the cabinet-industry
+  // standard ranges (conventional spray through electrostatic). Stored as a
+  // decimal (0.70 = 70%). These are the equipment-driven real-world losses
+  // applied on top of a product's theoretical (100%-efficiency) coverage.
+  const TRANSFER_EFFICIENCY_PRESETS = [
+    {value:0.35, label:"Conventional air spray (30–40%)"},
+    {value:0.60, label:"HVLP (55–70%)"},
+    {value:0.70, label:"Air-assisted airless / AAA (65–80%)"},
+    {value:0.85, label:"Electrostatic (80–90%)"},
+    {value:1.00, label:"Brush / roll (~100%, no overspray)"},
+  ];
+
+  // Theoretical coverage @ 1 mil DFT, sq ft/gal — typical published
+  // manufacturer ranges (mid-point used as the default). These are realistic
+  // starting points, not a single borrowed spec — replace with your own
+  // product's TDS number for an accurate estimate.
+  const COVERAGE_DEFAULTS = {
+    sealer: 525,      // 450-600
+    primer: 525,
+    paint: 575,       // using waterborne topcoat range as a stand-in for color coat
+    stain: 525,
+    topcoat: 600,     // 500-650 waterborne / 600-700 pre-cat lacquer
+    convVarnish: 600,
+    polyurethane: 550,
+  };
+
   const defaultSteps=(kind)=>{
     if(kind==="painted")return [
-      {id:makeId("s"),name:"Sealer / sand sealer",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:42},
-      {id:makeId("s"),name:"Primer",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:48},
-      {id:makeId("s"),name:"Paint (color coat)",coats:2,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:65},
-      {id:makeId("s"),name:"Top coat / clear",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:70},
+      {id:makeId("s"),name:"Sealer / sand sealer",coats:1,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42},
+      {id:makeId("s"),name:"Primer",coats:1,coverage:COVERAGE_DEFAULTS.primer,targetDFT:1.5,transferEff:0.70,container:1,cost:48},
+      {id:makeId("s"),name:"Paint (color coat)",coats:2,coverage:COVERAGE_DEFAULTS.paint,targetDFT:1.5,transferEff:0.70,container:1,cost:65},
+      {id:makeId("s"),name:"Top coat / clear",coats:1,coverage:COVERAGE_DEFAULTS.topcoat,targetDFT:1.5,transferEff:0.70,container:1,cost:70},
     ];
     if(kind==="stained")return [
-      {id:makeId("s"),name:"Stain",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:38},
-      {id:makeId("s"),name:"Sealer",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:42},
-      {id:makeId("s"),name:"Top coat / clear",coats:2,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:70},
+      {id:makeId("s"),name:"Stain",coats:1,coverage:COVERAGE_DEFAULTS.stain,targetDFT:1,transferEff:0.70,container:1,cost:38},
+      {id:makeId("s"),name:"Sealer",coats:1,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42},
+      {id:makeId("s"),name:"Top coat / clear",coats:2,coverage:COVERAGE_DEFAULTS.topcoat,targetDFT:1.5,transferEff:0.70,container:1,cost:70},
     ];
-    return [{id:makeId("s"),name:"Clear sealer",coats:2,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:42}];
+    return [{id:makeId("s"),name:"Clear sealer",coats:2,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42}];
   };
 
   const makeScenario=(name,kind)=>({
@@ -11733,7 +11757,7 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
   });
   const addStep=()=>setScenarios(prev=>{
     const target=prev[activeScenario];
-    const newStep={id:makeId("s"),name:"New step",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:40};
+    const newStep={id:makeId("s"),name:"New step",coats:1,coverage:550,targetDFT:1.5,transferEff:0.70,container:1,cost:40};
     return {...prev,[activeScenario]:{...target,steps:[...target.steps,newStep]}};
   });
   const removeStep=(stepId)=>setScenarios(prev=>{
@@ -11767,13 +11791,21 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
     let totalCost=0, totalCoats=0, totalWasteGal=0;
 
     const stepResults=(sc?.steps||[]).map(step=>{
-      const coverage=toNumber(step.coverage,0);
+      const coverage=toNumber(step.coverage,0);      // sq ft/gal @ 1 mil DFT
       const coats=toNumber(step.coats,0);
+      const targetDFT=toNumber(step.targetDFT,1);     // mils per coat
+      const transferEff=toNumber(step.transferEff,1)||1; // decimal, e.g. 0.70
       const container=toNumber(step.container,0);
       const cost=toNumber(step.cost,0);
 
-      const unitsNeeded=coverage>0?(sqft*coats)/coverage:0;
-      const wasteUnits=coverage>0?((sqft-rawSqft)*coats)/coverage:0;
+      // Gallons Required = (Surface Area × Coats × DFT/coat) ÷ Coverage@1mil ÷ Transfer Efficiency
+      // sqft already includes the job-level waste factor (applied once, at the job level).
+      const theoreticalGal=coverage>0?(sqft*coats*targetDFT)/coverage:0;
+      const unitsNeeded=transferEff>0?theoreticalGal/transferEff:theoreticalGal;
+      // Waste isolates the portion of unitsNeeded attributable to the job-level waste factor
+      const theoreticalGalNoWaste=coverage>0?(rawSqft*coats*targetDFT)/coverage:0;
+      const unitsNeededNoWaste=transferEff>0?theoreticalGalNoWaste/transferEff:theoreticalGalNoWaste;
+      const wasteUnits=unitsNeeded-unitsNeededNoWaste;
       const containers=container>0?unitsNeeded/container:unitsNeeded;
       const containersToBuy=Math.ceil(containers-1e-9);
       const lineCost=containersToBuy*cost;
@@ -11916,7 +11948,7 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
           {sc?.steps.map(step=>(
             <div key={step.id} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderLeft:"3px solid var(--accent)",borderRadius:8,padding:"14px 16px",position:"relative"}}>
               <button onClick={()=>removeStep(step.id)} style={{position:"absolute",top:10,right:12,background:"none",border:"none",color:"var(--accent3)",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>remove</button>
-              <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1.6fr 0.8fr 1fr 1fr 1fr",gap:10}}>
+              <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1.4fr 0.6fr 0.9fr 0.9fr 1.3fr 0.8fr 0.9fr",gap:10}}>
                 <div>
                   <label style={lbl}>STEP NAME</label>
                   <input value={step.name} onChange={e=>patchStep(activeScenario,step.id,{name:e.target.value})} style={inp} />
@@ -11926,8 +11958,18 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
                   <input type="number" min="0" value={step.coats} onChange={e=>patchStep(activeScenario,step.id,{coats:toNumber(e.target.value,0)})} style={inp} />
                 </div>
                 <div>
-                  <label style={lbl}>SPREAD RATE (SF/GAL)</label>
+                  <label style={lbl}>COVERAGE @ 1 MIL (SF/GAL)</label>
                   <input type="number" min="0" value={step.coverage} onChange={e=>patchStep(activeScenario,step.id,{coverage:toNumber(e.target.value,0)})} style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>TARGET DFT (MILS/COAT)</label>
+                  <input type="number" min="0" step="0.1" value={step.targetDFT} onChange={e=>patchStep(activeScenario,step.id,{targetDFT:toNumber(e.target.value,0)})} style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>TRANSFER EFFICIENCY</label>
+                  <select value={step.transferEff} onChange={e=>patchStep(activeScenario,step.id,{transferEff:toNumber(e.target.value,1)})} style={inp}>
+                    {TRANSFER_EFFICIENCY_PRESETS.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label style={lbl}>CONTAINER SIZE (GAL)</label>
@@ -11944,7 +11986,7 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
         <button onClick={addStep} style={{padding:"9px 16px",borderRadius:8,background:"var(--accent2)",border:"none",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>+ Add finishing step</button>
 
         <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14}}>
-          Build a schedule for the active scenario: sealer, primer, coats of paint or stain, top coat, etc. Every step starts with a placeholder <b>spread rate of {PLACEHOLDER_SPREAD_RATE} sq ft/gallon</b> — a real-world figure reported for Renner 851 water-based topcoat sprayed at full build (4–5 coats), used here only as a stand-in since most manufacturers gate their actual technical data sheets behind a trade login. Replace each step's spread rate with the number from your own product's TDS (or your shop's measured rate) for an accurate estimate — coverage swings widely by product, equipment, and technique, so don't ship a quote on the placeholder.
+          Build a schedule for the active scenario: sealer, primer, coats of paint or stain, top coat, etc. Material usage is calculated as <b>(Surface Area × Coats × Target DFT) ÷ Coverage @ 1 mil ÷ Transfer Efficiency</b> — the same approach cabinet shops use for real-world estimating, since flow rate varies too much by operator and equipment to be reliable. Coverage defaults are typical published manufacturer ranges (sealers and primers run roughly 450–600 sq ft/gal @ 1 mil, topcoats 500–700 depending on product) — replace each step's coverage with the number from your own product's TDS for the most accurate estimate. Transfer efficiency reflects how much of what you spray actually lands on the part — most cabinet shops today run air-assisted airless (AAA) equipment, around 65–80%.
         </div>
       </Card>
 
@@ -12027,7 +12069,9 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
               <tr style={{borderBottom:"2px solid var(--border)"}}>
                 <th style={{textAlign:"left",padding:"7px 8px",fontSize:10,color:"var(--muted)",letterSpacing:"0.05em"}}>STEP</th>
                 <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>COATS</th>
-                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>SPREAD (SF/GAL)</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>COVERAGE (SF/GAL)</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>DFT (MILS)</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>TRANSFER EFF</th>
                 <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>UNITS NEEDED</th>
                 <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>WASTE (GAL)</th>
                 <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>UNITS TO BUY</th>
@@ -12041,6 +12085,8 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
                   <td style={{padding:"7px 8px"}}>{r.name||"Untitled step"}</td>
                   <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.coats,r.coats%1===0?0:1)}</td>
                   <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.coverage,0)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.targetDFT,1)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt((r.transferEff||1)*100,0)}%</td>
                   <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.unitsNeeded,2)}</td>
                   <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.wasteUnits,2)}</td>
                   <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.containersToBuy,0)}</td>
@@ -12050,16 +12096,16 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
               ))}
             </tbody>
             <tfoot>
-              <tr style={{borderTop:"2px solid var(--border)"}}><td colSpan={7} style={{padding:"10px 8px 4px",fontWeight:700}}>Material subtotal</td><td style={{textAlign:"right",padding:"10px 8px 4px",fontWeight:700}}>{fmtMoney(calc.totalCost)}</td></tr>
-              <tr><td colSpan={7} style={{padding:"4px 8px",fontWeight:700}}>Labor ({fmt(calc.laborHrs,1)} hrs @ {fmtMoney(sc?.laborRate)}/hr)</td><td style={{textAlign:"right",padding:"4px 8px",fontWeight:700}}>{fmtMoney(calc.laborCost)}</td></tr>
-              <tr><td colSpan={7} style={{padding:"4px 8px",fontWeight:700}}>Consumables</td><td style={{textAlign:"right",padding:"4px 8px",fontWeight:700}}>{fmtMoney(calc.consumablesCost)}</td></tr>
-              <tr><td colSpan={7} style={{padding:"8px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>Grand total</td><td style={{textAlign:"right",padding:"8px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>{fmtMoney(calc.grandTotal)}</td></tr>
+              <tr style={{borderTop:"2px solid var(--border)"}}><td colSpan={9} style={{padding:"10px 8px 4px",fontWeight:700}}>Material subtotal</td><td style={{textAlign:"right",padding:"10px 8px 4px",fontWeight:700}}>{fmtMoney(calc.totalCost)}</td></tr>
+              <tr><td colSpan={9} style={{padding:"4px 8px",fontWeight:700}}>Labor ({fmt(calc.laborHrs,1)} hrs @ {fmtMoney(sc?.laborRate)}/hr)</td><td style={{textAlign:"right",padding:"4px 8px",fontWeight:700}}>{fmtMoney(calc.laborCost)}</td></tr>
+              <tr><td colSpan={9} style={{padding:"4px 8px",fontWeight:700}}>Consumables</td><td style={{textAlign:"right",padding:"4px 8px",fontWeight:700}}>{fmtMoney(calc.consumablesCost)}</td></tr>
+              <tr><td colSpan={9} style={{padding:"8px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>Grand total</td><td style={{textAlign:"right",padding:"8px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>{fmtMoney(calc.grandTotal)}</td></tr>
             </tfoot>
           </table>
         </div>
 
         <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14,marginBottom:18}}>
-          "Units needed" already includes the waste factor. "Waste (gal)" isolates how much of that figure is overage rather than bare coverage, in the same unit as the container size set for that step (usually gallons). "Units to buy" rounds up to whole containers, since product is purchased in fixed sizes. This is a materials-only line plus labor and consumables above — shop overhead and markup are left for you to layer on top.
+          "Units needed" = (sq ft × coats × target DFT) ÷ coverage @ 1 mil ÷ transfer efficiency, then includes the job-level waste factor. "Waste (gal)" isolates how much of that figure is overage rather than bare coverage, in the same unit as the container size set for that step (usually gallons). "Units to buy" rounds up to whole containers, since product is purchased in fixed sizes. This is a materials-only line plus labor and consumables above — shop overhead and markup are left for you to layer on top.
         </div>
 
         <div style={{display:"flex",justifyContent:"flex-end",paddingTop:16,borderTop:"1px solid var(--border)"}}>
