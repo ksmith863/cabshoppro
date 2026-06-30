@@ -11688,29 +11688,38 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
   // manufacturer ranges (mid-point used as the default). These are realistic
   // starting points, not a single borrowed spec — replace with your own
   // product's TDS number for an accurate estimate.
-  const COVERAGE_DEFAULTS = {
-    sealer: 525,      // 450-600
-    primer: 525,
-    paint: 575,       // using waterborne topcoat range as a stand-in for color coat
-    stain: 525,
-    topcoat: 600,     // 500-650 waterborne / 600-700 pre-cat lacquer
-    convVarnish: 600,
-    polyurethane: 550,
-  };
+  // Finish category presets — typical PUBLISHED coverage ranges by product
+  // category (not a specific named product's real TDS — see the in-app
+  // caveat). Selecting a category auto-fills coverage (using the mid-point
+  // of the range) and a sensible default DFT for that category. Users should
+  // still replace the coverage number with their own product's actual TDS
+  // figure for an accurate estimate.
+  const FINISH_CATEGORY_PRESETS = [
+    {id:"custom",       label:"— Custom / type your own —", low:null, high:null, dft:1.5},
+    {id:"sealer",       label:"Sealer (450–600 sf/gal)",                  low:450, high:600, dft:1.5},
+    {id:"primer",       label:"Primer (450–600 sf/gal)",                  low:450, high:600, dft:1.5},
+    {id:"waterborne",   label:"Waterborne Topcoat (500–650 sf/gal)",      low:500, high:650, dft:1.5},
+    {id:"convVarnish",  label:"Conversion Varnish (550–650 sf/gal)",      low:550, high:650, dft:1.5},
+    {id:"precatLacquer",label:"Pre-Catalyzed Lacquer (600–700 sf/gal)",   low:600, high:700, dft:1.5},
+    {id:"polyurethane", label:"2K Polyurethane (500–600 sf/gal)",         low:500, high:600, dft:1.5},
+    {id:"stain",        label:"Stain (450–600 sf/gal)",                   low:450, high:600, dft:1.0},
+  ];
+  const presetMidpoint=(p)=>p.low&&p.high?Math.round((p.low+p.high)/2):0;
+  const COVERAGE_DEFAULTS = Object.fromEntries(FINISH_CATEGORY_PRESETS.filter(p=>p.id!=="custom").map(p=>[p.id,presetMidpoint(p)]));
 
   const defaultSteps=(kind)=>{
     if(kind==="painted")return [
-      {id:makeId("s"),name:"Sealer / sand sealer",coats:1,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42},
-      {id:makeId("s"),name:"Primer",coats:1,coverage:COVERAGE_DEFAULTS.primer,targetDFT:1.5,transferEff:0.70,container:1,cost:48},
-      {id:makeId("s"),name:"Paint (color coat)",coats:2,coverage:COVERAGE_DEFAULTS.paint,targetDFT:1.5,transferEff:0.70,container:1,cost:65},
-      {id:makeId("s"),name:"Top coat / clear",coats:1,coverage:COVERAGE_DEFAULTS.topcoat,targetDFT:1.5,transferEff:0.70,container:1,cost:70},
+      {id:makeId("s"),name:"Sealer / sand sealer",category:"sealer",coats:1,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42},
+      {id:makeId("s"),name:"Primer",category:"primer",coats:1,coverage:COVERAGE_DEFAULTS.primer,targetDFT:1.5,transferEff:0.70,container:1,cost:48},
+      {id:makeId("s"),name:"Paint (color coat)",category:"waterborne",coats:2,coverage:COVERAGE_DEFAULTS.waterborne,targetDFT:1.5,transferEff:0.70,container:1,cost:65},
+      {id:makeId("s"),name:"Top coat / clear",category:"waterborne",coats:1,coverage:COVERAGE_DEFAULTS.waterborne,targetDFT:1.5,transferEff:0.70,container:1,cost:70},
     ];
     if(kind==="stained")return [
-      {id:makeId("s"),name:"Stain",coats:1,coverage:COVERAGE_DEFAULTS.stain,targetDFT:1,transferEff:0.70,container:1,cost:38},
-      {id:makeId("s"),name:"Sealer",coats:1,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42},
-      {id:makeId("s"),name:"Top coat / clear",coats:2,coverage:COVERAGE_DEFAULTS.topcoat,targetDFT:1.5,transferEff:0.70,container:1,cost:70},
+      {id:makeId("s"),name:"Stain",category:"stain",coats:1,coverage:COVERAGE_DEFAULTS.stain,targetDFT:1,transferEff:0.70,container:1,cost:38},
+      {id:makeId("s"),name:"Sealer",category:"sealer",coats:1,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42},
+      {id:makeId("s"),name:"Top coat / clear",category:"waterborne",coats:2,coverage:COVERAGE_DEFAULTS.waterborne,targetDFT:1.5,transferEff:0.70,container:1,cost:70},
     ];
-    return [{id:makeId("s"),name:"Clear sealer",coats:2,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42}];
+    return [{id:makeId("s"),name:"Clear sealer",category:"sealer",coats:2,coverage:COVERAGE_DEFAULTS.sealer,targetDFT:1.5,transferEff:0.70,container:1,cost:42}];
   };
 
   const makeScenario=(name,kind)=>({
@@ -11757,7 +11766,7 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
   });
   const addStep=()=>setScenarios(prev=>{
     const target=prev[activeScenario];
-    const newStep={id:makeId("s"),name:"New step",coats:1,coverage:550,targetDFT:1.5,transferEff:0.70,container:1,cost:40};
+    const newStep={id:makeId("s"),name:"New step",category:"custom",coats:1,coverage:550,targetDFT:1.5,transferEff:0.70,container:1,cost:40};
     return {...prev,[activeScenario]:{...target,steps:[...target.steps,newStep]}};
   });
   const removeStep=(stepId)=>setScenarios(prev=>{
@@ -11948,18 +11957,33 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
           {sc?.steps.map(step=>(
             <div key={step.id} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderLeft:"3px solid var(--accent)",borderRadius:8,padding:"14px 16px",position:"relative"}}>
               <button onClick={()=>removeStep(step.id)} style={{position:"absolute",top:10,right:12,background:"none",border:"none",color:"var(--accent3)",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>remove</button>
-              <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1.4fr 0.6fr 0.9fr 0.9fr 1.3fr 0.8fr 0.9fr",gap:10}}>
+              <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr":"1.3fr 1.4fr",gap:10,marginBottom:10}}>
                 <div>
                   <label style={lbl}>STEP NAME</label>
                   <input value={step.name} onChange={e=>patchStep(activeScenario,step.id,{name:e.target.value})} style={inp} />
                 </div>
+                <div>
+                  <label style={lbl}>FINISH CATEGORY (TYPICAL RANGE — NOT A SPECIFIC PRODUCT SPEC)</label>
+                  <select value={step.category||"custom"} onChange={e=>{
+                    const preset=FINISH_CATEGORY_PRESETS.find(p=>p.id===e.target.value);
+                    if(preset&&preset.id!=="custom"){
+                      patchStep(activeScenario,step.id,{category:preset.id,coverage:presetMidpoint(preset),targetDFT:preset.dft});
+                    } else {
+                      patchStep(activeScenario,step.id,{category:"custom"});
+                    }
+                  }} style={inp}>
+                    {FINISH_CATEGORY_PRESETS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"0.7fr 1fr 1fr 1.4fr 0.9fr 1fr",gap:10}}>
                 <div>
                   <label style={lbl}>COATS</label>
                   <input type="number" min="0" value={step.coats} onChange={e=>patchStep(activeScenario,step.id,{coats:toNumber(e.target.value,0)})} style={inp} />
                 </div>
                 <div>
                   <label style={lbl}>COVERAGE @ 1 MIL (SF/GAL)</label>
-                  <input type="number" min="0" value={step.coverage} onChange={e=>patchStep(activeScenario,step.id,{coverage:toNumber(e.target.value,0)})} style={inp} />
+                  <input type="number" min="0" value={step.coverage} onChange={e=>patchStep(activeScenario,step.id,{coverage:toNumber(e.target.value,0),category:"custom"})} style={inp} />
                 </div>
                 <div>
                   <label style={lbl}>TARGET DFT (MILS/COAT)</label>
@@ -11986,7 +12010,7 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
         <button onClick={addStep} style={{padding:"9px 16px",borderRadius:8,background:"var(--accent2)",border:"none",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>+ Add finishing step</button>
 
         <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14}}>
-          Build a schedule for the active scenario: sealer, primer, coats of paint or stain, top coat, etc. Material usage is calculated as <b>(Surface Area × Coats × Target DFT) ÷ Coverage @ 1 mil ÷ Transfer Efficiency</b> — the same approach cabinet shops use for real-world estimating, since flow rate varies too much by operator and equipment to be reliable. Coverage defaults are typical published manufacturer ranges (sealers and primers run roughly 450–600 sq ft/gal @ 1 mil, topcoats 500–700 depending on product) — replace each step's coverage with the number from your own product's TDS for the most accurate estimate. Transfer efficiency reflects how much of what you spray actually lands on the part — most cabinet shops today run air-assisted airless (AAA) equipment, around 65–80%.
+          Build a schedule for the active scenario: sealer, primer, coats of paint or stain, top coat, etc. Material usage is calculated as <b>(Surface Area × Coats × Target DFT) ÷ Coverage @ 1 mil ÷ Transfer Efficiency</b> — the same approach cabinet shops use for real-world estimating, since flow rate varies too much by operator and equipment to be reliable. The <b>Finish Category</b> dropdown on each step fills in a typical published coverage range for that product type (sealer, waterborne topcoat, conversion varnish, etc.) — these are industry-typical ranges, <b>not</b> a specific manufacturer's real technical data sheet number. Replace the coverage value with your own product's actual TDS figure (or your shop's measured rate) for the most accurate estimate; the dropdown switches to "Custom" automatically once you edit coverage by hand. Transfer efficiency reflects how much of what you spray actually lands on the part — most cabinet shops today run air-assisted airless (AAA) equipment, around 65–80%.
         </div>
       </Card>
 
