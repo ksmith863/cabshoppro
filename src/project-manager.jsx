@@ -9075,6 +9075,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   const [libModal,setLibModal]=useState(false);
   const [libLightbox,setLibLightbox]=useState(null);
   const [quoteLightbox,setQuoteLightbox]=useState(null);
+  const [profitCheckOpen,setProfitCheckOpen]=useState(false);
   const [emailComposer,setEmailComposer]=useState(null);
   const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[]};
   const [libForm,setLibForm]=useState(blankLibForm);
@@ -9109,7 +9110,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   const toggleSelectQuote=(id)=>setSelectedQuotes(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
   const clearQuoteSelection=()=>setSelectedQuotes(new Set());
 
-  const blankLine=(groupId="")=>({id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,itemId:"",inventoryId:null,sourceType:"custom",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000",groupId});
+  const blankLine=(groupId="")=>({id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,itemId:"",inventoryId:null,sourceType:"custom",name:"",desc:"",qty:1,unit:"ea",costPer:0,markupPct:0,markupFlat:0,profitMargin:0,imageUrl:"",account:"4000",groupId,internalOnly:false});
   const blankGroup=()=>({id:`g${Date.now()}`,type:"group",name:"New Section",clientDisplay:"summary",clientDesc:"",collapsed:false});
   const blankQuote=()=>({id:`q${Date.now()}`,number:`GW-${new Date().getFullYear()}-${String(quotes.length+1).padStart(3,"0")}`,isInvoice:false,status:"draft",projectId:"",contactId:"",title:"",date:new Date().toISOString().slice(0,10),validUntil:"",dueDate:"",paymentTerms:"Net 30",paidDate:"",notes:"",taxRate:0,lines:[blankLine()],attachedTandC:null,supportingDocs:[]});
 
@@ -9429,7 +9430,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const total=quoteTotal(q);
     const isPaid=q.status==="paid";
     const isOverdue=!isPaid&&q.dueDate&&new Date(q.dueDate)<new Date();
-    const lineRows=(q.lines||[]).map(l=>{
+    const lineRows=(q.lines||[]).filter(l=>!l.internalOnly).map(l=>{
       if(l.type==="group")return `<tr><td colspan="5" style="padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12">${l.name||""}</td></tr>`;
       const ext=lineExtPrice(l);
       const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
@@ -9468,7 +9469,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const tax=quoteTax(q);
     const total=quoteTotal(q);
 
-    const lineRows=(q.lines||[]).map(l=>{
+    const lineRows=(q.lines||[]).filter(l=>!l.internalOnly).map(l=>{
       if(l.type==="group")return `<tr><td colspan="4" style="padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12">${l.name||""}</td></tr>`;
       const ext=lineExtPrice(l);
       const imgHtml=l.imageUrl?`<img src="${l.imageUrl}" style="width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;flex-shrink:0;margin-right:12px" />`:"";
@@ -9603,12 +9604,12 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const lineRow=(l)=>{
       const cp=l.costPer||0;
       const ext=l.qty*(l.profitMargin>0&&l.profitMargin<100?cp/(1-l.profitMargin/100):l.markupFlat>0?cp+l.markupFlat/l.qty:l.markupPct>0?cp*(1+l.markupPct/100):cp);
-      const im=l.imageUrl?"<img src='"+l.imageUrl+"' style='width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;margin-right:12px;flex-shrink:0' />":'';
+      const im=l.imageUrl?"<a href='"+l.imageUrl+"' target='_blank' style='display:inline-block;text-decoration:none'><img src='"+l.imageUrl+"' style='width:60px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e0e0d0;margin-right:12px;flex-shrink:0;cursor:pointer' /></a>":'';
       const nm="<div style='font-weight:700;font-size:13px;margin-bottom:2px'>"+(l.name||"—")+"</div><div style='font-size:11px;color:#666;line-height:1.5'>"+(l.desc||"")+"</div>";
       const cell=im?"<div style='display:flex;align-items:flex-start'>"+im+"<div>"+nm+"</div></div>":"<div>"+nm+"</div>";
       return "<tr style='border-bottom:1px solid #eee'><td style='padding:10px 8px;vertical-align:top'>"+cell+"</td><td style='padding:10px 8px;text-align:center;font-size:13px'>"+l.qty+"</td><td style='padding:10px 8px;text-align:center;font-size:12px;color:#666'>"+l.unit+"</td><td style='padding:10px 8px;text-align:right;font-size:13px;font-weight:700'>"+fv(ext)+"</td></tr>";
     };
-    const rows=allLines.map(l=>{
+    const rows=allLines.filter(l=>!l.internalOnly).map(l=>{
       if(l.type==="group"){
         // Section header row — spans full width, styled as a subheader
         return "<tr><td colspan='4' style='padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12;border-top:"+(allLines.indexOf(l)>0?"1px solid #e0e0d0":"none")+"'>"+(l.name||"")+"</td></tr>";
@@ -9818,7 +9819,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const isPaid=q.status==="paid";
     const isOverdue=!isPaid&&q.dueDate&&new Date(q.dueDate)<new Date();
 
-    const lineRows=(q.lines||[]).map(l=>{
+    const lineRows=(q.lines||[]).filter(l=>!l.internalOnly).map(l=>{
       if(l.type==="group")return `<tr><td colspan="4" style="padding:14px 8px 6px;font-weight:800;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1a1a12;border-bottom:2px solid #1a1a12">${l.name||""}</td></tr>`;
       const ext=lineExtPrice(l);
       const imgHtml=l.imageUrl
@@ -10294,6 +10295,7 @@ ${shopName}`;
         </span>}
         action={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <Btn variant="secondary" onClick={()=>clearEditState()}>Cancel</Btn>
+          {!isInv&&<Btn variant="secondary" onClick={()=>setProfitCheckOpen(true)}>📊 Profitability Check</Btn>}
           {isInv
             ?<><Btn variant="secondary" onClick={()=>emailInvoice(sel)}>✉ Email</Btn><Btn variant="secondary" onClick={()=>printInvoice(sel)}>⎙ PDF</Btn></>
             :<><Btn variant="secondary" onClick={()=>emailQuote(sel)}>✉ Email</Btn><Btn variant="secondary" onClick={()=>printQuote(sel)}>⎙ PDF</Btn></>
@@ -10441,8 +10443,8 @@ ${shopName}`;
             const ext=lineExtPrice(line);
             const isGrouped=!!line.groupId;
             return(
-              <div key={line.id} style={{background:"var(--surface2)",borderRadius:10,border:"1px solid var(--border)",padding:"12px 14px",
-                marginLeft:isGrouped?16:0,borderLeft:isGrouped?"3px solid var(--accent2)44":"1px solid var(--border)"}}>
+              <div key={line.id} style={{background:line.internalOnly?"var(--accent5)08":"var(--surface2)",borderRadius:10,border:line.internalOnly?"1px dashed var(--accent5)44":"1px solid var(--border)",padding:"12px 14px",
+                marginLeft:isGrouped?16:0,borderLeft:isGrouped?"3px solid var(--accent2)44":(line.internalOnly?"1px dashed var(--accent5)44":"1px solid var(--border)")}}>
                 {/* Top row: image + name/desc + reorder */}
                 <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10}}>
                   {/* Image slot */}
@@ -10501,8 +10503,15 @@ ${shopName}`;
                         );
                       })()}
                     </div>
-                    <input value={line.name} onChange={e=>updateLine(line.id,"name",e.target.value)} placeholder="Line item name…"
-                      style={{...inp,fontWeight:700,fontSize:13,marginBottom:5}} />
+                    <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:5}}>
+                      <input value={line.name} onChange={e=>updateLine(line.id,"name",e.target.value)} placeholder="Line item name…"
+                        style={{...inp,fontWeight:700,fontSize:13,marginBottom:0,flex:1}} />
+                      <label title="Cost still counts toward the quote total, but this line won't be itemized on the client-facing quote, email, or PDF."
+                        style={{display:"flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:7,background:line.internalOnly?"var(--accent5)22":"var(--surface3)",border:`1px solid ${line.internalOnly?"var(--accent5)66":"var(--border)"}`,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
+                        <input type="checkbox" checked={!!line.internalOnly} onChange={e=>updateLine(line.id,"internalOnly",e.target.checked)} style={{margin:0}} />
+                        <span style={{fontSize:10,color:line.internalOnly?"var(--accent5)":"var(--muted)",fontFamily:"var(--mono)",fontWeight:700}}>🔒 HIDE FROM CLIENT</span>
+                      </label>
+                    </div>
                     <input value={line.desc} onChange={e=>updateLine(line.id,"desc",e.target.value)} placeholder="Description (shown on quote)…"
                       style={{...inp,fontSize:12,color:"var(--muted)"}} />
                   </div>
@@ -10782,6 +10791,97 @@ ${shopName}`;
         </div>
       </div>
     {emailComposer&&<EmailComposerModal {...emailComposer} onClose={()=>setEmailComposer(null)} />}
+    {profitCheckOpen&&(()=>{
+      const realLines=(sel.lines||[]).filter(l=>!l.type);
+      const totalCost=realLines.reduce((s,l)=>s+(l.qty*(l.costPer||0)),0);
+      const totalSell=realLines.reduce((s,l)=>s+lineExtPrice(l),0);
+      const grossProfit=totalSell-totalCost;
+      const grossMarginPct=totalSell>0?(grossProfit/totalSell)*100:0;
+      const markupPct=totalCost>0?(grossProfit/totalCost)*100:0;
+      const hiddenCount=realLines.filter(l=>l.internalOnly).length;
+      const hiddenCost=realLines.filter(l=>l.internalOnly).reduce((s,l)=>s+(l.qty*(l.costPer||0)),0);
+      const lowMargin=grossMarginPct<20;
+      const healthyMargin=grossMarginPct>=35;
+      return(
+        <Modal title="📊 Profitability Check" onClose={()=>setProfitCheckOpen(false)}>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:18,lineHeight:1.6}}>
+            Internal view only — this breakdown is never shown to the client. Run this before sending to confirm the numbers work for your shop.
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"repeat(3,1fr)",gap:10,marginBottom:18}}>
+            <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:9,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL COST</div>
+              <div style={{fontWeight:800,fontSize:18}}>{fmt(totalCost)}</div>
+            </div>
+            <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:9,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL SELL (SUBTOTAL)</div>
+              <div style={{fontWeight:800,fontSize:18}}>{fmt(totalSell)}</div>
+            </div>
+            <div style={{background:grossProfit>=0?"var(--accent)15":"var(--accent3)15",border:`1px solid ${grossProfit>=0?"var(--accent)44":"var(--accent3)44"}`,borderRadius:9,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>GROSS PROFIT</div>
+              <div style={{fontWeight:800,fontSize:18,color:grossProfit>=0?"var(--accent)":"var(--accent3)"}}>{fmt(grossProfit)}</div>
+            </div>
+            <div style={{background:lowMargin?"var(--accent3)15":healthyMargin?"var(--accent)15":"var(--surface2)",border:`1px solid ${lowMargin?"var(--accent3)44":healthyMargin?"var(--accent)44":"var(--border)"}`,borderRadius:9,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>GROSS MARGIN</div>
+              <div style={{fontWeight:800,fontSize:18,color:lowMargin?"var(--accent3)":healthyMargin?"var(--accent)":"var(--text)"}}>{grossMarginPct.toFixed(1)}%</div>
+            </div>
+            <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:9,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>MARKUP ON COST</div>
+              <div style={{fontWeight:800,fontSize:18}}>{markupPct.toFixed(1)}%</div>
+            </div>
+            <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:9,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>LINE ITEMS</div>
+              <div style={{fontWeight:800,fontSize:18}}>{realLines.length}</div>
+            </div>
+          </div>
+
+          {lowMargin&&(
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"var(--accent3)15",border:"1px solid var(--accent3)44",borderRadius:9,marginBottom:14}}>
+              <span style={{fontSize:16}}>⚠️</span>
+              <span style={{fontSize:12,color:"var(--accent3)",fontWeight:600}}>Gross margin is under 20% — this job may not be very profitable once overhead is factored in. Consider revisiting pricing before sending.</span>
+            </div>
+          )}
+          {healthyMargin&&(
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"var(--accent)15",border:"1px solid var(--accent)44",borderRadius:9,marginBottom:14}}>
+              <span style={{fontSize:16}}>✓</span>
+              <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>Healthy margin — this looks like a solid quote.</span>
+            </div>
+          )}
+          {hiddenCount>0&&(
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:14}}>
+              🔒 {hiddenCount} line{hiddenCount!==1?"s":""} marked "Hide from client" ({fmt(hiddenCost)} in cost) — included in the totals above, not shown to the client individually.
+            </div>
+          )}
+
+          {/* Per-line breakdown, sorted by lowest margin first so problem lines surface to the top */}
+          <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em",marginBottom:8}}>LINE-BY-LINE (LOWEST MARGIN FIRST)</div>
+          <div style={{maxHeight:280,overflowY:"auto",border:"1px solid var(--border)",borderRadius:9}}>
+            {realLines.length===0?(
+              <div style={{padding:16,fontSize:12,color:"var(--muted)",textAlign:"center"}}>No line items yet.</div>
+            ):(
+              [...realLines].sort((a,b)=>lineMarginPct(a)-lineMarginPct(b)).map(l=>{
+                const m=lineMarginPct(l);
+                const lc=l.qty*(l.costPer||0);
+                const ls=lineExtPrice(l);
+                return(
+                  <div key={l.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid var(--border)",gap:10}}>
+                    <div style={{minWidth:0,flex:1}}>
+                      <div style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.name||"Untitled"}{l.internalOnly&&<span style={{color:"var(--accent5)",marginLeft:6,fontSize:10}}>🔒 hidden</span>}</div>
+                      <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)"}}>cost {fmt(lc)} → sell {fmt(ls)}</div>
+                    </div>
+                    <div style={{fontWeight:700,fontSize:13,color:m<20?"var(--accent3)":m>=35?"var(--accent)":"var(--text)",flexShrink:0}}>{m.toFixed(1)}%</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}>
+            <Btn variant="secondary" onClick={()=>setProfitCheckOpen(false)}>Close</Btn>
+          </div>
+        </Modal>
+      );
+    })()}
     </div>);
   }
 
@@ -17382,14 +17482,16 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
             </thead>
             <tbody>
               {(()=>{
-                const qlines = quote.lines || [];
+                const qlines = (quote.lines || []).filter(l=>!l.internalOnly);
+                const allLinesUnfiltered = quote.lines || [];
                 const rows = [];
                 const processedGroupIds = new Set();
                 qlines.forEach((l) => {
                   if(l.type === "group") {
                     processedGroupIds.add(l.id);
                     const children = qlines.filter(x => !x.type && x.groupId === l.id);
-                    const gTotal = children.reduce((s,c) => s + lineExtPrice(c), 0);
+                    // Group total includes internal-only children's cost even though they're not itemized
+                    const gTotal = allLinesUnfiltered.filter(x => !x.type && x.groupId === l.id).reduce((s,c) => s + lineExtPrice(c), 0);
                     if(l.clientDisplay === "summary") {
                       rows.push(<tr key={l.id} style={{borderBottom:"1px solid #eee"}}>
                         <td style={{padding:"10px",fontSize:13}}><div style={{fontWeight:700}}>{l.name}</div></td>
@@ -17404,7 +17506,7 @@ function ClientApprovalPage({qid, token, quotes, setQuotes}) {
                         <td style={{padding:"10px",textAlign:"center",fontSize:12,color:"#888"}}>lot</td>
                         <td style={{padding:"10px",textAlign:"right",fontSize:13,fontWeight:700}}>${gTotal.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                       </tr>);
-                    } else {
+                    } else if(children.length>0) {
                       rows.push(<tr key={l.id+"hdr"} style={{background:"#f5f3ee"}}>
                         <td colSpan={4} style={{padding:"10px",fontSize:13,fontWeight:800}}>{l.name}</td>
                       </tr>);
