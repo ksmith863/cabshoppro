@@ -10598,6 +10598,26 @@ ${shopName}`;
                       </span>
                     </div>
                   )}
+                  {/* Cabinet analytics tagging — optional, internal only, feeds Phase 2 historical reporting */}
+                  <div style={{marginTop:9,paddingTop:9,borderTop:"1px dashed var(--border)"}}>
+                    <div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+                      <span>📐</span> CABINET ANALYTICS TAG (OPTIONAL — for reporting, not shown on quote)
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1fr 1fr 1fr",gap:6}}>
+                      <select value={line.cabinetTypeId||""} onChange={e=>updateLine(line.id,"cabinetTypeId",e.target.value||null)} style={{...inp,padding:"7px 8px",fontSize:11}}>
+                        <option value="">— Cabinet type —</option>
+                        {Object.entries(adminSettings?.cabinetRateCard||{}).map(([id,r])=><option key={id} value={id}>{r.label||id}</option>)}
+                      </select>
+                      <select value={line.cabinetStyleId||""} onChange={e=>updateLine(line.id,"cabinetStyleId",e.target.value||null)} style={{...inp,padding:"7px 8px",fontSize:11}}>
+                        <option value="">— Cabinet style —</option>
+                        {Object.entries(adminSettings?.cabinetStyleAdjustments||{}).map(([id,s])=><option key={id} value={id}>{s.label||id}</option>)}
+                      </select>
+                      <select value={line.cabinetGradeId||""} onChange={e=>updateLine(line.id,"cabinetGradeId",e.target.value||null)} style={{...inp,padding:"7px 8px",fontSize:11}}>
+                        <option value="">— Finish grade —</option>
+                        {Object.entries(adminSettings?.cabinetGradeAdjustments||{}).map(([id,g])=><option key={id} value={id}>{g.label||id}</option>)}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
