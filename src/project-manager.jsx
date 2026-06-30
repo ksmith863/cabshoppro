@@ -11704,7 +11704,7 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
       scenarios:{
         [paintedId]:makeScenario("Painted","painted"),
         [stainedId]:makeScenario("Stained","stained"),
-        [sealedId]:makeScenario("Sealed only","sealed"),
+        [sealedId]:makeScenario("Sealer only","sealed"),
       },
       order:[paintedId,stainedId,sealedId],
     };
