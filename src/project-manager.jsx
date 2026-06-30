@@ -14781,11 +14781,13 @@ function ProductTour({onClose, setPage}) {
 
   const steps = [
     { id:"welcome",    title:"Welcome to CabShop Pro! 👋", text:"Let me show you around the key features in about 2 minutes.", target:null, nav:null },
-    { id:"projects",   title:"📋 Projects", text:"Everything starts here. Create a project for every client job and track it from Design all the way to Installation.", target:'[data-tour="nav-projects"]', nav:"projects" },
+    { id:"projects",   title:"📋 Projects", text:"Everything starts here. Create a project for every client job and track it from Design all the way to Installation, with drag-to-reorder stages you can customize per project.", target:'[data-tour="nav-projects"]', nav:"projects" },
     { id:"crm",        title:"👥 CRM", text:"Store all your clients, partners, and suppliers here. Link contacts directly to projects and quotes.", target:'[data-tour="nav-crm"]', nav:"crm" },
-    { id:"quotes",     title:"📄 Quotes & Invoices", text:"Build professional quotes with line items and markup. Send for digital approval — clients sign right on their phone.", target:'[data-tour="nav-quotes"]', nav:"quotes" },
+    { id:"quotes",     title:"📄 Quotes & Invoices", text:"Build professional quotes with line items and markup. Pull pricing from your Item Library or Inventory, run a Profitability Check before sending, and hide internal cost components from the client view. Send for digital approval — clients sign right on their phone.", target:'[data-tour="nav-quotes"]', nav:"quotes" },
+    { id:"estimators", title:"🖌 Finish & Cabinet Estimators", text:"Two specialized calculators live under Quotes & Invoices: the Finish Estimator works out material and labor cost for finishing schedules, and the Cabinet Estimator prices cabinetry by type, style, and grade — both can send their totals straight into a quote.", target:'[data-tour="nav-quotes"]', nav:"quotes" },
     { id:"finance",    title:"💰 Finance Tracker", text:"Track income and expenses by project. See your P&L, pipeline revenue, and outstanding invoices at a glance.", target:'[data-tour="nav-financetracker"]', nav:"financetracker" },
-    { id:"inventory",  title:"📦 Inventory", text:"Track every material and piece of hardware. Get alerts when stock runs low and log usage directly to projects.", target:'[data-tour="nav-inventory"]', nav:"inventory" },
+    { id:"receipts",   title:"🧾 Receipts", text:"Snap a photo of a receipt or upload one, log the vendor and cost breakdown, and assign it to one project or split it across several — all rolled into your project costs automatically.", target:'[data-tour="nav-financetracker"]', nav:"financetracker" },
+    { id:"inventory",  title:"📦 Inventory", text:"Track every material and piece of hardware. Get alerts when stock runs low and log usage directly to projects — Inventory and the Item Library are linked, so adding an item to your catalog can track its stock at the same time.", target:'[data-tour="nav-inventory"]', nav:"inventory" },
     { id:"chatbot",    title:"💬 AI Assistant", text:"Stuck on anything? Your AI assistant knows every feature in CabShop Pro. Ask it anything, anytime.", target:'[data-tour="chatbot-btn"]', nav:"dashboard" },
     { id:"done",       title:"You're all set! 🎉", text:"Start by creating your first project or adding a client in CRM. Good luck with the shop!", target:null, nav:null },
   ];
@@ -15550,7 +15552,7 @@ function HelpPage({bp}) {
             Design → Material Procurement → Site Visits/Consultations → Milling → Joining → CNC Routing → Edgebanding → Assembly → Finish Prep → Finishing → Delivery Prep → Installation
           </p>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
-            Each project can have a custom subset of these stages, plus any custom stages you add. The order always reflects your selection.
+            In the New/Edit Project form, each stage has a toggle to show or hide it for that job and a ⠿ drag handle to reorder active stages — disabled stages drop to the bottom of the list but stay one click away from re-enabling. Add fully custom stages of your own alongside the defaults.
           </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>LOGGING TIME</h4>
           <Step num="▶" title="Use the Live Timer" desc="Click Start when you begin work on a stage. The timer runs in real time. Click Stop — the elapsed minutes are automatically entered in the time field. Add a note (e.g. 'routing drawer fronts') and click Log Time to save the entry."/>
@@ -15602,10 +15604,15 @@ function HelpPage({bp}) {
           </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>CREATING A QUOTE</h4>
           <Step num="1" title="Click + New Quote" desc="Link it to a project and client. The client's contact info pre-fills automatically."/>
-          <Step num="2" title="Add line items" desc="Type items manually or click 📚 Library to pull from your Item Library — pricing, unit, and markup pre-fill from the library. Adjust quantities and pricing per line."/>
+          <Step num="2" title="Add line items" desc="Each line can be sourced three ways: pull from 📦 Inventory (automatically decrements stock when you save), pull from your 📚 Item Library, or just type a custom one-off entry for parts or services not in the system."/>
           <Step num="3" title="Set markup and tax" desc="Apply markup per line item or set a global tax rate. Sell price, margin percentage, and totals calculate in real time."/>
           <Step num="4" title="Attach supporting documents" desc="In the Supporting Documents section, upload T&Cs, renderings, spec sheets, or any file. All attached documents are included as email attachments when you send the quote."/>
-          <Step num="5" title="Send via Email" desc="Click ✉ Send via Email. The client receives a beautifully formatted HTML email with the full quote and a prominent Review & Approve button. The approval link is generated automatically — no extra steps needed."/>
+          <Step num="5" title="Run a Profitability Check" desc="Click 📊 Profitability Check before sending to see total cost, total sell, gross profit, and margin — with a line-by-line breakdown sorted lowest-margin-first so problem items stand out. This view is internal only and never reaches the client."/>
+          <Step num="6" title="Send via Email" desc="Click ✉ Send via Email. The client receives a beautifully formatted HTML email with the full quote and a prominent Review & Approve button. The approval link is generated automatically — no extra steps needed."/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>HIDING LINE ITEMS FROM THE CLIENT</h4>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
+            Every line item has a <strong style={{color:"var(--text)"}}>🔒 Hide from Client</strong> checkbox. A hidden line's cost still counts fully toward the quote total, but it won't appear individually in the email, PDF, or client approval page — useful for granular cost components (fasteners, small consumables) you want to track internally without itemizing them for the client. Group several hidden items under a section with <strong style={{color:"var(--text)"}}>Client View: Summary</strong> to show the client one rolled-up line instead.
+          </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>ACTION BAR — QUOTE MODE vs INVOICE MODE</h4>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
             The action bar at the bottom of the quote editor shows a colored mode indicator. A <strong style={{color:"var(--accent)"}}>green dot</strong> means Quote Mode. A <strong style={{color:"#635bff"}}>purple dot</strong> means Invoice Mode. The available actions change accordingly.
@@ -15638,6 +15645,58 @@ function HelpPage({bp}) {
             ["Paid","Payment received in full"],
           ]}/>
           <Tip>The quote editor saves your position — if you refresh the page while editing a quote, it automatically reopens to that same quote.</Tip>
+        </div>
+      )
+    },
+    {
+      id:"finishest", icon:"🖌", title:"Finish Estimator",
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            A material take-off and cost calculator for cabinet finishing, under <strong style={{color:"var(--text)"}}>Quotes & Invoices → Finish Estimator</strong>. Works out gallons needed, container counts, labor, and consumables — then hands a single clean line item to a quote.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>HOW IT WORKS</h4>
+          <Step num="1" title="Set job quantities" desc="Number of cabinets, finished faces per cabinet, average sq ft per face, and a waste/overlap factor. The tool calculates total square footage to finish."/>
+          <Step num="2" title="Build finishing scenarios" desc="Named, switchable scenarios (Painted, Stained, Sealer only by default — add your own) each with an ordered list of finishing steps: sealer, primer, color coat, top coat, etc."/>
+          <Step num="3" title="Set each step's coverage" desc="Pick a Finish Category (Sealer, Waterborne Topcoat, Conversion Varnish, and more) to auto-fill a typical published coverage range, or enter your own product's coverage, target DFT, and transfer efficiency by equipment type (HVLP, AAA, electrostatic). The category presets are typical ranges, not a specific product's real spec — swap in your product's actual TDS number for an accurate estimate."/>
+          <Step num="4" title="Set labor and consumables" desc="Labor rate, hours per cabinet, and consumables as a % of materials, a flat $ per cabinet, or a flat $ for the job."/>
+          <Step num="5" title="Add to Quote" desc="Click 📤 Add to Quote to send the calculated total — material, labor, and consumables combined — as one line item to a new or existing quote. The full step-by-step breakdown is preserved in the line's description for reference."/>
+          <Tip>Material usage uses the same formula real shops rely on: (surface area × coats × target DFT) ÷ coverage @ 1 mil ÷ transfer efficiency — not a generic spread-rate guess.</Tip>
+        </div>
+      )
+    },
+    {
+      id:"cabinetest", icon:"📏", title:"Cabinet Estimator",
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            A rate-card based calculator under <strong style={{color:"var(--text)"}}>Quotes & Invoices → Cabinet Estimator</strong> for pricing cabinetry by type, style, and grade — either per cabinet or per linear foot.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>SETTING UP YOUR RATE CARD</h4>
+          <Step num="1" title="Click ⚙ Rate Card" desc="Set your shop's standard rate per cabinet type — Base, Wall, Tall, Specialty — including a default width in feet (used to convert cabinet count to linear footage), a $/cabinet rate, and a $/linear-foot rate."/>
+          <Step num="2" title="Set style and grade adjustments" desc="Cabinet Style (Frameless/Euro Overlay, Face Frame Inset, Beaded Face Frame Inset, Other) and Finish Grade (Paint, Stain) each apply as a % adjustment stacked on top of the base rate — set these once to match how your shop actually prices complexity."/>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>PRICING A JOB</h4>
+          <Step num="1" title="Pick a project (optional)" desc="Link the calculation to an existing project, or name a new one — picking an existing project will link the resulting quote to it automatically."/>
+          <Step num="2" title="Enter quantities per type" desc="For each cabinet type, set the quantity, width per unit, and whether to price that type per cabinet or per linear foot — mix and match freely."/>
+          <Step num="3" title="Tag style and grade" desc="Select the Cabinet Style and Finish Grade for each type — these tags are internal only and never appear on the client-facing quote, but they're saved on the line item for future cost-history reporting."/>
+          <Step num="4" title="Add to Quote" desc="Choose to send one combined line, or one line per cabinet type, to a new or existing quote."/>
+          <Tip>The Cabinet Analytics Tag can also be set directly on any quote line item in the Quote Builder — useful for tagging lines that weren't created through this calculator.</Tip>
+        </div>
+      )
+    },
+    {
+      id:"receipts", icon:"🧾", title:"Receipts",
+      content:(
+        <div>
+          <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
+            Log purchases and tie them directly to project costs, under <strong style={{color:"var(--text)"}}>Finance → Receipts</strong>.
+          </p>
+          <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>LOGGING A RECEIPT</h4>
+          <Step num="1" title="Capture the receipt" desc="📁 Upload from Computer or 📷 Take Photo — on a phone or tablet, the camera opens directly. Click the thumbnail anytime to enlarge it."/>
+          <Step num="2" title="Fill in vendor and details" desc="Search your CRM suppliers by typing the first few letters, or type a new vendor name. Add a PO number, description, Chart of Accounts code, and receipt date."/>
+          <Step num="3" title="Enter the cost breakdown" desc="Price before tax, tax, shipping, and other charges each have their own field — the total calculates automatically."/>
+          <Step num="4" title="Assign to a project" desc="Choose Single Project, Shop Supply (no project — won't count toward any single job's profitability), or Split Across Projects, where you allocate percentages across multiple jobs (e.g. a bulk lumber order used on two kitchens). A live running total and warning banner help you land exactly on 100%."/>
+          <Tip>Each receipt becomes a transaction in your Finance ledger automatically — there's no separate step to record the expense.</Tip>
         </div>
       )
     },
@@ -15693,7 +15752,7 @@ function HelpPage({bp}) {
           </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>LOGGING TRANSACTIONS</h4>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
-            In the Finance page, click + Add Transaction. Enter the date, amount, type (Income or Expense), description, and assign it to a Chart of Accounts category. Transactions appear in the running ledger and feed into profitability calculations.
+            In the Finance page, click + Add Transaction. Enter the date, amount, type (Income or Expense), description, and assign it to a Chart of Accounts category. Transactions appear in the running ledger and feed into profitability calculations. For purchases with a physical receipt, use the dedicated <strong style={{color:"var(--text)"}}>Receipts</strong> page instead — it captures the photo, vendor, and cost breakdown, and creates the transaction automatically.
           </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>PROFITABILITY DASHBOARD</h4>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
@@ -15712,19 +15771,20 @@ function HelpPage({bp}) {
       content:(
         <div>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:16}}>
-            Your pre-built catalog of materials, labor rates, hardware, and components. Pull any item into a quote with pricing and markup already filled in — no re-entering data.
+            Your pre-built catalog of materials, labor rates, hardware, and components. Pull any item into a quote with pricing and markup already filled in — no re-entering data. Categories can be collapsed individually, or all at once, to keep a long catalog manageable.
           </p>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>ADDING AN ITEM</h4>
           <Step num="1" title="Click + New Item" desc="Opens the item form."/>
-          <Step num="2" title="Fill in the details" desc="Name, category (Cabinetry, Labor, Hardware, Cabinet Accessories, Drawers, Finishing, Custom, Supplier), and unit (selected from a dropdown: ea, hr, lf, sf, bf, lbs, gal, qt, pr, set, pkg, box, sheet, and more)."/>
+          <Step num="2" title="Fill in the details" desc="Name, category (your default list, plus any custom categories you've added), and unit (selected from a dropdown: ea, hr, lf, sf, bf, lbs, gal, qt, pr, set, pkg, box, sheet, and more)."/>
           <Step num="3" title="Add Product # and URL" desc="Enter the supplier's part number in Product # / SKU for easy reordering. Paste the product page URL in Product URL — it appears as a clickable link on the item card."/>
-          <Step num="4" title="Set pricing (internal only)" desc="Base Cost is your cost — never visible to clients. Set Default Markup % or Default Margin % to auto-price when pulled into quotes. The sell price and margin calculate in real time as you type."/>
-          <Step num="5" title="Attach documents" desc="Upload spec sheets, installation guides, or DWG/DXF files in the Related Documents section. They're stored in Supabase Storage and show as 📎 links on the item card."/>
+          <Step num="4" title="Set pricing (internal only)" desc="Base Cost is your cost — never visible to clients. Add an Add-on Cost for related costs that ride along with the item, like an hour of install labor for a rollout unit — markup and margin apply to base cost plus add-on combined. Set Default Markup % or Default Margin % to auto-price when pulled into quotes."/>
+          <Step num="5" title="Track in Inventory (optional)" desc="Flip on 📦 Track this item in Inventory to reveal Qty on Hand, Reorder Threshold, Status, Supplier, and a Low-Stock Alert Note — one form creates and keeps both the library item and its inventory record in sync."/>
+          <Step num="6" title="Attach documents" desc="Upload spec sheets, installation guides, or DWG/DXF files in the Related Documents section. They're stored in Supabase Storage and show as 📎 links on the item card."/>
           <h4 style={{fontSize:12,fontWeight:700,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",margin:"20px 0 10px"}}>IMPORTING SUPPLIER PRICE LISTS</h4>
           <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.8,marginBottom:12}}>
             Click <strong style={{color:"var(--text)"}}>⋯ Actions → Import Items or Price List</strong> and upload any CSV file from a supplier. CabShop Pro auto-detects column names — common formats like Item, Description, Part#, Price/Cost, UOM, and Category are mapped automatically. After import, items are categorized as "Supplier" with a reminder to add your markup before quoting.
           </p>
-          <Tip>In a quote, click the 📚 Library button on any line item to search and pull from your Item Library — pricing, markup, unit, and description all fill in automatically.</Tip>
+          <Tip>In a quote, the line item picker groups options into 📦 Inventory (showing live quantity on hand), 📚 Item Library by category, or you can ignore the dropdown entirely and type a custom one-off entry.</Tip>
         </div>
       )
     },
