@@ -712,7 +712,7 @@ function Modal({title,children,onClose,wide=false}) {
 }
 
 // ─── Button ───────────────────────────────────────────────────────────────────
-function Btn({children,onClick,variant="primary",style={},small=false}) {
+function Btn({children,onClick,variant="primary",style={},small=false,disabled=false}) {
   const vs={
     primary:{background:"var(--accent)",color:"#000",border:"none"},
     secondary:{background:"var(--surface2)",color:"var(--text)",border:"1px solid var(--border)"},
@@ -720,8 +720,8 @@ function Btn({children,onClick,variant="primary",style={},small=false}) {
     ghost:{background:"transparent",color:"var(--muted)",border:"none"},
     purple:{background:"var(--accent2)22",color:"var(--accent2)",border:"1px solid var(--accent2)44"},
   };
-  return <button onClick={onClick} style={{padding:small?"6px 13px":"10px 20px",borderRadius:10,fontSize:small?12:14,fontWeight:600,minHeight:small?32:44,transition:"opacity 0.15s",...vs[variant],...style}}
-    onMouseEnter={e=>e.currentTarget.style.opacity="0.82"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>{children}</button>;
+  return <button onClick={disabled?undefined:onClick} disabled={disabled} style={{padding:small?"6px 13px":"10px 20px",borderRadius:10,fontSize:small?12:14,fontWeight:600,minHeight:small?32:44,transition:"opacity 0.15s",cursor:disabled?"not-allowed":"pointer",...vs[variant],...style,...(disabled?{opacity:0.45}:{})}}
+    onMouseEnter={e=>{if(!disabled)e.currentTarget.style.opacity="0.82";}} onMouseLeave={e=>{e.currentTarget.style.opacity=disabled?"0.45":"1";}}>{children}</button>;
 }
 
 // ─── Search Bar ───────────────────────────────────────────────────────────────
@@ -761,6 +761,10 @@ var NAV = [
     {id:"purchaseorders", label:"Purchase Orders", icon:"📦"},
     {id:"receipts",       label:"Receipts",        icon:"🧾"},
     {id:"profitability",  label:"Profitability",   icon:"📈"},
+  ]},
+  // ── ANALYTICS ──
+  {id:"analytics", label:"Analytics", icon:"📐", section:"ANALYTICS", children:[
+    {id:"cabinetpricing", label:"Cabinet Pricing", icon:"📏"},
   ]},
   // ── LIBRARY ──
   {id:"library", label:"Library", icon:"◫", section:"MY LIBRARY", children:[
@@ -9051,17 +9055,18 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   //   - a full quote object -> opens it for editing (existing behavior)
   //   - {_newQuote:true, _injectLine:{...}} -> opens a fresh blank quote with that line pre-added
   //   - {...existingQuote, _injectLine:{...}} -> opens that quote with the line appended
+  //   - {_newQuote:true, _injectLines:[...]} / {...existingQuote, _injectLines:[...]} -> same, but for multiple lines at once (e.g. Cabinet Pricing's "one line per type" mode)
   useEffect(()=>{
     if(pendingQuote){
-      const injectLine=pendingQuote._injectLine;
+      const injectLines=pendingQuote._injectLines || (pendingQuote._injectLine?[pendingQuote._injectLine]:null);
       if(pendingQuote._newQuote){
         const fresh=blankQuote();
-        if(injectLine)fresh.lines=[injectLine]; // replace the single default blank line with the injected one
+        if(injectLines)fresh.lines=injectLines; // replace the single default blank line with the injected one(s)
         setSel(fresh);
         setView("edit");
       } else {
         const q={...pendingQuote,lines:pendingQuote.lines.map(l=>({...l}))};
-        if(injectLine)q.lines=[...q.lines,injectLine];
+        if(injectLines)q.lines=[...q.lines,...injectLines];
         setSel(q);
         setView("edit");
         try{localStorage.setItem("csp_quotes_view","edit");localStorage.setItem("csp_quotes_sel",String(q.id));}catch{}
@@ -11733,6 +11738,12 @@ var defaultAdminSettings={
   companyWebsite:"https://www.gothamwoodworks.com",
   logoUrl:"", // uploaded logo URL or base64
   customItemCategories:[], // user-defined item library categories
+  cabinetRateCard:{
+    base:      {label:"Base",      defaultWidthFt:3,  costPerCabinet:450, costPerLinearFt:150},
+    wall:      {label:"Wall",      defaultWidthFt:2.5,costPerCabinet:320, costPerLinearFt:128},
+    tall:      {label:"Tall",      defaultWidthFt:2,  costPerCabinet:650, costPerLinearFt:325},
+    specialty: {label:"Specialty", defaultWidthFt:2.5,costPerCabinet:700, costPerLinearFt:280},
+  },
   // Regional
   currency:"USD",
   currencySymbol:"$",
@@ -12248,6 +12259,326 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
         <Modal title="Add to Quote" onClose={()=>setSendModal(false)}>
           <div style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>
             This will add a single line item — <b style={{color:"var(--text)"}}>"Finishing — {sc?.name} ({fmt(cabCount,0)} cabinets)"</b> for <b style={{color:"var(--accent4)"}}>{fmtMoney(calc.grandTotal)}</b> — to the quote you choose below. The full cost breakdown is saved in the line's description.
+          </div>
+          <label style={lbl}>SEND TO</label>
+          <select value={sendTarget} onChange={e=>setSendTarget(e.target.value)} style={{...inp,marginBottom:18}}>
+            <option value="new">+ Start a new quote</option>
+            {openQuotes.length>0&&<optgroup label="Open Quotes">
+              {openQuotes.map(q=>{
+                const proj=projects.find(p=>String(p.id)===String(q.projectId));
+                return <option key={q.id} value={q.id}>{q.number} — {q.title||proj?.name||"Untitled"}</option>;
+              })}
+            </optgroup>}
+          </select>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn variant="secondary" onClick={()=>setSendModal(false)}>Cancel</Btn>
+            <Btn onClick={handleSend}>📤 Add to Quote</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── Cabinet Pricing (Analytics) ────────────────────────────────────────────
+// Rate-card based calculator: the user maintains a per-cabinet-type rate
+// card (Base, Wall, Tall, Specialty), each with a $/cabinet rate and a
+// $/linear-foot rate plus a default width assumption used to derive linear
+// footage from a cabinet count. For a given job, the user enters quantities
+// per type, picks a pricing basis per type (per cabinet or per linear foot),
+// and the tool computes extended cost per type and a blended overall
+// $/linear ft — then hands the result to the Quote Builder via "Add to
+// Quote", same pattern as the Finish Estimator.
+function CabinetPricing({quotes, projects, bp, adminSettings, setAdminSettings, onSendToQuote}) {
+  const fmt=(n,decimals=2)=>Number(n||0).toLocaleString("en-US",{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
+  const fmtMoney=(n)=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const toNumber=(v,fallback=0)=>{const n=parseFloat(v);return Number.isFinite(n)?n:fallback;};
+
+  const CABINET_TYPE_IDS=["base","wall","tall","specialty"];
+  const rateCard = adminSettings?.cabinetRateCard || {
+    base:      {label:"Base",      defaultWidthFt:3,  costPerCabinet:450, costPerLinearFt:150},
+    wall:      {label:"Wall",      defaultWidthFt:2.5,costPerCabinet:320, costPerLinearFt:128},
+    tall:      {label:"Tall",      defaultWidthFt:2,  costPerCabinet:650, costPerLinearFt:325},
+    specialty: {label:"Specialty", defaultWidthFt:2.5,costPerCabinet:700, costPerLinearFt:280},
+  };
+
+  const [rateCardOpen,setRateCardOpen]=useState(false);
+  const [editRateCard,setEditRateCard]=useState(rateCard);
+
+  // Per-job inputs: quantity, pricing basis ("perCabinet" | "perLinearFt"), and an
+  // editable linear-foot-per-unit override (defaults from the rate card, but a shop
+  // may want to tweak it for an unusually wide or narrow run on this specific job).
+  const blankJobLine=(typeId)=>({
+    typeId,
+    qty:0,
+    widthFt: rateCard[typeId]?.defaultWidthFt || 2.5,
+    basis:"perCabinet", // "perCabinet" | "perLinearFt"
+  });
+  const [jobLines,setJobLines]=useState(CABINET_TYPE_IDS.map(blankJobLine));
+  const [jobName,setJobName]=useState("");
+  const [sendModal,setSendModal]=useState(false);
+  const [sendTarget,setSendTarget]=useState("new");
+  const [lineMode,setLineMode]=useState("perType"); // "perType" | "combined"
+
+  const updateJobLine=(typeId,patch)=>setJobLines(prev=>prev.map(l=>l.typeId===typeId?{...l,...patch}:l));
+
+  const openRateCard=()=>{setEditRateCard(rateCard);setRateCardOpen(true);};
+  const saveRateCard=()=>{
+    setAdminSettings&&setAdminSettings(s=>({...s,cabinetRateCard:editRateCard}));
+    setRateCardOpen(false);
+  };
+  const patchEditRate=(typeId,field,val)=>setEditRateCard(prev=>({...prev,[typeId]:{...prev[typeId],[field]:val}}));
+
+  // ── Derived calculations ──
+  const calc=useMemo(()=>{
+    let totalQty=0, totalLinearFt=0, totalCost=0;
+    const rows=jobLines.map(l=>{
+      const rc=rateCard[l.typeId]||{};
+      const qty=toNumber(l.qty,0);
+      const widthFt=toNumber(l.widthFt,rc.defaultWidthFt||0);
+      const linearFt=qty*widthFt;
+      const cost = l.basis==="perLinearFt"
+        ? linearFt*toNumber(rc.costPerLinearFt,0)
+        : qty*toNumber(rc.costPerCabinet,0);
+      const effRatePerLinearFt=linearFt>0?cost/linearFt:0;
+      const effRatePerCabinet=qty>0?cost/qty:0;
+      totalQty+=qty;
+      totalLinearFt+=linearFt;
+      totalCost+=cost;
+      return {...l,label:rc.label||l.typeId,qty,widthFt,linearFt,cost,effRatePerLinearFt,effRatePerCabinet};
+    });
+    const blendedPerLinearFt=totalLinearFt>0?totalCost/totalLinearFt:0;
+    const blendedPerCabinet=totalQty>0?totalCost/totalQty:0;
+    return {rows,totalQty,totalLinearFt,totalCost,blendedPerLinearFt,blendedPerCabinet};
+  },[jobLines,rateCard]);
+
+  const hasAnyQty=calc.totalQty>0;
+
+  const inp={width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,fontFamily:"var(--font)",outline:"none",boxSizing:"border-box"};
+  const lbl={fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em",marginBottom:5,display:"block"};
+
+  const buildLineItems=()=>{
+    const activeRows=calc.rows.filter(r=>r.qty>0);
+    if(lineMode==="combined"){
+      const breakdown=activeRows.map(r=>`${r.label}: ${r.qty} cab / ${fmt(r.linearFt,1)} LF (${fmtMoney(r.cost)})`).join("; ");
+      return [{
+        id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,
+        itemId:"", inventoryId:null, sourceType:"custom",
+        name:`Cabinetry — ${jobName||fmt(calc.totalQty,0)+" cabinets"} (${fmt(calc.totalLinearFt,1)} LF)`,
+        desc:breakdown,
+        qty:1, unit:"job",
+        costPer:calc.totalCost,
+        markupPct:0, markupFlat:0, profitMargin:0,
+        imageUrl:"", account:"4000", groupId:"",
+      }];
+    }
+    return activeRows.map(r=>({
+      id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}${r.typeId}`,
+      itemId:"", inventoryId:null, sourceType:"custom",
+      name:`${r.label} Cabinets (${r.qty} ea, ${fmt(r.linearFt,1)} LF)`,
+      desc: r.basis==="perLinearFt"
+        ? `Priced at ${fmtMoney(rateCard[r.typeId]?.costPerLinearFt)}/linear ft × ${fmt(r.linearFt,1)} LF`
+        : `Priced at ${fmtMoney(rateCard[r.typeId]?.costPerCabinet)}/cabinet × ${r.qty}`,
+      qty:1, unit:"job",
+      costPer:r.cost,
+      markupPct:0, markupFlat:0, profitMargin:0,
+      imageUrl:"", account:"4000", groupId:"",
+    }));
+  };
+
+  const handleSend=()=>{
+    const lines=buildLineItems();
+    if(lines.length===0)return;
+    if(sendTarget==="new"){
+      onSendToQuote&&onSendToQuote({_newQuote:true,_injectLines:lines});
+    } else {
+      const q=quotes.find(x=>String(x.id)===String(sendTarget));
+      if(q)onSendToQuote&&onSendToQuote({...q,_injectLines:lines});
+    }
+    setSendModal(false);
+  };
+
+  const openQuotes=quotes.filter(q=>!q.isInvoice&&(q.status==="draft"||q.status==="sent"));
+
+  return(
+    <div className="fadein">
+      <PageHeader bp={bp} title="Cabinet Pricing" sub="Cost per cabinet or per linear foot, by cabinet type"
+        action={<div style={{display:"flex",gap:8}}>
+          <Btn variant="secondary" onClick={openRateCard}>⚙ Rate Card</Btn>
+          <Btn onClick={()=>setSendModal(true)} disabled={!hasAnyQty}>📤 Add to Quote</Btn>
+        </div>} />
+
+      {/* Job inputs */}
+      <Card style={{padding:"20px 22px",marginBottom:18}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,paddingBottom:10,borderBottom:"1px dashed var(--border)"}}>
+          <span style={{color:"var(--accent2)",marginRight:8}}>01</span>Job Quantities
+        </div>
+        <div style={{marginBottom:16}}>
+          <label style={lbl}>JOB / PROJECT NAME (OPTIONAL)</label>
+          <input value={jobName} onChange={e=>setJobName(e.target.value)} placeholder="e.g. Hartwell Kitchen" style={inp} />
+        </div>
+
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {jobLines.map(l=>{
+            const rc=rateCard[l.typeId]||{};
+            return(
+              <div key={l.typeId} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderLeft:"3px solid var(--accent)",borderRadius:8,padding:"14px 16px"}}>
+                <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1fr 0.8fr 1fr 1.3fr",gap:10,alignItems:"end"}}>
+                  <div>
+                    <label style={lbl}>{(rc.label||l.typeId).toUpperCase()} CABINETS — QTY</label>
+                    <input type="number" min="0" value={l.qty} onChange={e=>updateJobLine(l.typeId,{qty:toNumber(e.target.value,0)})} style={inp} />
+                  </div>
+                  <div>
+                    <label style={lbl}>WIDTH/UNIT (FT)</label>
+                    <input type="number" min="0" step="0.1" value={l.widthFt} onChange={e=>updateJobLine(l.typeId,{widthFt:toNumber(e.target.value,0)})} style={inp} />
+                  </div>
+                  <div>
+                    <label style={lbl}>PRICING BASIS</label>
+                    <select value={l.basis} onChange={e=>updateJobLine(l.typeId,{basis:e.target.value})} style={inp}>
+                      <option value="perCabinet">Per Cabinet ({fmtMoney(rc.costPerCabinet)}/ea)</option>
+                      <option value="perLinearFt">Per Linear Ft ({fmtMoney(rc.costPerLinearFt)}/LF)</option>
+                    </select>
+                  </div>
+                  <div style={{fontSize:12,fontFamily:"var(--mono)",color:"var(--muted)",paddingBottom:9}}>
+                    {l.qty>0?(<><span style={{color:"var(--accent4)",fontWeight:700}}>{fmt(l.qty*l.widthFt,1)} LF</span> · <span style={{color:"var(--accent4)",fontWeight:700}}>{fmtMoney((l.basis==="perLinearFt"?(l.qty*l.widthFt*toNumber(rc.costPerLinearFt,0)):(l.qty*toNumber(rc.costPerCabinet,0))))}</span></>):"—"}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14}}>
+          Width/unit is the average linear footage one cabinet of this type occupies — used to convert a cabinet count into linear feet. Defaults come from your Rate Card but can be adjusted per job (e.g. a run with unusually wide base cabinets). Pricing basis controls whether this type's cost is calculated per cabinet or per linear foot — mix and match by type as needed.
+        </div>
+      </Card>
+
+      {/* Results */}
+      <Card style={{padding:"20px 22px",marginBottom:18}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,paddingBottom:10,borderBottom:"1px dashed var(--border)"}}>
+          <span style={{color:"var(--accent2)",marginRight:8}}>02</span>Cost Breakdown
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"repeat(4,1fr)",gap:10,marginBottom:18}}>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL CABINETS</div>
+            <div style={{fontWeight:800,fontSize:18}}>{fmt(calc.totalQty,0)}</div>
+          </div>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL LINEAR FEET</div>
+            <div style={{fontWeight:800,fontSize:18}}>{fmt(calc.totalLinearFt,1)}</div>
+          </div>
+          <div style={{background:"var(--accent4)15",border:"1px solid var(--accent4)44",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>BLENDED $/LINEAR FT</div>
+            <div style={{fontWeight:800,fontSize:18,color:"var(--accent4)"}}>{fmtMoney(calc.blendedPerLinearFt)}</div>
+          </div>
+          <div style={{background:"var(--accent4)15",border:"1px solid var(--accent4)44",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL COST</div>
+            <div style={{fontWeight:800,fontSize:18,color:"var(--accent4)"}}>{fmtMoney(calc.totalCost)}</div>
+          </div>
+        </div>
+
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"var(--mono)",fontSize:12.5}}>
+            <thead>
+              <tr style={{borderBottom:"2px solid var(--border)"}}>
+                <th style={{textAlign:"left",padding:"7px 8px",fontSize:10,color:"var(--muted)",letterSpacing:"0.05em"}}>TYPE</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>QTY</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>LINEAR FT</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>BASIS</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>EFF. $/CAB</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>EFF. $/LF</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>COST</th>
+              </tr>
+            </thead>
+            <tbody>
+              {calc.rows.filter(r=>r.qty>0).map(r=>(
+                <tr key={r.typeId} style={{borderBottom:"1px solid var(--border)"}}>
+                  <td style={{padding:"7px 8px"}}>{r.label}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.qty,0)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.linearFt,1)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px",fontSize:11,color:"var(--muted)"}}>{r.basis==="perLinearFt"?"per LF":"per cab"}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmtMoney(r.effRatePerCabinet)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmtMoney(r.effRatePerLinearFt)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px",fontWeight:700}}>{fmtMoney(r.cost)}</td>
+                </tr>
+              ))}
+              {!hasAnyQty&&(
+                <tr><td colSpan={7} style={{padding:"24px 8px",textAlign:"center",color:"var(--muted)",fontFamily:"var(--font)"}}>Enter cabinet quantities above to see the cost breakdown.</td></tr>
+              )}
+            </tbody>
+            {hasAnyQty&&(
+              <tfoot>
+                <tr style={{borderTop:"2px solid var(--border)"}}>
+                  <td colSpan={6} style={{padding:"10px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>Total</td>
+                  <td style={{textAlign:"right",padding:"10px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>{fmtMoney(calc.totalCost)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+
+        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14,marginBottom:18}}>
+          "Eff. $/Cab" and "Eff. $/LF" show what each type's cost actually works out to per cabinet and per linear foot, regardless of which basis was used to calculate it — useful for comparing types on a common footing. The blended $/LF above mixes all types into one overall job rate; that number is most useful when a job is mostly one cabinet style, since base/wall/tall/specialty naturally carry very different per-foot costs.
+        </div>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:16,borderTop:"1px solid var(--border)",flexWrap:"wrap",gap:10}}>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <span style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>SEND AS:</span>
+            <button onClick={()=>setLineMode("perType")} style={{padding:"6px 12px",borderRadius:7,fontSize:11,fontWeight:600,fontFamily:"var(--font)",cursor:"pointer",background:lineMode==="perType"?"var(--accent2)":"var(--surface2)",color:lineMode==="perType"?"#fff":"var(--muted)",border:`1px solid ${lineMode==="perType"?"var(--accent2)":"var(--border)"}`}}>One line per type</button>
+            <button onClick={()=>setLineMode("combined")} style={{padding:"6px 12px",borderRadius:7,fontSize:11,fontWeight:600,fontFamily:"var(--font)",cursor:"pointer",background:lineMode==="combined"?"var(--accent2)":"var(--surface2)",color:lineMode==="combined"?"#fff":"var(--muted)",border:`1px solid ${lineMode==="combined"?"var(--accent2)":"var(--border)"}`}}>Combined single line</button>
+          </div>
+          <Btn onClick={()=>setSendModal(true)} disabled={!hasAnyQty}>📤 Add to Quote — {fmtMoney(calc.totalCost)}</Btn>
+        </div>
+      </Card>
+
+      {/* Rate Card modal */}
+      {rateCardOpen&&(
+        <Modal title="⚙ Cabinet Rate Card" onClose={()=>setRateCardOpen(false)} wide>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:18,lineHeight:1.6}}>
+            Set your shop's standard rates per cabinet type. These are your defaults — adjust per job in the calculator above if a specific job runs differently.
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {CABINET_TYPE_IDS.map(typeId=>{
+              const r=editRateCard[typeId]||{};
+              return(
+                <div key={typeId} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:9,padding:"14px 16px"}}>
+                  <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1fr 1fr 1fr 1fr",gap:10}}>
+                    <div>
+                      <label style={lbl}>TYPE LABEL</label>
+                      <input value={r.label||""} onChange={e=>patchEditRate(typeId,"label",e.target.value)} style={inp} />
+                    </div>
+                    <div>
+                      <label style={lbl}>DEFAULT WIDTH (FT)</label>
+                      <input type="number" min="0" step="0.1" value={r.defaultWidthFt} onChange={e=>patchEditRate(typeId,"defaultWidthFt",toNumber(e.target.value,0))} style={inp} />
+                    </div>
+                    <div>
+                      <label style={lbl}>$ PER CABINET</label>
+                      <input type="number" min="0" value={r.costPerCabinet} onChange={e=>patchEditRate(typeId,"costPerCabinet",toNumber(e.target.value,0))} style={inp} />
+                    </div>
+                    <div>
+                      <label style={lbl}>$ PER LINEAR FT</label>
+                      <input type="number" min="0" value={r.costPerLinearFt} onChange={e=>patchEditRate(typeId,"costPerLinearFt",toNumber(e.target.value,0))} style={inp} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
+            <Btn variant="secondary" onClick={()=>setRateCardOpen(false)}>Cancel</Btn>
+            <Btn onClick={saveRateCard}>Save Rate Card</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* Send to Quote modal */}
+      {sendModal&&(
+        <Modal title="Add to Quote" onClose={()=>setSendModal(false)}>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>
+            {lineMode==="combined"
+              ? <>This will add <b style={{color:"var(--text)"}}>one line item</b> totaling <b style={{color:"var(--accent4)"}}>{fmtMoney(calc.totalCost)}</b> to the quote you choose below.</>
+              : <>This will add <b style={{color:"var(--text)"}}>{calc.rows.filter(r=>r.qty>0).length} line items</b> (one per cabinet type) totaling <b style={{color:"var(--accent4)"}}>{fmtMoney(calc.totalCost)}</b> to the quote you choose below.</>
+            }
           </div>
           <label style={lbl}>SEND TO</label>
           <select value={sendTarget} onChange={e=>setSendTarget(e.target.value)} style={{...inp,marginBottom:18}}>
@@ -15952,6 +16283,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} setResources={p.setResources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings} inventory={inventory} setInventory={p.setInventory}/>;
       case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} adminSettings={adminSettings} setAdminSettings={setAdminSettings} bp={bp}/>;
       case "finishest":  return <FinishEstimator quotes={quotes} projects={projects} bp={bp} onSendToQuote={(q)=>{setPage("quotes");setPendingQuote(q);}}/>;
+      case "cabinetpricing": return <CabinetPricing quotes={quotes} projects={projects} bp={bp} adminSettings={adminSettings} setAdminSettings={setAdminSettings} onSendToQuote={(q)=>{setPage("quotes");setPendingQuote(q);}}/>;
       case "inventory":  return <Inventory  {...p} contacts={contacts} tasks={tasks} setTasks={p.setTasks} adminSettings={adminSettings} setAdminSettings={setAdminSettings}/>;
       case "resources":  return null; // group header — collapses to documents
       case "documents":  return <ResourceLibrary {...p}/>;
