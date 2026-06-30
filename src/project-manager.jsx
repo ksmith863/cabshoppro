@@ -12058,8 +12058,12 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
           </table>
         </div>
 
-        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14}}>
+        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14,marginBottom:18}}>
           "Units needed" already includes the waste factor. "Waste (gal)" isolates how much of that figure is overage rather than bare coverage, in the same unit as the container size set for that step (usually gallons). "Units to buy" rounds up to whole containers, since product is purchased in fixed sizes. This is a materials-only line plus labor and consumables above — shop overhead and markup are left for you to layer on top.
+        </div>
+
+        <div style={{display:"flex",justifyContent:"flex-end",paddingTop:16,borderTop:"1px solid var(--border)"}}>
+          <Btn onClick={()=>setSendModal(true)}>📤 Add to Quote — {fmtMoney(calc.grandTotal)}</Btn>
         </div>
       </Card>
 
