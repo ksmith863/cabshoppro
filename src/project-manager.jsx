@@ -11891,13 +11891,19 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
 
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
           {scenarioOrder.map(id=>(
-            <div key={id} onClick={()=>setActiveScenario(id)}
-              style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily:"var(--mono)",
+            <div key={id}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,fontSize:12,fontFamily:"var(--mono)",
                 background:id===activeScenario?"var(--accent2)":"var(--surface2)",
                 color:id===activeScenario?"#fff":"var(--text)",
                 border:`1px solid ${id===activeScenario?"var(--accent2)":"var(--border)"}`}}>
-              <input value={scenarios[id].name} onClick={e=>e.stopPropagation()} onChange={e=>patchScenario(id,{name:e.target.value})}
-                style={{background:"transparent",border:"none",color:"inherit",fontFamily:"inherit",fontSize:"inherit",width:Math.max(60,scenarios[id].name.length*7),padding:0,outline:"none"}} />
+              <span onClick={()=>setActiveScenario(id)} style={{cursor:"pointer",display:"flex",alignItems:"center"}}>
+                {id===activeScenario ? (
+                  <input value={scenarios[id].name} onClick={e=>e.stopPropagation()} onChange={e=>patchScenario(id,{name:e.target.value})}
+                    style={{background:"transparent",border:"none",color:"inherit",fontFamily:"inherit",fontSize:"inherit",width:Math.max(60,scenarios[id].name.length*7),padding:0,outline:"none"}} />
+                ) : (
+                  <span>{scenarios[id].name}</span>
+                )}
+              </span>
               {scenarioOrder.length>1&&(
                 <span onClick={e=>{e.stopPropagation();removeScenario(id);}} style={{opacity:0.7,fontWeight:700,cursor:"pointer"}}>×</span>
               )}
