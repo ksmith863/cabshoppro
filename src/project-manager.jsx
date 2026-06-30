@@ -753,6 +753,7 @@ var NAV = [
   {id:"quotes",    label:"Quotes & Invoices", icon:"◑", badgeKey:"quotes", children:[
     {id:"itemlib",   label:"Item Library",  icon:"⊟"},
     {id:"finishest", label:"Finish Estimator", icon:"🖌"},
+    {id:"cabinetpricing", label:"Cabinet Estimator", icon:"📏"},
   ]},
   // ── SHOP ──
   {id:"financetracker", label:"Finance", icon:"$", section:"MY SHOP", children:[
@@ -761,10 +762,6 @@ var NAV = [
     {id:"purchaseorders", label:"Purchase Orders", icon:"📦"},
     {id:"receipts",       label:"Receipts",        icon:"🧾"},
     {id:"profitability",  label:"Profitability",   icon:"📈"},
-  ]},
-  // ── ANALYTICS ──
-  {id:"analytics", label:"Analytics", icon:"📐", section:"ANALYTICS", children:[
-    {id:"cabinetpricing", label:"Cabinet Pricing", icon:"📏"},
   ]},
   // ── LIBRARY ──
   {id:"library", label:"Library", icon:"◫", section:"MY LIBRARY", children:[
@@ -7845,7 +7842,7 @@ var seedQuoteItems = [
   {id:"qi02",category:"Labor",   name:"Shop Fabrication",             desc:"Cabinet construction, milling, and assembly.",                                                     unit:"hr", basePrice:75,  imageUrl:""},
   {id:"qi03",category:"Labor",   name:"Installation",                 desc:"On-site installation crew.",                                                                       unit:"hr", basePrice:65,  imageUrl:""},
   {id:"qi04",category:"Labor",   name:"Site Visit / Consultation",    desc:"Travel and consultation time.",                                                                    unit:"hr", basePrice:85,  imageUrl:""},
-  {id:"qi05",category:"Labor",   name:"Finishing",                    desc:"Sanding, painting, spraying, or oil application.",                                                 unit:"hr", basePrice:70,  imageUrl:""},
+  // Note: a generic "Finishing" labor line was removed here — use the Finish Estimator (Quotes & Invoices) for accurate, coverage-based finishing cost and labor instead.
   // Cabinet Components
   {id:"qi06",category:"Cabinetry",name:"Base Cabinet — Standard",    desc:"Standard base cabinet, 24in deep. Painted maple box, soft-close hinges.",                         unit:"ea", basePrice:380, imageUrl:""},
   {id:"qi07",category:"Cabinetry",name:"Wall Cabinet — Standard",    desc:"Wall cabinet, 12in deep. Painted maple, adjustable shelves.",                                      unit:"ea", basePrice:290, imageUrl:""},
@@ -9055,7 +9052,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   //   - a full quote object -> opens it for editing (existing behavior)
   //   - {_newQuote:true, _injectLine:{...}} -> opens a fresh blank quote with that line pre-added
   //   - {...existingQuote, _injectLine:{...}} -> opens that quote with the line appended
-  //   - {_newQuote:true, _injectLines:[...]} / {...existingQuote, _injectLines:[...]} -> same, but for multiple lines at once (e.g. Cabinet Pricing's "one line per type" mode)
+  //   - {_newQuote:true, _injectLines:[...]} / {...existingQuote, _injectLines:[...]} -> same, but for multiple lines at once (e.g. Cabinet Estimator's "one line per type" mode)
   useEffect(()=>{
     if(pendingQuote){
       const injectLines=pendingQuote._injectLines || (pendingQuote._injectLine?[pendingQuote._injectLine]:null);
@@ -12310,7 +12307,7 @@ function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
   );
 }
 
-// ─── Cabinet Pricing (Analytics) ────────────────────────────────────────────
+// ─── Cabinet Estimator (helps build quotes; Phase 2 will add historical P&L analytics from approved quotes) ────────────────────────────────────────────
 // Rate-card based calculator: the user maintains a per-cabinet-type rate
 // card (Base, Wall, Tall, Specialty), each with a $/cabinet rate and a
 // $/linear-foot rate plus a default width assumption used to derive linear
@@ -12473,7 +12470,7 @@ function CabinetPricing({quotes, projects, bp, adminSettings, setAdminSettings, 
 
   return(
     <div className="fadein">
-      <PageHeader bp={bp} title="Cabinet Pricing" sub="Cost per cabinet or per linear foot, by cabinet type"
+      <PageHeader bp={bp} title="Cabinet Estimator" sub="Cost per cabinet or per linear foot, by cabinet type — build a cabinetry line for your quote"
         action={<div style={{display:"flex",gap:8}}>
           <Btn variant="secondary" onClick={openRateCard}>⚙ Rate Card</Btn>
           <Btn onClick={()=>setSendModal(true)} disabled={!hasAnyQty}>📤 Add to Quote</Btn>
