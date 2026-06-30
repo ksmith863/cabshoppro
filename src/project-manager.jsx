@@ -16070,7 +16070,18 @@ function AuthScreen() {
     if (!email || !password) { setError("Please enter your email and password."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     if (!betaCode.trim()) { setError("A beta access code is required to create an account."); return; }
-    if (!VALID_BETA_CODES.includes(betaCode.trim().toUpperCase())) { setError("Invalid beta access code. Please contact us to get access."); return; }
+    const codeUpper = betaCode.trim().toUpperCase();
+    let codeValid = VALID_BETA_CODES.includes(codeUpper);
+    if (!codeValid) {
+      // Also check Supabase for dynamically generated codes
+      const { data: codeRow } = await supabase.from("beta_codes").select("*").eq("code", codeUpper).eq("active", true).maybeSingle();
+      if (codeRow) {
+        codeValid = true;
+        // Mark code as used
+        await supabase.from("beta_codes").update({ used_at: new Date().toISOString(), used_by_email: email }).eq("code", codeUpper);
+      }
+    }
+    if (!codeValid) { setError("Invalid beta access code. Please contact us to get access."); return; }
     setLoading(true); setError("");
     const { error } = await supabase.auth.signUp({ email, password, options: { data: { betaCode: betaCode.trim().toUpperCase() } } });
     if (error) setError(error.message);
@@ -17153,9 +17164,54 @@ function SuperAdminPage({bp}) {
   const tabs = [
     { id: "overview", label: "📊 Overview" },
     { id: "users", label: "👥 Users" },
+    { id: "beta", label: "🔑 Beta Access" },
     { id: "broadcast", label: "📢 Broadcast" },
     { id: "export", label: "📥 Export" },
   ];
+
+  // Beta codes state
+  const [betaCodes, setBetaCodes] = useState([]);
+  const [betaLoading, setBetaLoading] = useState(false);
+  const [newCodeEmail, setNewCodeEmail] = useState("");
+  const [newCodeNote, setNewCodeNote] = useState("");
+
+  const loadBetaCodes = async () => {
+    setBetaLoading(true);
+    const { data } = await supabase.from("beta_codes").select("*").order("created_at", { ascending: false });
+    setBetaCodes(data || []);
+    setBetaLoading(false);
+  };
+
+  useEffect(() => { if (activeTab === "beta") loadBetaCodes(); }, [activeTab]);
+
+  const generateCode = async () => {
+    const code = "BETA" + Math.random().toString(36).slice(2,7).toUpperCase();
+    const { error } = await supabase.from("beta_codes").insert({
+      code,
+      created_for_email: newCodeEmail.trim() || null,
+      note: newCodeNote.trim() || null,
+      active: true,
+      created_at: new Date().toISOString(),
+    });
+    if (!error) {
+      setNewCodeEmail("");
+      setNewCodeNote("");
+      loadBetaCodes();
+      // Copy to clipboard
+      navigator.clipboard?.writeText(code).catch(()=>{});
+      alert(`Code generated: ${code}
+
+Copied to clipboard! Send this to ${newCodeEmail||"the user"} so they can sign up at app.cabshoppro.com`);
+    } else {
+      alert("Error generating code: " + error.message);
+    }
+  };
+
+  const deactivateCode = async (code) => {
+    if (!window.confirm(`Deactivate code ${code}?`)) return;
+    await supabase.from("beta_codes").update({ active: false }).eq("code", code);
+    loadBetaCodes();
+  };
 
   return (
     <div className="fadein">
@@ -17420,6 +17476,81 @@ function SuperAdminPage({bp}) {
       )}
 
       {/* ── EXPORT TAB ── */}
+      {/* ── BETA ACCESS TAB ── */}
+      {activeTab === "beta" && (
+        <div style={{ maxWidth: 640 }}>
+          {/* Generate new code */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px", marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>🔑 Generate Beta Access Code</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Each code is unique and single-use. Enter the requester's email and an optional note, then share the generated code with them.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", marginBottom: 5 }}>REQUESTER EMAIL</div>
+                <input value={newCodeEmail} onChange={e=>setNewCodeEmail(e.target.value)} placeholder="user@example.com"
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", marginBottom: 5 }}>NOTE (OPTIONAL)</div>
+                <input value={newCodeNote} onChange={e=>setNewCodeNote(e.target.value)} placeholder="e.g. referred by John"
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+              </div>
+            </div>
+            <button onClick={generateCode}
+              style={{ padding: "10px 20px", borderRadius: 9, background: "var(--accent)", border: "none", color: "#000", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}>
+              ⚡ Generate Code & Copy to Clipboard
+            </button>
+          </div>
+
+          {/* Existing hardcoded codes */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px", marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>📋 Hardcoded Beta Codes (always active)</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {["CABINET2026","WOODSHOP26","GWBETA","CABPRO26","SHOPTEST"].map(c=>(
+                <div key={c} onClick={()=>navigator.clipboard?.writeText(c)} title="Click to copy"
+                  style={{ padding: "6px 14px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", fontFamily: "monospace", fontSize: 13, fontWeight: 700, cursor: "pointer", letterSpacing: "0.08em" }}>
+                  {c}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 10 }}>These are shared codes — multiple users can use the same one. Click any code to copy it.</div>
+          </div>
+
+          {/* Generated codes list */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>🗝 Generated Codes</div>
+              <button onClick={loadBetaCodes} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>↺ Refresh</button>
+            </div>
+            {betaLoading ? (
+              <div style={{ color: "var(--muted)", fontSize: 13 }}>Loading…</div>
+            ) : betaCodes.length === 0 ? (
+              <div style={{ color: "var(--muted)", fontSize: 13 }}>No generated codes yet.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {betaCodes.map(row=>(
+                  <div key={row.code} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--surface2)", borderRadius: 9, border: `1px solid ${row.active&&!row.used_at?"var(--accent)33":"var(--border)"}` }}>
+                    <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", color: row.active&&!row.used_at?"var(--accent)":"var(--muted)", minWidth: 110 }}>{row.code}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{row.created_for_email||"—"}</div>
+                      {row.note&&<div style={{ fontSize: 11, color: "var(--muted)" }}>{row.note}</div>}
+                      {row.used_at&&<div style={{ fontSize: 11, color: "var(--accent4)" }}>✓ Used {new Date(row.used_at).toLocaleDateString()} by {row.used_by_email||"unknown"}</div>}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0, textAlign: "right" }}>
+                      {row.active&&!row.used_at ? <span style={{ color: "var(--accent)", fontWeight: 700 }}>Active</span> : row.used_at ? <span style={{ color: "var(--accent4)" }}>Used</span> : <span>Inactive</span>}
+                      <div style={{ fontSize: 10, marginTop: 2 }}>{new Date(row.created_at).toLocaleDateString()}</div>
+                    </div>
+                    {row.active&&!row.used_at&&(
+                      <button onClick={()=>navigator.clipboard?.writeText(row.code)} title="Copy code" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, padding: "2px 4px" }}>📋</button>
+                    )}
+                    {row.active&&<button onClick={()=>deactivateCode(row.code)} title="Deactivate" style={{ background: "none", border: "none", color: "var(--accent3)", cursor: "pointer", fontSize: 13, padding: "2px 4px" }}>✕</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === "export" && (
         <div style={{ maxWidth: 500 }}>
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px" }}>
