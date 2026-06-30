@@ -15881,7 +15881,13 @@ function HelpPage({bp}) {
     <div style={{maxWidth:860,margin:"0 auto",padding:bp==="phone"?"16px 12px":"32px 24px"}}>
       <div style={{marginBottom:28}}>
         <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.5px",marginBottom:6}}>Help & Guide</div>
-        <div style={{fontSize:14,color:"var(--muted)"}}>Complete instructions for every feature in CabShop Pro.</div>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div style={{fontSize:14,color:"var(--muted)"}}>Complete instructions for every feature in CabShop Pro.</div>
+          <a href="https://cabshoppro.netlify.app/user-guide.html" target="_blank" rel="noopener noreferrer"
+            style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,fontWeight:600,textDecoration:"none",whiteSpace:"nowrap"}}>
+            📄 Full User Guide ↗
+          </a>
+        </div>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:28,flexWrap:"wrap"}}>
         <button style={tabStyle("guide")} onClick={()=>setTab("guide")}>📖 User Guide</button>
