@@ -9059,6 +9059,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       if(pendingQuote._newQuote){
         const fresh=blankQuote();
         if(injectLines)fresh.lines=injectLines; // replace the single default blank line with the injected one(s)
+        if(pendingQuote._projectId)fresh.projectId=pendingQuote._projectId;
         setSel(fresh);
         setView("edit");
       } else {
@@ -12362,6 +12363,7 @@ function CabinetPricing({quotes, projects, bp, adminSettings, setAdminSettings, 
   });
   const [jobLines,setJobLines]=useState(CABINET_TYPE_IDS.map(blankJobLine));
   const [jobName,setJobName]=useState("");
+  const [jobProjectId,setJobProjectId]=useState("");
   const [sendModal,setSendModal]=useState(false);
   const [sendTarget,setSendTarget]=useState("new");
   const [lineMode,setLineMode]=useState("perType"); // "perType" | "combined"
@@ -12457,11 +12459,12 @@ function CabinetPricing({quotes, projects, bp, adminSettings, setAdminSettings, 
   const handleSend=()=>{
     const lines=buildLineItems();
     if(lines.length===0)return;
+    const linkedProjectId = (jobProjectId&&jobProjectId!=="__new") ? jobProjectId : null;
     if(sendTarget==="new"){
-      onSendToQuote&&onSendToQuote({_newQuote:true,_injectLines:lines});
+      onSendToQuote&&onSendToQuote({_newQuote:true,_injectLines:lines,_projectId:linkedProjectId});
     } else {
       const q=quotes.find(x=>String(x.id)===String(sendTarget));
-      if(q)onSendToQuote&&onSendToQuote({...q,_injectLines:lines});
+      if(q)onSendToQuote&&onSendToQuote({...q,_injectLines:lines,projectId:q.projectId||linkedProjectId||q.projectId});
     }
     setSendModal(false);
   };
@@ -12482,8 +12485,26 @@ function CabinetPricing({quotes, projects, bp, adminSettings, setAdminSettings, 
           <span style={{color:"var(--accent2)",marginRight:8}}>01</span>Job Quantities
         </div>
         <div style={{marginBottom:16}}>
-          <label style={lbl}>JOB / PROJECT NAME (OPTIONAL)</label>
-          <input value={jobName} onChange={e=>setJobName(e.target.value)} placeholder="e.g. Hartwell Kitchen" style={inp} />
+          <label style={lbl}>JOB / PROJECT (OPTIONAL)</label>
+          <select value={jobProjectId} onChange={e=>{
+            const val=e.target.value;
+            setJobProjectId(val);
+            if(val&&val!=="__new"){
+              const p=projects.find(p=>String(p.id)===val);
+              setJobName(p?p.name:"");
+            } else if(val==="__new"){
+              setJobName("");
+            }
+          }} style={{...inp,marginBottom:jobProjectId==="__new"?8:0}}>
+            <option value="">— No project / not yet decided —</option>
+            <option value="__new">+ New project (name below, link it later)</option>
+            {projects.length>0&&<optgroup label="Existing Projects">
+              {projects.map(p=><option key={p.id} value={String(p.id)}>{p.name}</option>)}
+            </optgroup>}
+          </select>
+          {jobProjectId==="__new"&&(
+            <input value={jobName} onChange={e=>setJobName(e.target.value)} placeholder="New project name, e.g. Hartwell Kitchen" style={inp} />
+          )}
         </div>
 
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -12711,6 +12732,13 @@ function CabinetPricing({quotes, projects, bp, adminSettings, setAdminSettings, 
               ? <>This will add <b style={{color:"var(--text)"}}>one line item</b> totaling <b style={{color:"var(--accent4)"}}>{fmtMoney(calc.totalCost)}</b> to the quote you choose below.</>
               : <>This will add <b style={{color:"var(--text)"}}>{calc.rows.filter(r=>r.qty>0).length} line items</b> (one per cabinet type) totaling <b style={{color:"var(--accent4)"}}>{fmtMoney(calc.totalCost)}</b> to the quote you choose below.</>
             }
+            {jobProjectId&&jobProjectId!=="__new"&&sendTarget==="new"&&(()=>{
+              const p=projects.find(p=>String(p.id)===jobProjectId);
+              return p?<> A new quote will be linked to <b style={{color:"var(--text)"}}>{p.name}</b>.</>:null;
+            })()}
+            {jobProjectId==="__new"&&sendTarget==="new"&&(
+              <> Note: "{jobName||"New project"}" hasn't been created as a project yet — you'll need to set that up separately and link this quote to it from the Projects page.</>
+            )}
           </div>
           <label style={lbl}>SEND TO</label>
           <select value={sendTarget} onChange={e=>setSendTarget(e.target.value)} style={{...inp,marginBottom:18}}>
