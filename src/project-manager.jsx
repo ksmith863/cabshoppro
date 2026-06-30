@@ -9324,7 +9324,7 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
       name:item.name,
       desc:item.desc||"",
       unit:item.unit,
-      costPer:sourceType==="inventory"?(item.costPer||0):(item.basePrice||0),
+      costPer:sourceType==="inventory"?(item.costPer||0):((item.basePrice||0)+(item.addonCost||0)),
       imageUrl:item.imageUrl||"",
       markupPct:item.defaultMarkupPct||0,
       profitMargin:item.defaultMarginPct||0,
@@ -10488,7 +10488,7 @@ ${shopName}`;
                           return(
                             <optgroup key={cat} label={`📚 ${cat} (Item Library)`}>
                               {items.map(i=>(
-                                <option key={`lib:${i.id}`} value={`lib:${i.id}`}>{i.name} (${i.basePrice}/{i.unit})</option>
+                                <option key={`lib:${i.id}`} value={`lib:${i.id}`}>{i.name} (${(i.basePrice||0)+(i.addonCost||0)}/{i.unit}{i.addonCost>0?" incl. add-on":""})</option>
                               ))}
                             </optgroup>
                           );
@@ -11103,7 +11103,7 @@ function LibActionsMenu({libSubView,setLibSubView,exportItemsCSV,csvImportRef,im
 
 function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contacts,adminSettings,setAdminSettings,bp}) {
   const fmt=n=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[],
+  const blankLibForm={id:"",category:"Custom",name:"",desc:"",unit:"ea",basePrice:"",addonCost:"",defaultMarkupPct:"",defaultMarginPct:"",imageUrl:"",productNum:"",productUrl:"",documents:[],
     trackInventory:false,inventoryId:null,qtyOnHand:"",minQty:"",invStatus:"active",lowStockNote:"",supplierContactId:""};
   const [libModal,setLibModal]=useState(false);
   const [libForm,setLibForm]=useState(blankLibForm);
@@ -11126,10 +11126,11 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
   const inp2={padding:"7px 8px",borderRadius:7,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:12,outline:"none",fontFamily:"var(--font)",width:"100%"};
 
   const itemSellPrice=(item)=>{
-    if(!item.basePrice)return 0;
-    if(item.defaultMarginPct>0&&item.defaultMarginPct<100) return item.basePrice/(1-item.defaultMarginPct/100);
-    if(item.defaultMarkupPct>0) return item.basePrice*(1+item.defaultMarkupPct/100);
-    return item.basePrice;
+    const cost=(item.basePrice||0)+(item.addonCost||0);
+    if(!cost)return 0;
+    if(item.defaultMarginPct>0&&item.defaultMarginPct<100) return cost/(1-item.defaultMarginPct/100);
+    if(item.defaultMarkupPct>0) return cost*(1+item.defaultMarkupPct/100);
+    return cost;
   };
 
   const saveLibItem=()=>{
@@ -11137,7 +11138,7 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
     const itemId=libSel?libSel.id:`qi${Date.now()}`;
     const data={
       id:itemId,category:libForm.category,name:libForm.name,desc:libForm.desc,unit:libForm.unit,
-      basePrice:+libForm.basePrice||0,defaultMarkupPct:+libForm.defaultMarkupPct||0,defaultMarginPct:+libForm.defaultMarginPct||0,
+      basePrice:+libForm.basePrice||0,addonCost:+libForm.addonCost||0,defaultMarkupPct:+libForm.defaultMarkupPct||0,defaultMarginPct:+libForm.defaultMarginPct||0,
       imageUrl:libForm.imageUrl,productNum:libForm.productNum,productUrl:libForm.productUrl,documents:libForm.documents,
       inventoryId:libForm.trackInventory?(libForm.inventoryId||null):null,
     };
@@ -11427,7 +11428,8 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
               {!collapsedCats[cat]&&<div style={{display:"flex",flexDirection:"column",gap:5}}>
                 {items.map(item=>{
                   const sell=itemSellPrice(item);
-                  const margin=sell>0?Math.round((1-item.basePrice/sell)*100*10)/10:0;
+                  const totalCost=(item.basePrice||0)+(item.addonCost||0);
+                  const margin=sell>0?Math.round((1-totalCost/sell)*100*10)/10:0;
                   const inInv=!!item.inventoryId&&inventory.some(i=>i.id===item.inventoryId);
                   return(
                     <div key={item.id} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 14px",background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10}}>
@@ -11450,8 +11452,8 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                       </div>
                       <div style={{textAlign:"right",flexShrink:0,minWidth:130}}>
                         <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"flex-end"}}>
-                          <span style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>cost {fmt(item.basePrice)}</span>
-                          {sell>item.basePrice&&<span style={{fontSize:13,fontWeight:700,color:"var(--accent)",fontFamily:"var(--mono)"}}>{fmt(sell)}</span>}
+                          <span style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)"}}>cost {fmt(totalCost)}{item.addonCost>0?" *":""}</span>
+                          {sell>totalCost&&<span style={{fontSize:13,fontWeight:700,color:"var(--accent)",fontFamily:"var(--mono)"}}>{fmt(sell)}</span>}
                           <span style={{fontSize:10,color:"var(--muted)"}}>/{item.unit}</span>
                         </div>
                         {(item.defaultMarkupPct>0||item.defaultMarginPct>0)&&(
@@ -11473,10 +11475,10 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
                         const newItem={...item,id:`qi${Date.now()}`,name:item.name+" (copy)"};
                         setQuoteItems(prev=>[...prev,newItem]);
                         setLibSel(newItem);
-                        setLibForm({...newItem,basePrice:String(newItem.basePrice),defaultMarkupPct:String(newItem.defaultMarkupPct||""),defaultMarginPct:String(newItem.defaultMarginPct||""),productNum:newItem.productNum||"",productUrl:newItem.productUrl||"",documents:newItem.documents||[]});
+                        setLibForm({...newItem,basePrice:String(newItem.basePrice),addonCost:String(newItem.addonCost||""),defaultMarkupPct:String(newItem.defaultMarkupPct||""),defaultMarginPct:String(newItem.defaultMarginPct||""),productNum:newItem.productNum||"",productUrl:newItem.productUrl||"",documents:newItem.documents||[]});
                         setLibModal(true);
                       }} style={{background:"none",border:"none",color:"var(--muted)",fontSize:15,cursor:"pointer",padding:"2px 5px"}} >⧉</button>
-                      <button onClick={()=>{setLibSel(item);setLibForm({...item,basePrice:String(item.basePrice),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[]});setLibModal(true);}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
+                      <button onClick={()=>{setLibSel(item);setLibForm({...item,basePrice:String(item.basePrice),addonCost:String(item.addonCost||""),defaultMarkupPct:String(item.defaultMarkupPct||""),defaultMarginPct:String(item.defaultMarginPct||""),productNum:item.productNum||"",productUrl:item.productUrl||"",documents:item.documents||[]});setLibModal(true);}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:16,cursor:"pointer",padding:"2px 5px"}}>✎</button>
                       <button onClick={()=>deleteLibItem(item.id)} style={{background:"none",border:"none",color:"var(--accent3)",fontSize:14,cursor:"pointer",padding:"2px 5px",opacity:0.6}}>×</button>
                     </div>
                   );
@@ -11631,17 +11633,21 @@ function ItemLibraryPage({quoteItems,setQuoteItems,inventory,setInventory,contac
 
           <div style={{background:"var(--surface2)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
             <div style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.07em",marginBottom:10}}>PRICING 🔒 internal only</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:8}}>
+            <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1fr 1fr 1fr 1fr",gap:10,marginBottom:8}}>
               <Input label="Base Cost ($)" value={libForm.basePrice} onChange={e=>setLibForm(f=>({...f,basePrice:e.target.value}))} type="number" />
+              <Input label="Add-on Cost ($)" value={libForm.addonCost} onChange={e=>setLibForm(f=>({...f,addonCost:e.target.value}))} type="number" placeholder="e.g. install labor" />
               <Input label="Default Markup %" value={libForm.defaultMarkupPct} onChange={e=>setLibForm(f=>({...f,defaultMarkupPct:e.target.value}))} type="number" placeholder="e.g. 35" />
               <Input label="Default Margin %" value={libForm.defaultMarginPct} onChange={e=>setLibForm(f=>({...f,defaultMarginPct:e.target.value}))} type="number" placeholder="e.g. 40" />
             </div>
-            {+libForm.basePrice>0&&(()=>{
-              const cost=+libForm.basePrice, mg=+libForm.defaultMarginPct, mk=+libForm.defaultMarkupPct;
+            <div style={{fontSize:10,color:"var(--muted)",marginBottom:10,marginTop:-2}}>Add-on cost covers related costs that should ride along with this item — e.g. an hour of install labor for a rollout unit. Markup/margin is applied to base cost + add-on combined.</div>
+            {(+libForm.basePrice>0||+libForm.addonCost>0)&&(()=>{
+              const base=+libForm.basePrice||0, addon=+libForm.addonCost||0;
+              const cost=base+addon;
+              const mg=+libForm.defaultMarginPct, mk=+libForm.defaultMarkupPct;
               const sell=mg>0&&mg<100?cost/(1-mg/100):mk>0?cost*(1+mk/100):cost;
               const em=sell>0?Math.round((1-cost/sell)*100*10)/10:0;
               return <div style={{display:"flex",gap:14,fontSize:11,fontFamily:"var(--mono)",flexWrap:"wrap"}}>
-                <span style={{color:"var(--muted)"}}>Cost: <strong style={{color:"var(--text)"}}>{fmt(cost)}</strong></span>
+                <span style={{color:"var(--muted)"}}>Total Cost: <strong style={{color:"var(--text)"}}>{fmt(cost)}</strong>{addon>0&&<span style={{color:"var(--muted)",fontWeight:400}}> ({fmt(base)} + {fmt(addon)} add-on)</span>}</span>
                 <span style={{color:"var(--muted)"}}>Sell: <strong style={{color:"var(--accent)"}}>{fmt(sell)}</strong></span>
                 <span style={{color:"var(--muted)"}}>Margin: <strong style={{color:em>=30?"var(--accent)":em>=15?"var(--accent4)":"var(--accent3)"}}>{em}%</strong></span>
               </div>;
