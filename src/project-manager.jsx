@@ -752,6 +752,7 @@ var NAV = [
   {id:"crm",       label:"CRM",       icon:"◎", section:"CLIENTS & SALES"},
   {id:"quotes",    label:"Quotes & Invoices", icon:"◑", badgeKey:"quotes", children:[
     {id:"itemlib",   label:"Item Library",  icon:"⊟"},
+    {id:"finishest", label:"Finish Estimator", icon:"🖌"},
   ]},
   // ── SHOP ──
   {id:"financetracker", label:"Finance", icon:"$", section:"MY SHOP", children:[
@@ -9044,10 +9045,27 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[quotes.length]);
 
-  // Open a specific quote when navigated here from Dashboard
+  // Open a specific quote when navigated here from Dashboard, or start a new
+  // quote / inject a pre-built line item (e.g. from the Finish Estimator's
+  // "Add to Quote" handoff). pendingQuote can be:
+  //   - a full quote object -> opens it for editing (existing behavior)
+  //   - {_newQuote:true, _injectLine:{...}} -> opens a fresh blank quote with that line pre-added
+  //   - {...existingQuote, _injectLine:{...}} -> opens that quote with the line appended
   useEffect(()=>{
     if(pendingQuote){
-      openEdit(pendingQuote);
+      const injectLine=pendingQuote._injectLine;
+      if(pendingQuote._newQuote){
+        const fresh=blankQuote();
+        if(injectLine)fresh.lines=[injectLine]; // replace the single default blank line with the injected one
+        setSel(fresh);
+        setView("edit");
+      } else {
+        const q={...pendingQuote,lines:pendingQuote.lines.map(l=>({...l}))};
+        if(injectLine)q.lines=[...q.lines,injectLine];
+        setSel(q);
+        setView("edit");
+        try{localStorage.setItem("csp_quotes_view","edit");localStorage.setItem("csp_quotes_sel",String(q.id));}catch{}
+      }
       onClearPendingQuote&&onClearPendingQuote();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -11638,6 +11656,432 @@ var EVENT_TYPES=[
   {id:"deadline",    label:"Deadline",      color:"#ff6b6b"},
   {id:"other",       label:"Other",         color:"#7a7a8a"},
 ];
+
+// ─── Finish Estimator ───────────────────────────────────────────────────────
+// Cabinet finishing cost calculator: job quantities -> one or more named
+// finishing scenarios (each an ordered list of finishing steps with coats,
+// spread rate, container size, and cost) -> material + labor + consumables
+// totals. Built as a standalone tool that hands off a single line item to
+// the Quote Builder via "Add to Quote", rather than living inline in the
+// quote line editor — a finishing schedule has 20-40+ inputs across multiple
+// scenarios, which is too much state for a single quote line's edit panel.
+function FinishEstimator({quotes, projects, bp, onSendToQuote}) {
+  const PLACEHOLDER_SPREAD_RATE = 200;
+
+  const fmt=(n,decimals=0)=>Number(n||0).toLocaleString("en-US",{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
+  const fmtMoney=(n)=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const toNumber=(v,fallback=0)=>{const n=parseFloat(v);return Number.isFinite(n)?n:fallback;};
+
+  const makeId=(prefix)=>`${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+
+  const defaultSteps=(kind)=>{
+    if(kind==="painted")return [
+      {id:makeId("s"),name:"Sealer / sand sealer",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:42},
+      {id:makeId("s"),name:"Primer",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:48},
+      {id:makeId("s"),name:"Paint (color coat)",coats:2,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:65},
+      {id:makeId("s"),name:"Top coat / clear",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:70},
+    ];
+    if(kind==="stained")return [
+      {id:makeId("s"),name:"Stain",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:38},
+      {id:makeId("s"),name:"Sealer",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:42},
+      {id:makeId("s"),name:"Top coat / clear",coats:2,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:70},
+    ];
+    return [{id:makeId("s"),name:"Clear sealer",coats:2,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:42}];
+  };
+
+  const makeScenario=(name,kind)=>({
+    name,
+    steps:defaultSteps(kind||"sealed"),
+    laborRate:35,
+    laborHoursPerCab: kind==="painted"?0.9:kind==="stained"?0.65:0.4,
+    consumablesMode:"percent", // 'percent' | 'percab' | 'flat'
+    consumablesAmount:8,
+  });
+
+  const defaultScenarios=()=>{
+    const paintedId=makeId("sc"), stainedId=makeId("sc"), sealedId=makeId("sc");
+    return {
+      scenarios:{
+        [paintedId]:makeScenario("Painted","painted"),
+        [stainedId]:makeScenario("Stained","stained"),
+        [sealedId]:makeScenario("Sealed only","sealed"),
+      },
+      order:[paintedId,stainedId,sealedId],
+    };
+  };
+
+  const initial=useMemo(defaultScenarios,[]);
+  const [scenarios,setScenarios]=useState(initial.scenarios);
+  const [scenarioOrder,setScenarioOrder]=useState(initial.order);
+  const [activeScenario,setActiveScenario]=useState(initial.order[0]);
+
+  const [cabCount,setCabCount]=useState(20);
+  const [facesPerCab,setFacesPerCab]=useState(3);
+  const [sqftPerFace,setSqftPerFace]=useState(2.2);
+  const [wasteFactor,setWasteFactor]=useState(0.1);
+
+  const [sendModal,setSendModal]=useState(false);
+  const [sendTarget,setSendTarget]=useState("new"); // "new" | quoteId
+
+  const sc=scenarios[activeScenario];
+
+  const patchScenario=(id,patch)=>setScenarios(prev=>({...prev,[id]:{...prev[id],...patch}}));
+  const patchStep=(scenarioId,stepId,patch)=>setScenarios(prev=>{
+    const target=prev[scenarioId];
+    const steps=target.steps.map(s=>s.id===stepId?{...s,...patch}:s);
+    return {...prev,[scenarioId]:{...target,steps}};
+  });
+  const addStep=()=>setScenarios(prev=>{
+    const target=prev[activeScenario];
+    const newStep={id:makeId("s"),name:"New step",coats:1,coverage:PLACEHOLDER_SPREAD_RATE,container:1,cost:40};
+    return {...prev,[activeScenario]:{...target,steps:[...target.steps,newStep]}};
+  });
+  const removeStep=(stepId)=>setScenarios(prev=>{
+    const target=prev[activeScenario];
+    return {...prev,[activeScenario]:{...target,steps:target.steps.filter(s=>s.id!==stepId)}};
+  });
+  const addScenario=()=>{
+    const id=makeId("sc");
+    setScenarios(prev=>({...prev,[id]:makeScenario("New scenario","sealed")}));
+    setScenarioOrder(prev=>[...prev,id]);
+    setActiveScenario(id);
+  };
+  const removeScenario=(id)=>{
+    if(scenarioOrder.length<=1)return;
+    const nextOrder=scenarioOrder.filter(s=>s!==id);
+    setScenarioOrder(nextOrder);
+    setScenarios(prev=>{const next={...prev};delete next[id];return next;});
+    if(activeScenario===id)setActiveScenario(nextOrder[0]);
+  };
+
+  const calc=useMemo(()=>{
+    const cabs=toNumber(cabCount,0);
+    const faces=toNumber(facesPerCab,0);
+    const sqftFace=toNumber(sqftPerFace,0);
+    const waste=toNumber(wasteFactor,0);
+
+    const totalFaces=cabs*faces;
+    const rawSqft=totalFaces*sqftFace;
+    const sqft=rawSqft*(1+waste);
+
+    let totalCost=0, totalCoats=0, totalWasteGal=0;
+
+    const stepResults=(sc?.steps||[]).map(step=>{
+      const coverage=toNumber(step.coverage,0);
+      const coats=toNumber(step.coats,0);
+      const container=toNumber(step.container,0);
+      const cost=toNumber(step.cost,0);
+
+      const unitsNeeded=coverage>0?(sqft*coats)/coverage:0;
+      const wasteUnits=coverage>0?((sqft-rawSqft)*coats)/coverage:0;
+      const containers=container>0?unitsNeeded/container:unitsNeeded;
+      const containersToBuy=Math.ceil(containers-1e-9);
+      const lineCost=containersToBuy*cost;
+
+      totalCost+=lineCost;
+      totalCoats+=coats;
+      totalWasteGal+=wasteUnits;
+
+      return {...step,unitsNeeded,wasteUnits,containersToBuy,lineCost};
+    });
+
+    const laborHrs=cabs*toNumber(sc?.laborHoursPerCab,0);
+    const laborCost=laborHrs*toNumber(sc?.laborRate,0);
+
+    let consumablesCost=0;
+    const consumablesAmount=toNumber(sc?.consumablesAmount,0);
+    if(sc?.consumablesMode==="percent")consumablesCost=totalCost*(consumablesAmount/100);
+    else if(sc?.consumablesMode==="percab")consumablesCost=cabs*consumablesAmount;
+    else consumablesCost=consumablesAmount;
+
+    const grandTotal=totalCost+laborCost+consumablesCost;
+    const costPerCab=cabs>0?grandTotal/cabs:0;
+
+    return {totalFaces,rawSqft,sqft,stepResults,totalCost,totalCoats,totalWasteGal,laborHrs,laborCost,consumablesCost,grandTotal,costPerCab};
+  },[cabCount,facesPerCab,sqftPerFace,wasteFactor,sc]);
+
+  const consumablesLabel=
+    sc?.consumablesMode==="percent" ? "Consumables (% of materials)"
+    : sc?.consumablesMode==="percab" ? "Consumables ($ per cabinet)"
+    : "Consumables (flat $ for job)";
+
+  // ── Style helpers, matching the rest of CabShop Pro ──
+  const inp={width:"100%",padding:"9px 11px",borderRadius:8,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13,fontFamily:"var(--font)",outline:"none",boxSizing:"border-box"};
+  const lbl={fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",letterSpacing:"0.06em",marginBottom:5,display:"block"};
+
+  // Build a quote line item from the active scenario's results
+  const buildLineItem=()=>{
+    const breakdown=calc.stepResults.map(r=>`${r.name}: ${r.containersToBuy} ${r.container===1?"container":"containers"} (${fmtMoney(r.lineCost)})`).join("; ");
+    const desc=`${fmt(cabCount,0)} cabinets, ${fmt(calc.totalFaces,calc.totalFaces%1===0?0:1)} faces, ${fmt(calc.sqft,0)} sq ft w/ waste. `+
+      `Materials: ${fmtMoney(calc.totalCost)} (${breakdown}). Labor: ${fmt(calc.laborHrs,1)} hrs @ ${fmtMoney(sc?.laborRate)}/hr = ${fmtMoney(calc.laborCost)}. `+
+      `Consumables: ${fmtMoney(calc.consumablesCost)}.`;
+    return {
+      id:`l${Date.now()}${Math.random().toString(36).slice(2,6)}`,
+      itemId:"", inventoryId:null, sourceType:"custom",
+      name:`Finishing — ${sc?.name||"Custom"} (${fmt(cabCount,0)} cabinets)`,
+      desc,
+      qty:1, unit:"job",
+      costPer:calc.grandTotal,
+      markupPct:0, markupFlat:0, profitMargin:0,
+      imageUrl:"", account:"4000", groupId:"",
+    };
+  };
+
+  const handleSend=()=>{
+    const line=buildLineItem();
+    if(sendTarget==="new"){
+      onSendToQuote&&onSendToQuote({_newQuote:true,_injectLine:line});
+    } else {
+      const q=quotes.find(x=>String(x.id)===String(sendTarget));
+      if(q)onSendToQuote&&onSendToQuote({...q,_injectLine:line});
+    }
+    setSendModal(false);
+  };
+
+  const openQuotes=quotes.filter(q=>!q.isInvoice&&(q.status==="draft"||q.status==="sent"));
+
+  return(
+    <div className="fadein">
+      <PageHeader bp={bp} title="Finish Estimator" sub="Material take-off and cost calculator for cabinet finishing"
+        action={<Btn onClick={()=>setSendModal(true)}>📤 Add to Quote</Btn>} />
+
+      {/* 01 — Job Quantities */}
+      <Card style={{padding:"20px 22px",marginBottom:18}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,paddingBottom:10,borderBottom:"1px dashed var(--border)"}}>
+          <span style={{color:"var(--accent2)",marginRight:8}}>01</span>Job Quantities
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:10}}>
+          <div>
+            <label style={lbl}>NUMBER OF CABINETS</label>
+            <input type="number" min="0" value={cabCount} onChange={e=>setCabCount(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>FINISHED FACES / CABINET</label>
+            <input type="number" min="0" step="0.5" value={facesPerCab} onChange={e=>setFacesPerCab(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>AVG SQ FT / FACE</label>
+            <input type="number" min="0" step="0.1" value={sqftPerFace} onChange={e=>setSqftPerFace(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>WASTE / OVERLAP FACTOR</label>
+            <select value={wasteFactor} onChange={e=>setWasteFactor(toNumber(e.target.value,0))} style={inp}>
+              <option value={0}>0% — none</option>
+              <option value={0.05}>5% — tight crew</option>
+              <option value={0.1}>10% — typical</option>
+              <option value={0.15}>15% — detailed profiles</option>
+              <option value={0.2}>20% — heavy ornamentation</option>
+            </select>
+          </div>
+        </div>
+        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginBottom:12}}>
+          "Faces" = every surface that gets sprayed or brushed separately — e.g. a door usually counts as 2 faces (front + back), a drawer front as 1–2 depending on whether the box interior is finished. The waste factor is applied per finishing step, in gallons, based on that step's own spread rate.
+        </div>
+        <div style={{fontFamily:"var(--mono)",background:"var(--surface2)",border:"1px dashed var(--border)",borderRadius:8,padding:"10px 14px",fontSize:13}}>
+          Total faces: <b style={{color:"var(--accent2)"}}>{fmt(calc.totalFaces,calc.totalFaces%1===0?0:1)}</b> &nbsp;·&nbsp;
+          Total square footage to finish: <b style={{color:"var(--accent2)"}}>{fmt(calc.rawSqft,1)}</b> sq ft
+        </div>
+      </Card>
+
+      {/* 02 — Finishing Scenarios */}
+      <Card style={{padding:"20px 22px",marginBottom:18}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,paddingBottom:10,borderBottom:"1px dashed var(--border)"}}>
+          <span style={{color:"var(--accent2)",marginRight:8}}>02</span>Finishing Scenarios
+        </div>
+
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+          {scenarioOrder.map(id=>(
+            <div key={id} onClick={()=>setActiveScenario(id)}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily:"var(--mono)",
+                background:id===activeScenario?"var(--accent2)":"var(--surface2)",
+                color:id===activeScenario?"#fff":"var(--text)",
+                border:`1px solid ${id===activeScenario?"var(--accent2)":"var(--border)"}`}}>
+              <input value={scenarios[id].name} onClick={e=>e.stopPropagation()} onChange={e=>patchScenario(id,{name:e.target.value})}
+                style={{background:"transparent",border:"none",color:"inherit",fontFamily:"inherit",fontSize:"inherit",width:Math.max(60,scenarios[id].name.length*7),padding:0,outline:"none"}} />
+              {scenarioOrder.length>1&&(
+                <span onClick={e=>{e.stopPropagation();removeScenario(id);}} style={{opacity:0.7,fontWeight:700,cursor:"pointer"}}>×</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <button onClick={addScenario} style={{padding:"8px 14px",borderRadius:8,background:"none",border:"1px solid var(--border)",color:"var(--muted)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)",marginBottom:18}}>+ Add scenario</button>
+
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:14}}>
+          {sc?.steps.map(step=>(
+            <div key={step.id} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderLeft:"3px solid var(--accent)",borderRadius:8,padding:"14px 16px",position:"relative"}}>
+              <button onClick={()=>removeStep(step.id)} style={{position:"absolute",top:10,right:12,background:"none",border:"none",color:"var(--accent3)",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>remove</button>
+              <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"1.6fr 0.8fr 1fr 1fr 1fr",gap:10}}>
+                <div>
+                  <label style={lbl}>STEP NAME</label>
+                  <input value={step.name} onChange={e=>patchStep(activeScenario,step.id,{name:e.target.value})} style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>COATS</label>
+                  <input type="number" min="0" value={step.coats} onChange={e=>patchStep(activeScenario,step.id,{coats:toNumber(e.target.value,0)})} style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>SPREAD RATE (SF/GAL)</label>
+                  <input type="number" min="0" value={step.coverage} onChange={e=>patchStep(activeScenario,step.id,{coverage:toNumber(e.target.value,0)})} style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>CONTAINER SIZE (GAL)</label>
+                  <input type="number" min="0" value={step.container} onChange={e=>patchStep(activeScenario,step.id,{container:toNumber(e.target.value,1)})} style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>COST / CONTAINER ($)</label>
+                  <input type="number" min="0" value={step.cost} onChange={e=>patchStep(activeScenario,step.id,{cost:toNumber(e.target.value,0)})} style={inp} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={addStep} style={{padding:"9px 16px",borderRadius:8,background:"var(--accent2)",border:"none",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--font)"}}>+ Add finishing step</button>
+
+        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14}}>
+          Build a schedule for the active scenario: sealer, primer, coats of paint or stain, top coat, etc. Every step starts with a placeholder <b>spread rate of {PLACEHOLDER_SPREAD_RATE} sq ft/gallon</b> — a real-world figure reported for Renner 851 water-based topcoat sprayed at full build (4–5 coats), used here only as a stand-in since most manufacturers gate their actual technical data sheets behind a trade login. Replace each step's spread rate with the number from your own product's TDS (or your shop's measured rate) for an accurate estimate — coverage swings widely by product, equipment, and technique, so don't ship a quote on the placeholder.
+        </div>
+      </Card>
+
+      {/* 03 — Labor & Consumables */}
+      <Card style={{padding:"20px 22px",marginBottom:18}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,paddingBottom:10,borderBottom:"1px dashed var(--border)"}}>
+          <span style={{color:"var(--accent2)",marginRight:8}}>03</span>Labor &amp; Consumables — {sc?.name}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:10}}>
+          <div>
+            <label style={lbl}>LABOR RATE ($/HR)</label>
+            <input type="number" min="0" step="0.5" value={sc?.laborRate} onChange={e=>patchScenario(activeScenario,{laborRate:toNumber(e.target.value,0)})} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>LABOR HOURS / CABINET</label>
+            <input type="number" min="0" step="0.05" value={sc?.laborHoursPerCab} onChange={e=>patchScenario(activeScenario,{laborHoursPerCab:toNumber(e.target.value,0)})} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>CONSUMABLES MODE</label>
+            <select value={sc?.consumablesMode} onChange={e=>patchScenario(activeScenario,{consumablesMode:e.target.value})} style={inp}>
+              <option value="percent">% of material cost</option>
+              <option value="percab">$ per cabinet</option>
+              <option value="flat">Flat $ for job</option>
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>{consumablesLabel.toUpperCase()}</label>
+            <input type="number" min="0" step="0.5" value={sc?.consumablesAmount} onChange={e=>patchScenario(activeScenario,{consumablesAmount:toNumber(e.target.value,0)})} style={inp} />
+          </div>
+        </div>
+        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6}}>
+          Labor hours per cabinet should reflect the active scenario's schedule — a painted finish with sand-between-coats typically runs more hours than sealed-only. Consumables covers sandpaper/abrasives, spray filters, tack cloths, rags, mixing cups, thinner/reducer, tape, and cleanup fluids.
+        </div>
+      </Card>
+
+      {/* 04 — Material & Cost Estimate */}
+      <Card style={{padding:"20px 22px",marginBottom:18}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,paddingBottom:10,borderBottom:"1px dashed var(--border)"}}>
+          <span style={{color:"var(--accent2)",marginRight:8}}>04</span>Material &amp; Cost Estimate — {sc?.name}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:bp==="phone"?"1fr 1fr":"repeat(4,1fr)",gap:10,marginBottom:18}}>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL SQ FT (W/ WASTE)</div>
+            <div style={{fontWeight:800,fontSize:18}}>{fmt(calc.sqft,0)}</div>
+          </div>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>WASTE (GALLONS)</div>
+            <div style={{fontWeight:800,fontSize:18}}>{fmt(calc.totalWasteGal,2)}</div>
+          </div>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL COATS APPLIED</div>
+            <div style={{fontWeight:800,fontSize:18}}>{fmt(calc.totalCoats,calc.totalCoats%1===0?0:1)}</div>
+          </div>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>TOTAL MATERIAL COST</div>
+            <div style={{fontWeight:800,fontSize:18,color:"var(--accent4)"}}>{fmtMoney(calc.totalCost)}</div>
+          </div>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>LABOR COST</div>
+            <div style={{fontWeight:800,fontSize:18}}>{fmtMoney(calc.laborCost)}</div>
+          </div>
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>CONSUMABLES</div>
+            <div style={{fontWeight:800,fontSize:18}}>{fmtMoney(calc.consumablesCost)}</div>
+          </div>
+          <div style={{background:"var(--accent4)15",border:"1px solid var(--accent4)44",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>GRAND TOTAL / JOB</div>
+            <div style={{fontWeight:800,fontSize:18,color:"var(--accent4)"}}>{fmtMoney(calc.grandTotal)}</div>
+          </div>
+          <div style={{background:"var(--accent4)15",border:"1px solid var(--accent4)44",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:4}}>COST / CABINET</div>
+            <div style={{fontWeight:800,fontSize:18,color:"var(--accent4)"}}>{fmtMoney(calc.costPerCab)}</div>
+          </div>
+        </div>
+
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"var(--mono)",fontSize:12.5}}>
+            <thead>
+              <tr style={{borderBottom:"2px solid var(--border)"}}>
+                <th style={{textAlign:"left",padding:"7px 8px",fontSize:10,color:"var(--muted)",letterSpacing:"0.05em"}}>STEP</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>COATS</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>SPREAD (SF/GAL)</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>UNITS NEEDED</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>WASTE (GAL)</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>UNITS TO BUY</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>COST/UNIT</th>
+                <th style={{textAlign:"right",padding:"7px 8px",fontSize:10,color:"var(--muted)"}}>LINE COST</th>
+              </tr>
+            </thead>
+            <tbody>
+              {calc.stepResults.map(r=>(
+                <tr key={r.id} style={{borderBottom:"1px solid var(--border)"}}>
+                  <td style={{padding:"7px 8px"}}>{r.name||"Untitled step"}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.coats,r.coats%1===0?0:1)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.coverage,0)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.unitsNeeded,2)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.wasteUnits,2)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmt(r.containersToBuy,0)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmtMoney(r.cost)}</td>
+                  <td style={{textAlign:"right",padding:"7px 8px"}}>{fmtMoney(r.lineCost)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{borderTop:"2px solid var(--border)"}}><td colSpan={7} style={{padding:"10px 8px 4px",fontWeight:700}}>Material subtotal</td><td style={{textAlign:"right",padding:"10px 8px 4px",fontWeight:700}}>{fmtMoney(calc.totalCost)}</td></tr>
+              <tr><td colSpan={7} style={{padding:"4px 8px",fontWeight:700}}>Labor ({fmt(calc.laborHrs,1)} hrs @ {fmtMoney(sc?.laborRate)}/hr)</td><td style={{textAlign:"right",padding:"4px 8px",fontWeight:700}}>{fmtMoney(calc.laborCost)}</td></tr>
+              <tr><td colSpan={7} style={{padding:"4px 8px",fontWeight:700}}>Consumables</td><td style={{textAlign:"right",padding:"4px 8px",fontWeight:700}}>{fmtMoney(calc.consumablesCost)}</td></tr>
+              <tr><td colSpan={7} style={{padding:"8px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>Grand total</td><td style={{textAlign:"right",padding:"8px 8px 4px",fontWeight:700,fontSize:15,color:"var(--accent4)"}}>{fmtMoney(calc.grandTotal)}</td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.6,marginTop:14}}>
+          "Units needed" already includes the waste factor. "Waste (gal)" isolates how much of that figure is overage rather than bare coverage, in the same unit as the container size set for that step (usually gallons). "Units to buy" rounds up to whole containers, since product is purchased in fixed sizes. This is a materials-only line plus labor and consumables above — shop overhead and markup are left for you to layer on top.
+        </div>
+      </Card>
+
+      {/* Send to Quote modal */}
+      {sendModal&&(
+        <Modal title="Add to Quote" onClose={()=>setSendModal(false)}>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>
+            This will add a single line item — <b style={{color:"var(--text)"}}>"Finishing — {sc?.name} ({fmt(cabCount,0)} cabinets)"</b> for <b style={{color:"var(--accent4)"}}>{fmtMoney(calc.grandTotal)}</b> — to the quote you choose below. The full cost breakdown is saved in the line's description.
+          </div>
+          <label style={lbl}>SEND TO</label>
+          <select value={sendTarget} onChange={e=>setSendTarget(e.target.value)} style={{...inp,marginBottom:18}}>
+            <option value="new">+ Start a new quote</option>
+            {openQuotes.length>0&&<optgroup label="Open Quotes">
+              {openQuotes.map(q=>{
+                const proj=projects.find(p=>String(p.id)===String(q.projectId));
+                return <option key={q.id} value={q.id}>{q.number} — {q.title||proj?.name||"Untitled"}</option>;
+              })}
+            </optgroup>}
+          </select>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn variant="secondary" onClick={()=>setSendModal(false)}>Cancel</Btn>
+            <Btn onClick={handleSend}>📤 Add to Quote</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 function CalendarPage({events,setEvents,projects,contacts,tasks,settings,pendingEvent,onClearPendingEvent,bp}) {
   const today=new Date();
@@ -15321,6 +15765,7 @@ export default function App({initialPage="dashboard", startTourOnMount=false}) {
       case "financetracker": return <Finance {...p} quotes={quotes}/>;
       case "quotes":     return <Quotes quotes={quotes} setQuotes={p.setQuotes} quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} projects={projects} contacts={contacts} resources={resources} setResources={p.setResources} bp={bp} pendingQuote={pendingQuote} onClearPendingQuote={()=>setPendingQuote(null)} adminSettings={adminSettings} inventory={inventory} setInventory={p.setInventory}/>;
       case "itemlib":    return <ItemLibraryPage quoteItems={quoteItems} setQuoteItems={p.setQuoteItems} inventory={inventory} setInventory={p.setInventory} contacts={contacts} adminSettings={adminSettings} setAdminSettings={setAdminSettings} bp={bp}/>;
+      case "finishest":  return <FinishEstimator quotes={quotes} projects={projects} bp={bp} onSendToQuote={(q)=>{setPage("quotes");setPendingQuote(q);}}/>;
       case "inventory":  return <Inventory  {...p} contacts={contacts} tasks={tasks} setTasks={p.setTasks} adminSettings={adminSettings} setAdminSettings={setAdminSettings}/>;
       case "resources":  return null; // group header — collapses to documents
       case "documents":  return <ResourceLibrary {...p}/>;
