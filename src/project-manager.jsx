@@ -13537,6 +13537,19 @@ function AdminPage({settings,setSettings,transactions,quotes,chartOfAccounts,set
           <div style={{fontSize:12,color:"var(--muted)",marginTop:8,lineHeight:1.6}}>
             The From Email must be verified in SendGrid before emails will send. Replies from clients go to this address.
           </div>
+          <div style={{marginTop:14}}>
+            <Btn onClick={async()=>{
+              try{
+                const {data:{user}}=await supabase.auth.getUser();
+                if(!user)return;
+                await supabase.from("admin_settings").upsert(
+                  {user_id:user.id,data:{...settings},updated_at:new Date().toISOString()},
+                  {onConflict:"user_id"}
+                );
+                alert("Email settings saved ✓");
+              }catch(e){alert("Save failed: "+e.message);}
+            }}>Save Email Settings</Btn>
+          </div>
         </div>
       )}
 
