@@ -30,41 +30,15 @@ exports.handler = async (event) => {
         To save or print a PDF: open the attachment → Ctrl+P / ⌘+P → Save as PDF.
       </div>` : "";
 
-    const noteHtml = body
-      ? `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.9;color:#222;max-width:820px;margin:0 auto;padding:32px 40px 24px;background:#ffffff;border-bottom:2px solid #e0ddd4;">
-          ${body.replace(/\n/g, "<br/>")}
-         </div>`
-      : "";
-
-    let emailHtml;
-    if (htmlBody) {
-      // Find the opening <body> tag and insert the note right after it
-      const bodyTagIndex = htmlBody.indexOf("<body");
-      if (bodyTagIndex !== -1) {
-        const bodyTagEnd = htmlBody.indexOf(">", bodyTagIndex) + 1;
-        emailHtml = htmlBody.slice(0, bodyTagEnd) + noteHtml + htmlBody.slice(bodyTagEnd);
-      } else {
-        // No body tag found — just prepend the note
-        emailHtml = noteHtml + htmlBody;
-      }
-      // Append attachment instructions before closing body
-      if (attachmentInstructions) {
-        emailHtml = emailHtml.replace("</body>", attachmentInstructions + "</body>");
-      }
-    } else {
-      emailHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="margin:0;padding:0;">
+    const emailHtml = htmlBody
+      ? htmlBody.replace("</body>", attachmentInstructions + "</body>")
+      : `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="margin:0;padding:0;">
           <div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
             ${body.replace(/\n/g,"<br/>")}
             <hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/>
             <p style="font-size:11px;color:#aaa;margin-top:8px;">Sent via CabShop Pro</p>
           </div>
          </body></html>`;
-    }
-
-    console.log("DEBUG body:", JSON.stringify(body ? body.slice(0,200) : "EMPTY"));
-    console.log("DEBUG htmlBody length:", htmlBody ? htmlBody.length : "NO HTMLBODY");
-    console.log("DEBUG noteHtml length:", noteHtml ? noteHtml.length : "EMPTY NOTE");
-    console.log("DEBUG emailHtml snippet:", emailHtml ? emailHtml.slice(0,300) : "EMPTY");
 
     const payload = {
       personalizations: [{
@@ -76,8 +50,7 @@ exports.handler = async (event) => {
       reply_to: { email: senderEmail, name: senderName },
       subject,
       content: [
-        { type: "text/plain", value: body },
-        { type: "text/html",  value: emailHtml }
+        { type: "text/html", value: emailHtml }
       ]
     };
 
