@@ -6,15 +6,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const parsed = JSON.parse(event.body || "{}");
     const {
       toEmail, toName, ccEmail, bccEmail, subject, body, htmlBody,
-      fromName, fromEmail, supportingDocs, userApiKey
-    } = parsed;
-
-    // Debug: log what we received
-    console.log("htmlBody present:", !!htmlBody, "length:", htmlBody?.length);
-    console.log("body present:", !!body);
+      fromName, fromEmail, attachmentHtml, attachmentName,
+      supportingDocs, userApiKey
+    } = JSON.parse(event.body || "{}");
 
     if (!toEmail || !subject || !body) {
       return { statusCode: 400, body: JSON.stringify({ error: "toEmail, subject, and body are required" }) };
@@ -28,7 +24,47 @@ exports.handler = async (event) => {
     const senderEmail = fromEmail || process.env.SENDGRID_FROM_EMAIL || "noreply@cabshoppro.com";
     const senderName  = fromName  || process.env.SENDGRID_FROM_NAME  || "CabShop Pro";
 
-    const emailHtml = htmlBody || `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">${body.replace(/\n/g,"<br/>")}<hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/><p style="font-size:11px;color:#aaa;margin-top:8px;">Sent via CabShop Pro</p></div>`;
+    const attachmentInstructions = attachmentHtml ? `
+      <div style="margin-top:40px;padding:16px 20px;background:#f8f7f3;border:1px solid #e0e0d0;border-radius:8px;font-family:Arial,sans-serif;font-size:12px;color:#666;line-height:1.7;">
+        <strong style="color:#333;">📎 About the attached document</strong><br/>
+        To save or print a PDF: open the attachment → Ctrl+P / ⌘+P → Save as PDF.
+      </div>` : "";
+
+    const noteHtml = body
+      ? `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.9;color:#222;max-width:820px;margin:0 auto;padding:32px 40px 24px;background:#ffffff;border-bottom:2px solid #e0ddd4;">
+          ${body.replace(/\n/g, "<br/>")}
+         </div>`
+      : "";
+
+    let emailHtml;
+    if (htmlBody) {
+      // Find the opening <body> tag and insert the note right after it
+      const bodyTagIndex = htmlBody.indexOf("<body");
+      if (bodyTagIndex !== -1) {
+        const bodyTagEnd = htmlBody.indexOf(">", bodyTagIndex) + 1;
+        emailHtml = htmlBody.slice(0, bodyTagEnd) + noteHtml + htmlBody.slice(bodyTagEnd);
+      } else {
+        // No body tag found — just prepend the note
+        emailHtml = noteHtml + htmlBody;
+      }
+      // Append attachment instructions before closing body
+      if (attachmentInstructions) {
+        emailHtml = emailHtml.replace("</body>", attachmentInstructions + "</body>");
+      }
+    } else {
+      emailHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="margin:0;padding:0;">
+          <div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:24px;">
+            ${body.replace(/\n/g,"<br/>")}
+            <hr style="margin-top:32px;border:none;border-top:1px solid #eee;"/>
+            <p style="font-size:11px;color:#aaa;margin-top:8px;">Sent via CabShop Pro</p>
+          </div>
+         </body></html>`;
+    }
+
+    console.log("DEBUG body:", JSON.stringify(body ? body.slice(0,200) : "EMPTY"));
+    console.log("DEBUG htmlBody length:", htmlBody ? htmlBody.length : "NO HTMLBODY");
+    console.log("DEBUG noteHtml length:", noteHtml ? noteHtml.length : "EMPTY NOTE");
+    console.log("DEBUG emailHtml snippet:", emailHtml ? emailHtml.slice(0,300) : "EMPTY");
 
     const payload = {
       personalizations: [{
@@ -39,15 +75,39 @@ exports.handler = async (event) => {
       from: { email: senderEmail, name: senderName },
       reply_to: { email: senderEmail, name: senderName },
       subject,
-      content: [{ type: "text/html", value: emailHtml }]
+      content: [
+        { type: "text/plain", value: body },
+        { type: "text/html",  value: emailHtml }
+      ]
     };
 
     const attachments = [];
 
+    // Main quote/invoice HTML
+    if (attachmentHtml) {
+      attachments.push({
+        content: Buffer.from(attachmentHtml, "utf-8").toString("base64"),
+        filename: attachmentName || "document.html",
+        type: "text/html",
+        disposition: "attachment"
+      });
+    }
+
+    // Supporting documents
     if (Array.isArray(supportingDocs) && supportingDocs.length > 0) {
       for (const doc of supportingDocs) {
         try {
-          if (doc.url && !doc.url.startsWith("data:")) {
+          if (doc.docText) {
+            // Text-based doc (T&C from Resources) — attach as plain text
+            const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length, 60))}\n\n${doc.docText}`;
+            attachments.push({
+              content: Buffer.from(textContent, "utf-8").toString("base64"),
+              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g, "").trim() + ".txt",
+              type: "text/plain",
+              disposition: "attachment"
+            });
+          } else if (doc.url && !doc.url.startsWith("data:")) {
+            // Uploaded file — fetch and attach
             const res = await fetch(doc.url);
             if (res.ok) {
               const buffer = await res.arrayBuffer();
@@ -71,16 +131,8 @@ exports.handler = async (event) => {
                 disposition: "attachment"
               });
             }
-          } else if (doc.docText) {
-            const textContent = `${doc.name}\n${"=".repeat(Math.min(doc.name.length,60))}\n\n${doc.docText}`;
-            attachments.push({
-              content: Buffer.from(textContent,"utf-8").toString("base64"),
-              filename: doc.name.replace(/[^a-zA-Z0-9 \-_]/g,"").trim()+".txt",
-              type: "text/plain",
-              disposition: "attachment"
-            });
           }
-        } catch(docErr) {
+        } catch (docErr) {
           console.warn("Could not attach doc:", doc.name, docErr.message);
         }
       }
