@@ -9699,21 +9699,12 @@ function Quotes({quotes,setQuotes,quoteItems,setQuoteItems,projects,contacts,res
     const approvalUrl=approvalToken?`${window.location.origin}/?approve=${approvalToken}&qid=${q.id}`:"";
 
     const bodyText="Dear "+(contact?contact.name:"")+",\n\nPlease find your quote from "+shopName+" below.\n\nQuote: "+q.number+"\nProject: "+q.title+"\nDate: "+q.date+(q.validUntil?"\nValid Until: "+q.validUntil:"")+"\n\nSubtotal: "+fmt(subtotal)+(q.taxRate?"\nSales Tax ("+q.taxRate+"%): "+fmt(quoteTax(q)):"")+"\nTOTAL: "+fmt(total)+"\n\n"+(q.notes?"Notes:\n"+q.notes+"\n\n":"")+(approvalUrl?"To review and approve this quote, click here:\n"+approvalUrl+"\n\n":"")+"Please don't hesitate to reach out with any questions.\n\nBest regards,\n"+shopName;
-
-    // Build a cover-note HTML block to prepend inside the quote HTML's <body>
-    const coverNoteHtml=`<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.9;color:#222;max-width:820px;margin:0 auto;padding:32px 40px 24px;background:#ffffff;border-bottom:2px solid #e0ddd4;">${bodyText.replace(/\n/g,"<br/>")}</div>`;
-    const rawQuoteHtml=quoteHtmlString(updatedQ);
-    const bodyTagEnd=rawQuoteHtml.indexOf("<body")!==-1?rawQuoteHtml.indexOf(">",rawQuoteHtml.indexOf("<body"))+1:0;
-    const htmlBodyWithNote=bodyTagEnd>0
-      ?rawQuoteHtml.slice(0,bodyTagEnd)+coverNoteHtml+rawQuoteHtml.slice(bodyTagEnd)
-      :coverNoteHtml+rawQuoteHtml;
-
     setEmailComposer({
       to: contact?.email||"",
       toName: contact?.name||"",
       subject: `Quote ${q.number} — ${q.title}`,
       body: bodyText,
-      htmlBody: htmlBodyWithNote,
+      htmlBody: quoteHtmlString(updatedQ),
       fromName: adminSettings?.sendgridFromName||shopName,
       fromEmail: adminSettings?.sendgridFromEmail||shopEmail,
       userApiKey: adminSettings?.sendgridApiKey||null,
